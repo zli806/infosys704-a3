@@ -1,0 +1,10 @@
+# Local SAP Sandbox credentials
+config.local.js
+
+# Common local / OS files
+.DS_Store
+Thumbs.db
+
+# Optional editor / environment files
+.env
+.env.*

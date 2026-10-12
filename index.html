@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DPE IT Investment Review Prototype</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.local.js" defer></script>
+  <script src="api-config.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">INFOSYS 704 · SAP Sandbox</p>
+      <h1>DPE IT Investment Review Prototype</h1>
+      <p class="subtitle">SAP Enterprise Project API Connection Test</p>
+    </header>
+    <section class="panel" aria-labelledby="connection-heading">
+      <div class="toolbar">
+        <div>
+          <h2 id="connection-heading">Connection</h2>
+          <p id="connection-status" role="status">Not tested</p>
+        </div>
+        <button id="load-projects" type="button">Load Projects</button>
+      </div>
+      <p class="hint">Read-only request · Enterprise Project · Up to 5 real Sandbox records</p>
+      <p id="message" role="status" aria-live="polite">Click Load Projects to test the connection.</p>
+      <pre id="error-details" hidden></pre>
+    </section>
+    <section class="panel" aria-labelledby="projects-heading">
+      <h2 id="projects-heading">Enterprise Projects</h2>
+      <div class="table-scroll">
+        <table>
+          <caption class="sr-only">Projects returned by the SAP Enterprise Project Sandbox API</caption>
+          <thead>
+            <tr><th scope="col">Project</th><th scope="col">Description</th><th scope="col">Status</th><th scope="col">Start Date</th><th scope="col">End Date</th><th scope="col">Currency</th><th scope="col">Company Code</th><th scope="col">Action</th></tr>
+          </thead>
+          <tbody id="projects-body">
+            <tr><td colspan="8" class="empty">No projects loaded yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <details class="panel">
+      <summary>Raw SAP Response</summary>
+      <pre id="raw-response">No response received yet.</pre>
+    </details>
+    <section id="elements-panel" class="panel" aria-labelledby="elements-heading" hidden>
+      <h2 id="elements-heading">Selected Project</h2>
+      <p id="selected-project"></p>
+      <p class="hint">Milestone data from SAP supports identification of potential continuation review gates. Final gate configuration is governed by DPE.</p>
+      <h2>Project Elements and Milestones</h2>
+      <p id="elements-message" class="status-message" role="status" aria-live="polite"></p>
+      <pre id="elements-error" hidden></pre>
+      <div class="table-scroll">
+        <table>
+          <caption class="sr-only">SAP project elements for the selected project</caption>
+          <thead>
+            <tr><th scope="col">Element</th><th scope="col">Description</th><th scope="col">Status</th><th scope="col">Planned Start</th><th scope="col">Planned End</th><th scope="col">Forecast End</th><th scope="col">WBS Internal ID</th><th scope="col">Milestone</th><th scope="col">Main Milestone</th><th scope="col">Milestone Approval Status</th></tr>
+          </thead>
+          <tbody id="elements-body"></tbody>
+        </table>
+      </div>
+      <p class="hint">Highlighted main milestones are stronger candidates for future gate configuration, not automatically DPE continuation gates. Status and approval codes are shown as supplied by SAP.</p>
+      <details>
+        <summary>Raw Project Element Response</summary>
+        <pre id="raw-elements-response">No response received yet.</pre>
+      </details>
+    </section>
+  </main>
+</body>
+</html>
