@@ -80,12 +80,14 @@ class SAPClient:
         self.opener = build_opener(NoRedirects())
 
     def collection(self, url, label):
-        request = Request(url, headers={"APIKey": self.api_key, "Accept": "application/json"})
+        request = Request(url, headers={"APIKey": self.api_key, "Accept": "application/json", "Accept-Encoding": "identity"})
         try:
             with self.opener.open(request, timeout=TIMEOUT_SECONDS) as response:
                 status = response.status
                 if not 200 <= status < 300:
                     raise ValidationError(f"{label}: HTTP {status}.")
+                content_type = response.headers.get("Content-Type", "")
+                content_encoding = response.headers.get("Content-Encoding", "")
                 body = response.read(MAX_RESPONSE_BYTES + 1)
         except HTTPError as error:
             # Deliberately omit bodies, headers, URLs and exception reprs.
@@ -97,9 +99,16 @@ class SAPClient:
         if len(body) > MAX_RESPONSE_BYTES:
             raise ValidationError(f"{label}: response exceeded the safety size limit.", status)
         try:
-            data = json.loads(body)
+            text_body = body.decode("utf-8-sig")
+            data = json.loads(text_body)
         except (ValueError, UnicodeError):
-            raise ValidationError(f"{label}: HTTP {status}, malformed JSON.", status) from None
+            safe_type = re.sub(r"[^A-Za-z0-9_./;+ =-]", "?", content_type)[:120]
+            safe_encoding = re.sub(r"[^A-Za-z0-9_.+-]", "?", content_encoding)[:40]
+            raise ValidationError(
+                f"{label}: HTTP {status}, malformed JSON "
+                f"(Content-Type={safe_type or 'unknown'}, Content-Encoding={safe_encoding or 'none'}).",
+                status,
+            ) from None
         wrapper = data.get("d") if isinstance(data, dict) else None
         records = wrapper.get("results") if isinstance(wrapper, dict) else None
         if not isinstance(records, list) or any(not isinstance(row, dict) for row in records):
