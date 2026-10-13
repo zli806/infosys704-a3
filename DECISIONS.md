@@ -166,3 +166,11 @@ Readiness checks evidence/assessment completeness only, not an investment score/
 Calculate 14-day decision and 30-day escalation thresholds from the actual review-open timestamp using UTC calendar days and the browser's clock. Marked SAP milestones are not a prerequisite for opening a reviewer-selected governance review. AI Review Brief, MCP and Purchase Requisition are deferred from this first playable baseline; no AI decision is introduced.
 
 Normal teammate changes remain branch → PR → review → merge. The repository admin/technical owner may directly update master for explicitly coordinated baseline/integration work; static checks now cover master pushes as well as PRs.
+
+---
+
+## 2026-10-14 – Cost evidence gap versus unassessed review
+
+Cost Position defaults to `Not assessed`: the reviewer has not completed the assessment. `Insufficient information` means the reviewer assessed available evidence and identified an information gap. With all other readiness requirements satisfied, that explicit finding does not automatically block an accountable human governance decision.
+
+The Summary presents the cost evidence gap as REVIEWER INPUT, not a SAP-data absence claim or Material variance. The app still calculates no score and recommends no outcome; the five A2 decisions remain entirely human-selected.

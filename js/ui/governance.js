@@ -125,6 +125,10 @@
     renderEvidence(target, record.evidence);
     const input = section(target, "Reviewer Assessment", "REVIEWER INPUT");
     pairs(input, [["Review basis", record.reviewBasis || "Not selected"], ...Object.entries(rules.ASSESSMENTS).map(([key, field]) => [field.label, record.assessment[key]]), ["Reviewer comments", record.assessment.comments], ["Key risks / dependencies", record.assessment.keyRisks], ["Decision owner", record.decisionOwner]]);
+    if (record.assessment.costPosition === "Insufficient information") {
+      const gap = node("p", "Evidence gap identified: cost position assessed as Insufficient information. ");
+      gap.append(badge("REVIEWER INPUT")); input.append(gap);
+    }
     const system = section(target, "System Controls", "SYSTEM CALCULATED"); renderTiming(system, record);
     system.append(node("p", "Readiness is evidence completeness only. No score, AI or automatic governance decision is generated."));
   }

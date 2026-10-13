@@ -7,7 +7,7 @@
     strategicAlignment: { label: "Strategic Alignment", question: "Does the investment remain aligned with current enterprise IT strategy?", options: ["High", "Medium", "Low", "Not assessed"], missing: "Not assessed" },
     expectedBenefits: { label: "Expected Benefits", question: "Are the expected benefits still achievable?", options: ["Yes", "Partially", "No", "Not assessed"], missing: "Not assessed" },
     deliveryPerformance: { label: "Delivery Performance", question: "How is delivery performing against plan?", options: ["On track", "At risk", "Off track", "Not assessed"], missing: "Not assessed" },
-    costPosition: { label: "Cost Position", question: "What is the reviewer’s current assessment of the project cost position?", options: ["Within expectations", "Minor variance", "Material variance", "Insufficient information"], missing: "Insufficient information" },
+    costPosition: { label: "Cost Position", question: "What is the reviewer’s current assessment of the project cost position?", options: ["Not assessed", "Within expectations", "Minor variance", "Material variance", "Insufficient information"], missing: "Not assessed" },
     risk: { label: "Risk", question: "What is the reviewer’s risk judgement?", options: ["Low", "Medium", "High", "Not assessed"], missing: "Not assessed" },
     futureEconomicValue: { label: "Future Economic Value", question: "Does the investment still appear capable of generating positive future economic value?", options: ["Positive", "Uncertain", "Negative", "Not assessed"], missing: "Not assessed" }
   };
