@@ -66,3 +66,15 @@ HTTP/network/parser errors stop the chain rather than pretending that a failed f
 G/L records are **financial evidence, not automatically complete project cost**. The summary counts linked records, strict Boolean-false non-commitments, Boolean-true commitments, and unknown commitment flags. Net amounts use only confirmed non-commitments, grouped by CompanyCodeCurrency, with exact three-decimal arithmetic and SAP's supplied signs. Unknown commitment flags and invalid/missing amount or currency values are explicitly reported and excluded from amounts. Currencies are never combined or converted. Reversal/reversed items are retained and their flags displayed. No ledger deduplication or complete accounting-scope interpretation is assumed.
 
 Queries return at most 100 linked records with no automatic pagination. Summaries describe only returned records; a SAP continuation link is reported when present. No fake financial records, material-trigger rules, final continuation-decision workflow, Purchase Order, Purchase Requisition or MCP integration are added in this step. No live G/L requests are made automatically on selection.
+
+## Remote SAP Live Validation
+
+Add the repository secret **SAP_API_KEY** yourself under GitHub **Settings → Secrets and variables → Actions**. This repository secret is used only by GitHub Actions, passed to the validator through its environment. It is independent of the browser's ignored `config.local.js`; do not commit, print or share either credential.
+
+Run **Actions → SAP Live Validation → Run workflow**, or have an authorised client update `.github/sap-validation-trigger` and push that harmless change to `master`. Other application commits do not trigger the workflow. The initial trigger-file creation also qualifies for a run on push; without the secret, it fails clearly.
+
+The standard-library Python script checks up to five Enterprise Projects, their Project Elements/WBS IDs, and G/L join feasibility: ProjectInternalID first, then actual WBS IDs only if needed. If no tested project joins, it performs exactly one separate unlinked G/L diagnostic. Zero cross-API matches with working APIs are a valid Sandbox-data finding, **not** a test failure. Authentication, HTTP/network, malformed response and script errors fail the workflow.
+
+Download the **sap-validation-report** artifact for `validation-report.json` and `validation-summary.md`; the Markdown also appears in the run summary. Reports contain counts, identifiers and link statuses, not keys, headers or raw SAP payloads. Exact-key redaction applies before writing reports; redirects are blocked so credentials cannot be forwarded to another target. Counts cover returned pages only (maximum 100 G/L records per linked query); continuation flags and unknown milestone counts make limitations explicit.
+
+Application functionality and business behaviour are unchanged by this validation harness. It validates remote API connectivity and joins, not browser CORS/UI behaviour. No workflow success is claimed until an actual run completes. Purchase Order, Purchase Requisition and MCP remain out of scope.

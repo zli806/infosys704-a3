@@ -1,0 +1,51 @@
+name: SAP Live Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/sap-validation-trigger
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate SAP connectivity and project joins
+        run: python scripts/sap_live_validate.py
+        env:
+          SAP_API_KEY: ${{ secrets.SAP_API_KEY }}
+
+      - name: Add validation step summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f validation-summary.md ]; then
+            cat validation-summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sap-validation-report
+          path: |
+            validation-report.json
+            validation-summary.md
+          if-no-files-found: warn
+          retention-days: 14
