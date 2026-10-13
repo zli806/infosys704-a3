@@ -30,15 +30,19 @@ The WBS arrows describe logical joins, **not SAP API-to-API calls**. The browser
 
 ## Application Structure and State
 
-- `index.html` loads `config.local.js`, `api-config.js`, then `app.js` using deferred scripts. Keep that order.
+- `index.html` loads local/configuration scripts, core state/utilities, HTTP and API services, UI renderers, then `app.js`, all as normal deferred scripts. No ES modules are used; preserve the dependency order in [UI Contract](UI_CONTRACT.md).
 - `api-config.js` exposes separate `SAP_API_CONFIG`, `GL_API_CONFIG` and `PO_API_CONFIG` objects. It contains endpoints/selected fields, not credentials.
-- `app.js` currently contains selection state, request construction, response checks, rendering, monetary summaries and DOM hooks in one closure. It is not yet modularised.
+- `window.DPEApp` is the shared runtime namespace. Modules use private closures rather than introducing additional globals. Existing configuration objects remain unchanged.
+- `js/core/state.js` owns runtime records, selected project and request controllers/sequence IDs. `js/core/utils.js` owns date/flag/identifier helpers and existing exact decimal arithmetic.
+- `js/services/sap-http.js` owns fetch headers, timeout, safe response processing and HTTP metadata. API services retain explicit OData V2 versus V4 interpretation, joins and financial/procurement summary semantics; they never render DOM.
+- `js/ui/renderers.js` owns existing DOM hooks, tables, status/error/debug areas and display of service-provided summary lines. It does not fetch data, contain SAP endpoints/credentials or make continuation decisions.
+- `app.js` is now the orchestration/controller layer: user actions → state/reset/cancellation → service calls/results → UI. Event callbacks are coordinated here and bound through the UI layer.
 - The page first retrieves up to five projects. Selecting one loads its elements and retains WBS IDs. Separate buttons load G/L and PO evidence; they are not automatically loaded on selection.
 - Selecting/reloading a project clears prior financial/procurement evidence. Request cancellation and request IDs prevent stale responses from populating a different project's panels.
 - Full accepted records remain in memory; raw/debug areas show safe responses separately. There is no application persistence or stored decision record. Reloading the page loses current selection/evidence state.
 - G/L/PO queries are limited to 100 returned rows per linked request. There is no automatic pagination; continuation warnings mean counts/amounts are not complete-project totals.
 
-UI contributors primarily work in `styles.css` and `index.html`, coordinating any rendering/DOM changes in `app.js`. Technical integration contributors own requests/configuration/validation changes; requirement contributors validate the business journey against the scope/context. See [CONTRIBUTING.md](../CONTRIBUTING.md).
+UI contributors primarily work in `styles.css`, `index.html` and `js/ui/`; integration contributors primarily work in `js/services/` and `api-config.js`. Coordinate shared `js/core/` changes because all layers depend on them. These are collaboration boundaries, not exclusive ownership restrictions. Requirement contributors still validate the journey against the context/scope. See [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Data Responsibility
 
@@ -65,7 +69,7 @@ The validator retains separate V2/V4 collection checks over shared HTTP/JSON tra
 
 **CI:** GitHub Actions passes repository secret `SAP_API_KEY` only to the validation step's environment. The script never reads `config.local.js`. Reports exclude keys, credential headers and complete raw payloads; exact-key redaction occurs before output, and HTTP redirects are blocked. Neither credential belongs in tracked repository content, screenshots or PRs.
 
-Remote validation proves API connectivity/joins, not browser CORS or UI correctness. No PR-triggered validation, branch protection, production proxy or automated approval rule is introduced by this documentation PR.
+Remote SAP validation proves API connectivity/joins, not browser CORS or UI correctness. A separate **Frontend Static Checks** workflow now runs on PRs into `master` and manual dispatch, without secrets or SAP calls. It checks the HTML/script contract and JavaScript/Python syntax, not runtime behaviour. It does not change the existing SAP live workflow, configure branch protection or impose an automated approval rule.
 
 ## Repository Tree
 
@@ -75,7 +79,8 @@ The tree below includes the local-only configuration explicitly; a fresh clone w
 .
 ├── .github/
 │   ├── workflows/
-│   │   └── sap-live-validation.yml
+│   │   ├── sap-live-validation.yml
+│   │   └── static-checks.yml
 │   ├── PULL_REQUEST_TEMPLATE.md
 │   └── sap-validation-trigger
 ├── api/
@@ -86,8 +91,21 @@ The tree below includes the local-only configuration explicitly; a fresh clone w
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── API_INTEGRATION.md
-│   └── MVP_SCOPE.md
+│   ├── MVP_SCOPE.md
+│   └── UI_CONTRACT.md
+├── js/
+│   ├── core/
+│   │   ├── state.js
+│   │   └── utils.js
+│   ├── services/
+│   │   ├── sap-http.js
+│   │   ├── project-service.js
+│   │   ├── gl-service.js
+│   │   └── po-service.js
+│   └── ui/
+│       └── renderers.js
 ├── scripts/
+│   ├── check_frontend_contract.py
 │   └── sap_live_validate.py
 ├── .gitignore
 ├── api-config.js
@@ -103,6 +121,6 @@ The tree below includes the local-only configuration explicitly; a fresh clone w
 └── styles.css
 ```
 
-`api/` holds read-only downloaded specifications; `docs/` explains engineering/scope; `.github/` holds workflow and review infrastructure; `scripts/` holds remote validation; the root HTML/CSS/JS files are the current browser app. `FIRST_OPENCODE_PROMPT.md` is historical bootstrap material, not permission to rerun setup or override current decisions/contribution rules.
+`api/` holds read-only downloaded specifications; `docs/` explains engineering/scope/contracts; `.github/` holds static/live workflows and review infrastructure; `scripts/` holds structural and remote checks; `js/` holds the separated runtime layers. Root `app.js` coordinates the browser app. `FIRST_OPENCODE_PROMPT.md` is historical bootstrap material, not permission to rerun setup or override current decisions/contribution rules.
 
 Runtime `validation-report.json` and `validation-summary.md` are generated outputs, not committed source files. The workflow uploads them as artifacts; do not add them or generated bytecode to a routine PR.

@@ -62,9 +62,10 @@ Suggested checks, where the tools are installed:
 node --check app.js
 node --check api-config.js
 python -c "import ast; from pathlib import Path; ast.parse(Path('scripts/sap_live_validate.py').read_text(encoding='utf-8'))"
+python scripts/check_frontend_contract.py
 ```
 
-Node is optional for these syntax checks, **not** an application runtime/build dependency. Python syntax parsing above does not create bytecode. No committed automated unit-test suite currently exists; record what you actually tested, not a generic "all tests passed" claim.
+Also run `node --check` on every JavaScript file under `js/` that your change could affect. Node is a syntax-check/CI tool, **not** an application runtime/build dependency. Python syntax parsing above does not create bytecode. No committed runtime unit-test suite currently exists; structural/syntax checks are not proof of behaviour. Record what you actually tested, not a generic "all tests passed" claim.
 
 For UI/app changes, manually follow **Load Projects → View Project Elements → Load Financial Evidence → Load Purchase Order Evidence**. Check that switching/reloading projects removes old evidence, and that the current zero-PO-join state remains truthful. Inspect raw responses for filter-integrity warnings without sharing request credentials.
 
@@ -90,7 +91,7 @@ Cross-API joins must remain defensible. The preferred identifier is **WBSElement
 
 ## UI/UX Contributions
 
-Start with `styles.css` for visual presentation and `index.html` for layout/accessibility. Rendering and DOM interaction also exist in `app.js`; do not hide API changes inside a layout PR. Preserve required buttons, status/debug areas and their functional hooks.
+Start with `styles.css` for visual presentation, `index.html` for layout/accessibility and `js/ui/` for rendering/DOM interactions. Read [UI Contract](docs/UI_CONTRACT.md) before changing hooks. Do not hide API changes inside a layout PR. Preserve required buttons, status/debug areas and their functional hooks.
 
 Before changing/removing element IDs, search for usage (for example `git grep "load-financial-evidence"`), update JavaScript consistently, and regression-test the complete click flow, selection resets and error/empty states. Include before/after screenshots when practical, without secrets.
 
@@ -104,4 +105,17 @@ If a PR materially changes continuation-review logic, decision rights, review tr
 
 Inspect the official JSON specification under `api/` before using any endpoint, property or data type. Preserve OData V2 (`d.results`) versus V4 (`value`) handling and client-side join validation. Update [docs/API_INTEGRATION.md](docs/API_INTEGRATION.md) and extend/update remote validation where appropriate, retaining its decompression, redaction and filter-integrity safeguards.
 
-Coordinate changes in `app.js`, `api-config.js`, `scripts/sap_live_validate.py` and the workflow with the technical owner. Application modularisation is a separate future PR, not bundled into this documentation baseline.
+Coordinate changes in `js/services/`, `api-config.js`, `scripts/sap_live_validate.py` and the live workflow with the technical owner. Keep V2/V4 interpretation and amount semantics visible in the relevant API service, not a generic parser or renderer.
+
+## Parallel Development and Automatic PR Checks
+
+The **Frontend Static Checks** workflow runs automatically on Pull Requests into `master`, and supports manual dispatch. It needs no SAP_API_KEY, never calls SAP APIs, and checks required/unique HTML IDs, normal deferred script order, referenced files, JavaScript syntax (including all `js/` modules), and Python syntax without executing the live validator. The separate live SAP workflow remains manual/trigger-file based.
+
+Use these primary collaboration areas, not absolute ownership restrictions:
+
+- UI: `index.html`, `styles.css`, `js/ui/`.
+- Integration: `js/services/`, `api-config.js`.
+- Orchestration: `app.js` (actions → state → service → UI).
+- Shared core: `js/core/`—coordinate changes because state, identifiers, dates and arithmetic affect every contributor.
+
+Modules use normal deferred browser scripts and `window.DPEApp`, not ES modules, a framework or a build step. Keep [UI_CONTRACT.md](docs/UI_CONTRACT.md), the HTML and `scripts/check_frontend_contract.py` aligned whenever intentionally changing hooks or script dependencies. A green static check does not prove browser behaviour, live joins or data interpretation; still regression-test switching, loading, empty/error states and relevant integration flows.

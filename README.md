@@ -38,13 +38,18 @@ Real API responses supply the displayed SAP evidence. Empty results are reported
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branching, review, security and contribution guidance. |
 | [index.html](index.html) | Page structure, evidence sections and JavaScript DOM hooks. |
 | [styles.css](styles.css) | Presentation/layout; main starting point for UI refinement. |
-| [app.js](app.js) | Selection state, fetch requests, joins, rendering and amount summaries. |
+| [app.js](app.js) | Controller: user actions, state/cancellation, service results and UI coordination. |
+| [js/core/](js/core/) | Shared runtime state and date/identifier/decimal utilities under `DPEApp`. |
+| [js/services/](js/services/) | HTTP, explicit V2/V4 integrations, join validation and existing summary calculations. |
+| [js/ui/](js/ui/) | DOM hooks, tables, status/error/raw views; starting point for rendering changes. |
 | [api-config.js](api-config.js) | Separate Enterprise Project, G/L and PO endpoint/field configuration. |
 | [config.example.js](config.example.js) | Safe placeholder to copy for local setup. |
 | `config.local.js` | Local-only API key; ignored/untracked, not available in a fresh clone. |
 | [api/](api/) | Four downloaded official SAP specifications; do not edit to make code work. |
 | [scripts/sap_live_validate.py](scripts/sap_live_validate.py) | Standard-library Python remote connectivity and join validation. |
+| [scripts/check_frontend_contract.py](scripts/check_frontend_contract.py) | Credential-free HTML ID/script-order contract check. |
 | [.github/workflows/sap-live-validation.yml](.github/workflows/sap-live-validation.yml) | Secret-based GitHub Actions validator and report artifacts. |
+| [.github/workflows/static-checks.yml](.github/workflows/static-checks.yml) | Automatic PR structural/syntax checks; no SAP credentials or API calls. |
 | [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md) | Review/testing/data-integrity checklist for PRs. |
 | [docs/](docs/) | Architecture, detailed integration behaviour and MVP scope. |
 
@@ -52,11 +57,12 @@ Real API responses supply the displayed SAP evidence. Empty results are reported
 
 **Do not push normal feature changes directly to `master`.** Use **branch → Pull Request → review → merge**. See [CONTRIBUTING.md](CONTRIBUTING.md) for commands and checks. This is a team policy; this documentation does not itself configure GitHub branch protection.
 
-Coordinate API/state changes with the technical/integration owner. UI/UX work primarily belongs in `index.html`/`styles.css`, preserving the hooks in `app.js`. Requirement/business-flow refinements should be checked against the context, scope and decision log before implementation.
+Coordinate shared core/API changes with the technical/integration owner. UI/UX work primarily belongs in `index.html`, `styles.css` and `js/ui/`; API work belongs in `js/services/` and `api-config.js`, with `app.js` as the controller boundary. PR static checks run automatically; they do not replace runtime regression testing. Requirement/business-flow refinements still follow the context, scope and decision log.
 
 ## Documentation
 
 - [Architecture and repository tree](docs/ARCHITECTURE.md)
+- [UI hooks and script contract](docs/UI_CONTRACT.md)
 - [API Integration, Sandbox findings and remote validation](docs/API_INTEGRATION.md)
 - [MVP Scope, status and acceptance principles](docs/MVP_SCOPE.md)
 - [Contributing and Pull Requests](CONTRIBUTING.md)
