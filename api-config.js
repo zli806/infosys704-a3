@@ -23,3 +23,17 @@ window.SAP_API_CONFIG = Object.freeze({
     "ForecastedEndDate", "MilestoneApprovalStatus", "IsMainMilestone"
   ])
 });
+
+// Separate configuration preserves the working Enterprise Project integration.
+window.GL_API_CONFIG = Object.freeze({
+  baseUrl: "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata/sap/API_GLACCOUNTLINEITEM",
+  collectionPath: "/GLAccountLineItem",
+  limit: 100,
+  fields: Object.freeze([
+    "ID", "ProjectInternalID", "WBSElementInternalID", "CompanyCode",
+    "AccountingDocument", "LedgerGLLineItem", "GLAccount", "PostingDate", "DocumentDate",
+    "CompanyCodeCurrency", "AmountInCompanyCodeCurrency", "GlobalCurrency",
+    "AmountInGlobalCurrency", "DebitCreditCode", "IsCommitment", "IsReversal", "IsReversed",
+    "PurchasingDocument", "PurchasingDocumentItem", "Supplier", "DocumentItemText"
+  ])
+});

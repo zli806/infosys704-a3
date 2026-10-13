@@ -21,6 +21,20 @@
   let projectElements = [];
   let elementController = null;
   let elementRequestID = 0;
+  const glPanel = document.getElementById("gl-panel");
+  const glButton = document.getElementById("load-financial-evidence");
+  const glMessage = document.getElementById("gl-message");
+  const glError = document.getElementById("gl-error");
+  const glSummary = document.getElementById("gl-summary");
+  const glBody = document.getElementById("gl-body");
+  const rawGL = document.getElementById("raw-gl-response");
+  const glDiagnostic = document.getElementById("gl-diagnostic");
+  const rawDiagnostic = document.getElementById("raw-gl-diagnostic");
+  let elementsLoaded = false;
+  let glRequestID = 0;
+  let glController = null;
+  // Only validated linked records enter this state; diagnostic records never do.
+  let glRecords = [];
 
   function setMessage(text, kind = "info") {
     message.textContent = text;
@@ -213,6 +227,8 @@
   }
 
   function resetElementSelection() {
+    resetFinancialEvidence();
+    elementsLoaded = false;
     elementRequestID += 1;
     elementController?.abort();
     elementController = null;
@@ -225,9 +241,13 @@
   }
 
   async function loadProjectElements(project) {
+    resetFinancialEvidence();
+    elementsLoaded = false;
     const requestID = ++elementRequestID;
     elementController?.abort();
     selectedProject = project;
+    glPanel.hidden = false;
+    document.getElementById("gl-project").textContent = `Selected project: ${project.Project || "Unnamed project"}`;
     projectElements = [];
     elementsPanel.hidden = false;
     selectedSummary.textContent = `${project.Project || "Unnamed project"} · ${project.ProjectDescription || "No description"} · Status: ${project.ProcessingStatus || "—"}`;
@@ -293,6 +313,9 @@
         throw new Error(`${httpStatus}. Invalid project element records. Inspect Raw Project Element Response.`);
       }
       projectElements = data.d.results;
+      elementsLoaded = true;
+      glButton.disabled = false;
+      setGLMessage("Project Elements loaded. Click Load Financial Evidence to test project/WBS links.");
       elementsBody.replaceChildren();
       for (const element of projectElements) {
         const milestone = milestoneFlag(element.IsProjectMilestone);
@@ -343,6 +366,242 @@
       if (requestID === elementRequestID) elementController = null;
     }
   }
+
+  function setGLMessage(text, kind = "info") {
+    glMessage.textContent = text;
+    glMessage.dataset.kind = kind;
+  }
+
+  function emptyGL(text) {
+    glBody.replaceChildren();
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 12;
+    cell.className = "empty";
+    cell.textContent = text;
+    row.append(cell);
+    glBody.append(row);
+  }
+
+  function resetFinancialEvidence() {
+    glRequestID += 1;
+    glController?.abort();
+    glController = null;
+    glRecords = [];
+    glPanel.hidden = true;
+    glButton.disabled = true;
+    glButton.textContent = "Load Financial Evidence";
+    glSummary.replaceChildren();
+    document.getElementById("gl-project").textContent = "";
+    glError.hidden = true;
+    glError.textContent = "";
+    rawGL.textContent = "No linked query sent yet.";
+    glDiagnostic.hidden = true;
+    rawDiagnostic.textContent = "No diagnostic request sent.";
+    emptyGL("No financial evidence loaded.");
+    setGLMessage("Select a project and load its Project Elements first.");
+  }
+
+  function odataString(value) {
+    return `'${String(value).replace(/'/g, "''")}'`;
+  }
+
+  function glURL(filter, limit = window.GL_API_CONFIG.limit) {
+    const config = window.GL_API_CONFIG;
+    const url = new URL(config.baseUrl + config.collectionPath);
+    url.searchParams.set("$top", String(limit));
+    url.searchParams.set("$select", config.fields.join(","));
+    url.searchParams.set("$format", "json");
+    if (filter) url.searchParams.set("$filter", filter);
+    return url;
+  }
+
+  function booleanLabel(value) {
+    return value === true ? "Yes" : value === false ? "No" : "Unknown";
+  }
+
+  // The specification defines decimal strings with scale 3 and precision 23.
+  // Scaled BigInts avoid rounding large signed SAP amounts through binary floats.
+  function decimalUnits(value) {
+    if (typeof value !== "string" || !/^[+-]?\d+(?:\.\d{1,3})?$/.test(value)) return null;
+    const negative = value.startsWith("-");
+    const [whole, fraction = ""] = value.replace(/^[+-]/, "").split(".");
+    const units = BigInt(whole) * 1000n + BigInt(fraction.padEnd(3, "0"));
+    return negative ? -units : units;
+  }
+
+  function displayUnits(units) {
+    const magnitude = units < 0n ? -units : units;
+    return `${units < 0n ? "-" : ""}${magnitude / 1000n}.${String(magnitude % 1000n).padStart(3, "0")}`;
+  }
+
+  function renderFinancialEvidence() {
+    glBody.replaceChildren();
+    for (const record of glRecords) {
+      const row = document.createElement("tr");
+      const values = [formatDate(record.PostingDate), record.AccountingDocument,
+        record.GLAccount, record.WBSElementInternalID, record.AmountInCompanyCodeCurrency,
+        record.CompanyCodeCurrency, record.DebitCreditCode, booleanLabel(record.IsCommitment),
+        booleanLabel(record.IsReversal), booleanLabel(record.IsReversed),
+        record.PurchasingDocument, record.DocumentItemText];
+      for (const value of values) {
+        const cell = document.createElement("td");
+        cell.textContent = value === null || value === undefined || value === "" ? "—" : String(value);
+        row.append(cell);
+      }
+      glBody.append(row);
+    }
+    const nonCommitments = glRecords.filter(record => record.IsCommitment === false);
+    const commitments = glRecords.filter(record => record.IsCommitment === true);
+    const unknown = glRecords.length - nonCommitments.length - commitments.length;
+    const totals = new Map();
+    let excluded = 0;
+    for (const record of nonCommitments) {
+      const units = decimalUnits(record.AmountInCompanyCodeCurrency);
+      const currency = record.CompanyCodeCurrency;
+      if (units === null || typeof currency !== "string" || !currency.trim()) {
+        excluded += 1;
+        continue;
+      }
+      totals.set(currency, (totals.get(currency) ?? 0n) + units);
+    }
+    glSummary.replaceChildren();
+    const lines = [
+      `Linked G/L records: ${glRecords.length} · Non-commitment line items: ${nonCommitments.length} · Commitment-flagged line items: ${commitments.length} · Unknown commitment flags: ${unknown}`,
+      "Net amount from returned non-commitment postings, grouped by Company Code Currency:"
+    ];
+    for (const [currency, units] of totals) lines.push(`${currency}: ${displayUnits(units)}`);
+    if (!totals.size) lines.push("No valid non-commitment currency amounts available.");
+    lines.push(`Unknown commitment flags are excluded from amounts. ${excluded} non-commitment records excluded from amounts because the amount/currency was missing or invalid. Reversals and reversed items remain included with SAP's supplied signs.`);
+    lines.push("Returned records only (maximum 100); no automatic pagination, currency conversion, ledger deduplication or complete-project-cost claim.");
+    for (const text of lines) {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = text;
+      glSummary.append(paragraph);
+    }
+  }
+
+  async function loadFinancialEvidence() {
+    if (!selectedProject || !elementsLoaded) {
+      setGLMessage("Select a project and successfully load its Project Elements first.", "error");
+      return;
+    }
+    const project = selectedProject;
+    const projectID = typeof project.ProjectInternalID === "string" ? project.ProjectInternalID.trim() : "";
+    const wbsIDs = [...new Set(projectElements.map(element => element.WBSElementInternalID)
+      .filter(value => typeof value === "string" && value.trim()).map(value => value.trim()))];
+    resetFinancialEvidence();
+    glPanel.hidden = false;
+    document.getElementById("gl-project").textContent = `Selected project: ${project.Project || "Unnamed project"}`;
+    const requestID = glRequestID;
+    const configuredKey = window.APP_CONFIG?.SAP_API_KEY;
+    const apiKey = typeof configuredKey === "string" ? configuredKey.trim() : "";
+    if (!apiKey || apiKey === placeholder) {
+      setGLMessage("Please add your SAP Sandbox API key to config.local.js first.", "error");
+      glButton.disabled = false;
+      return;
+    }
+    if (!projectID && !wbsIDs.length) {
+      setGLMessage("No ProjectInternalID or loaded WBS Internal IDs available. No linked query can be sent.", "error");
+      glButton.disabled = false;
+      return;
+    }
+    const controller = new AbortController();
+    glController = controller;
+    glButton.textContent = "Loading…";
+    const attempts = [];
+    let lastHTTP = "";
+
+    async function request(filter, limit, diagnostic = false) {
+      const url = glURL(filter, limit);
+      lastHTTP = "";
+      const timeout = setTimeout(() => controller.abort(), 30000);
+      let response;
+      try {
+        response = await fetch(url, {
+          method: "GET", headers: { APIKey: apiKey, Accept: "application/json" },
+          credentials: "omit", signal: controller.signal
+        });
+        lastHTTP = `HTTP ${response.status} ${redact(response.statusText, apiKey) || "(status text unavailable)"}`;
+        const safeBody = redact(await response.text(), apiKey);
+        if (requestID !== glRequestID) throw new DOMException("Selection changed", "AbortError");
+        let data;
+        try { data = JSON.parse(safeBody); } catch { /* Raw non-JSON body stays visible. */ }
+        const entry = { url: url.href, status: lastHTTP, response: data ?? safeBody };
+        if (diagnostic) rawDiagnostic.textContent = JSON.stringify(entry, null, 2);
+        else {
+          attempts.push(entry);
+          rawGL.textContent = JSON.stringify(attempts, null, 2);
+        }
+        if (!response.ok) {
+          glError.textContent = `${lastHTTP}\n${safeBody || "SAP returned no response body."}`;
+          glError.hidden = false;
+          console.error("SAP G/L HTTP error", { url: url.href, status: lastHTTP, responseBody: safeBody });
+          throw new Error(`${lastHTTP}. SAP G/L request failed; see the response body below.`);
+        }
+        if (!Array.isArray(data?.d?.results) || !data.d.results.every(record => record && typeof record === "object" && !Array.isArray(record))) {
+          throw new Error(`${lastHTTP}. Expected OData V2 data.d.results records. Inspect the raw G/L response.`);
+        }
+        return data;
+      } catch (error) {
+        if (!response && error.name !== "AbortError") {
+          throw new Error("No HTTP response available. Network, browser/CORS or local-file restrictions may have blocked G/L. Inspect the console and Network tab; do not disable browser security.");
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    try {
+      let data;
+      let linkMethod = "";
+      if (projectID) {
+        setGLMessage("Testing ProjectInternalID link…");
+        data = await request(`ProjectInternalID eq ${odataString(projectID)}`, window.GL_API_CONFIG.limit);
+        if (data.d.results.length) {
+          if (!data.d.results.every(record => record.ProjectInternalID === projectID)) throw new Error("SAP returned records that do not match the requested ProjectInternalID. They are not used as project evidence; inspect Raw G/L Response.");
+          linkMethod = "ProjectInternalID";
+        }
+      }
+      if (!linkMethod && wbsIDs.length) {
+        setGLMessage("No ProjectInternalID-linked records found (or ID unavailable). Testing loaded WBS Internal IDs…");
+        data = await request(wbsIDs.map(id => `WBSElementInternalID eq ${odataString(id)}`).join(" or "), window.GL_API_CONFIG.limit);
+        if (data.d.results.length) {
+          if (!data.d.results.every(record => wbsIDs.includes(record.WBSElementInternalID))) throw new Error("SAP returned records that do not match the requested WBS IDs. They are not used as project evidence; inspect Raw G/L Response.");
+          linkMethod = "WBS Internal ID";
+        }
+      }
+      if (requestID !== glRequestID) return;
+      if (linkMethod) {
+        glRecords = data.d.results;
+        renderFinancialEvidence();
+        setGLMessage(`Linked by ${linkMethod} · ${lastHTTP} · ${glRecords.length} returned records.${data.d.__next ? " SAP indicates additional pages; summary covers only this returned page." : ""}`, "success");
+        return;
+      }
+      emptyGL("No linked G/L records found in current SAP Sandbox sample.");
+      setGLMessage(`No linked G/L records found in current SAP Sandbox sample · ${lastHTTP}. Running a separate unlinked connectivity diagnostic…`);
+      glDiagnostic.hidden = false;
+      const diagnostic = await request(null, 5, true);
+      setGLMessage(`No linked G/L records found in current SAP Sandbox sample · G/L API responded ${lastHTTP}; diagnostic returned ${diagnostic.d.results.length} unlinked records. These are debug-only, not project evidence.`);
+    } catch (error) {
+      if (requestID !== glRequestID) return;
+      glRecords = [];
+      glSummary.replaceChildren();
+      emptyGL("No linked financial evidence displayed. Inspect the error and raw responses.");
+      const detail = error.name === "AbortError" ? "G/L request timed out after 30 seconds." : redact(error.message, apiKey);
+      setGLMessage(`${glDiagnostic.hidden ? "G/L evidence request failed" : "No linked records found; unlinked diagnostic failed"}: ${lastHTTP ? lastHTTP + ". " : ""}${detail}`, "error");
+      console.error("SAP G/L evidence request failed", { status: lastHTTP || "unavailable", diagnostic: detail });
+    } finally {
+      if (requestID === glRequestID) {
+        glController = null;
+        glButton.disabled = false;
+        glButton.textContent = "Load Financial Evidence";
+      }
+    }
+  }
+
+  glButton.addEventListener("click", loadFinancialEvidence);
 
   button.addEventListener("click", () => {
     resetElementSelection();

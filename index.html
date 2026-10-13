@@ -68,6 +68,33 @@
         <pre id="raw-elements-response">No response received yet.</pre>
       </details>
     </section>
+    <section id="gl-panel" class="panel" aria-labelledby="gl-heading" hidden>
+      <div class="toolbar">
+        <h2 id="gl-heading">Financial Evidence – G/L</h2>
+        <button id="load-financial-evidence" type="button" disabled>Load Financial Evidence</button>
+      </div>
+      <p id="gl-project"></p>
+      <p class="hint">Prototype financial evidence from returned SAP G/L line items. This is not yet validated as the complete project-cost measure.</p>
+      <p id="gl-message" class="status-message" role="status" aria-live="polite">Select a project and load its Project Elements first.</p>
+      <pre id="gl-error" hidden></pre>
+      <div id="gl-summary"></div>
+      <div class="table-scroll">
+        <table>
+          <caption class="sr-only">Linked SAP G/L line items for the selected project</caption>
+          <thead><tr><th scope="col">Posting Date</th><th scope="col">Accounting Document</th><th scope="col">G/L Account</th><th scope="col">WBS ID</th><th scope="col">Amount</th><th scope="col">Currency</th><th scope="col">Debit/Credit</th><th scope="col">Commitment?</th><th scope="col">Reversal?</th><th scope="col">Reversed?</th><th scope="col">Purchase Document</th><th scope="col">Description</th></tr></thead>
+          <tbody id="gl-body"></tbody>
+        </table>
+      </div>
+      <details>
+        <summary>Raw G/L Response</summary>
+        <pre id="raw-gl-response">No linked query sent yet.</pre>
+      </details>
+      <details id="gl-diagnostic" hidden>
+        <summary>Unlinked G/L Connectivity Diagnostic</summary>
+        <p class="hint">These records are not linked to the selected project and are not used as project evidence.</p>
+        <pre id="raw-gl-diagnostic">No diagnostic request sent.</pre>
+      </details>
+    </section>
   </main>
 </body>
 </html>

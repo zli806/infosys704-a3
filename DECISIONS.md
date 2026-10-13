@@ -134,3 +134,11 @@ Use a local `config.local.js` file for the SAP Sandbox API key during the local 
 - Final MCP authentication / subscription pattern after the next lab.
 - Exact material-trigger rules to implement in code versus demonstrate as configured prototype logic.
 - Final approach for persisting human-entered strategic / benefit / risk evidence and decision records.
+
+---
+
+## 2026-10-14 – Sandbox lifecycle-data finding
+
+The five tested SAP Sandbox projects contained project elements and real WBS IDs. None of the 26 returned elements were flagged as SAP project milestones or main milestones (`IsProjectMilestone` was blank and `IsMainMilestone` was false).
+
+The final prototype must not depend on the current Sandbox dataset containing a marked milestone. This does **not** change the original Stage-Gated Portfolio Continuation Review solution. Later implementation may use DPE-configured continuation gates and/or material-trigger-based reviews. No fake SAP milestone data should be introduced.

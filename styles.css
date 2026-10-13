@@ -33,6 +33,8 @@ tr.milestone { background: #edf8f2; }
 tr.main-milestone { background: #fff5db; }
 tr.main-milestone td:first-child { border-left: 4px solid #a66b00; font-weight: 700; }
 #elements-error { color: #922b21; }
+#gl-error { color: #922b21; }
+#gl-summary { margin-bottom: 16px; font-size: .9rem; }
 .table-scroll { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; text-align: left; font-size: .9rem; }
 th, td { padding: 12px; border-bottom: 1px solid #e2e7ee; vertical-align: top; }

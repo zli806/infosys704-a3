@@ -1,6 +1,6 @@
 # DPE IT Investment Review Prototype
 
-This prototype tests SAP Enterprise Project connectivity and related project elements/milestones, not the complete investment-review application. Four SAP API JSON specifications are stored in `./api/`. Only **Enterprise Project** is currently integrated; G/L, Purchase Order, Purchase Requisition and MCP are not implemented. The initial project-list test was confirmed by the user: HTTP 200 and five real projects.
+This prototype tests SAP Enterprise Project connectivity, related project elements/milestones, and project-linked financial evidence. Four SAP API JSON specifications are stored in `./api/`. **G/L Account Line Items - Read** is now the second integrated SAP API, alongside **Enterprise Project**. Purchase Order, Purchase Requisition and MCP remain unimplemented. The initial project-list test was confirmed by the user: HTTP 200 and five real projects. The new G/L functionality awaits the user's live test; no G/L Sandbox results are claimed here.
 
 ## Run locally
 
@@ -40,4 +40,29 @@ Read-only checks of all five sample projects returned HTTP 200, with no continua
 | I1000 | 10 | 122, 123, 121, 120, 119, 116, 126, 125, 124, 115 |
 | PROJECT1 | 5 | 252, 253, 134, 135, 133 |
 
-These observations are documentation only, not application fallback data. Sandbox contents may change. No G/L integration or other API work is started automatically.
+These observations are documentation only, not application fallback data. Sandbox contents may change. The milestone-data limitation is recorded in `DECISIONS.md`; it does not change the original Stage-Gated Portfolio Continuation Review solution.
+
+## Financial Evidence – G/L (live test pending)
+
+1. Refresh/open the local page and click **Load Projects**.
+2. Click **View Project Elements** for a project. Wait for its successful element response (zero elements is also a valid response).
+3. Click **Load Financial Evidence** in the new section beneath Project Elements.
+4. Inspect the link-method/status line, currency summary, detail table and **Raw G/L Response**. Repeat for other projects to test join feasibility. Changing selection or reloading projects clears financial evidence and cancels/ignores stale requests.
+
+The separate `window.GL_API_CONFIG` in `api-config.js` uses the official specification's endpoint:
+
+`https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata/sap/API_GLACCOUNTLINEITEM/GLAccountLineItem`
+
+Every request uses the same local `APIKey` header and `Accept: application/json`, plus `$format=json`. The collection is parsed at `data.d.results`. The 21 confirmed fields are selected; complete returned records, including ProjectInternalID and WBS IDs, remain in memory.
+
+The app attempts these queries in order (placeholders below represent actual selected identifiers, not hard-coded data):
+
+- If available: `$filter=ProjectInternalID eq '<selected ProjectInternalID>'&$top=100&$select=<configured fields>&$format=json`.
+- Only if the first query returns zero records, or the project ID is unavailable: `$filter=WBSElementInternalID eq '<loaded WBS ID 1>' or WBSElementInternalID eq '<loaded WBS ID 2>' ...&$top=100&$select=<configured fields>&$format=json`. IDs are deduplicated from the successfully loaded elements. Apostrophes are doubled for OData strings, then URLSearchParams safely encodes the query. No ID normalisation or fabricated mappings are introduced. Only loaded WBS IDs can be tested if elements span multiple pages.
+- If the available linked queries return zero records: one unfiltered `$top=5&$select=<configured fields>&$format=json` diagnostic request. It appears only under **Unlinked G/L Connectivity Diagnostic**, with a warning. These unrelated records are **never** attached to the project, displayed in its evidence table or included in amounts. With no usable identifiers, no query is sent.
+
+HTTP/network/parser errors stop the chain rather than pretending that a failed filter returned zero records. Non-matching identifiers in a returned filtered response also stop processing without attaching the records. Raw linked-query attempts retain their URL, HTTP status and SAP response separately from the diagnostic. Inspect visible errors, raw responses and the browser console/Network tab on failure; do not share credentials from the Network tab.
+
+G/L records are **financial evidence, not automatically complete project cost**. The summary counts linked records, strict Boolean-false non-commitments, Boolean-true commitments, and unknown commitment flags. Net amounts use only confirmed non-commitments, grouped by CompanyCodeCurrency, with exact three-decimal arithmetic and SAP's supplied signs. Unknown commitment flags and invalid/missing amount or currency values are explicitly reported and excluded from amounts. Currencies are never combined or converted. Reversal/reversed items are retained and their flags displayed. No ledger deduplication or complete accounting-scope interpretation is assumed.
+
+Queries return at most 100 linked records with no automatic pagination. Summaries describe only returned records; a SAP continuation link is reported when present. No fake financial records, material-trigger rules, final continuation-decision workflow, Purchase Order, Purchase Requisition or MCP integration are added in this step. No live G/L requests are made automatically on selection.
