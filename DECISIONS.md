@@ -142,3 +142,13 @@ Use a local `config.local.js` file for the SAP Sandbox API key during the local 
 The five tested SAP Sandbox projects contained project elements and real WBS IDs. None of the 26 returned elements were flagged as SAP project milestones or main milestones (`IsProjectMilestone` was blank and `IsMainMilestone` was false).
 
 The final prototype must not depend on the current Sandbox dataset containing a marked milestone. This does **not** change the original Stage-Gated Portfolio Continuation Review solution. Later implementation may use DPE-configured continuation gates and/or material-trigger-based reviews. No fake SAP milestone data should be introduced.
+
+---
+
+## 2026-10-14 – Primary cross-API linking key
+
+Live SAP Sandbox validation confirmed exact Enterprise Project → G/L joins through WBSElementInternalID: TEMP003 produced 40 exact WBS-linked G/L records and I1000 produced 2. ProjectInternalID showed cross-API formatting inconsistency such as `00000041` versus `41`.
+
+WBSElementInternalID is now the preferred primary cross-API key. ProjectInternalID remains a secondary/fallback identifier; numeric-only leading-zero variants may be compared as equivalent only for that fallback. Raw SAP identifiers must be retained and not destructively rewritten. WBS matching remains exact.
+
+This is an implementation/evidence decision, not a change to the original Stage-Gated Portfolio Continuation Review business solution.

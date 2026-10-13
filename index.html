@@ -95,6 +95,29 @@
         <pre id="raw-gl-diagnostic">No diagnostic request sent.</pre>
       </details>
     </section>
+    <section id="po-panel" class="panel" aria-labelledby="po-heading" hidden>
+      <div class="toolbar">
+        <h2 id="po-heading">Procurement Evidence – Purchase Orders</h2>
+        <button id="load-po-evidence" type="button" disabled>Load Purchase Order Evidence</button>
+      </div>
+      <p id="po-project"></p>
+      <p class="hint">PO-linked procurement evidence from SAP. Amounts associated with assignments not marked as finally invoiced provide a prototype exposure indicator, not a validated measure of exact outstanding liability.</p>
+      <p id="po-message" class="status-message" role="status" aria-live="polite">Select a project and load its WBS IDs first.</p>
+      <pre id="po-error" hidden></pre>
+      <div id="po-summary"></div>
+      <div class="table-scroll">
+        <table>
+          <caption class="sr-only">Exact WBS-linked Purchase Order account assignments for the selected project</caption>
+          <thead><tr><th scope="col">Purchase Order</th><th scope="col">Item</th><th scope="col">WBS ID</th><th scope="col">Net Amount</th><th scope="col">Currency</th><th scope="col">Quantity</th><th scope="col">Unit</th><th scope="col">G/L Account</th><th scope="col">Deleted?</th><th scope="col">Finally Invoiced?</th><th scope="col">Creation Date</th></tr></thead>
+          <tbody id="po-body"></tbody>
+        </table>
+      </div>
+      <details>
+        <summary>Raw Purchase Order Response / Filter Integrity</summary>
+        <p class="hint">Unrelated returned rows, if any, are debugging information only and are excluded from project evidence.</p>
+        <pre id="raw-po-response">No PO query sent yet.</pre>
+      </details>
+    </section>
   </main>
 </body>
 </html>

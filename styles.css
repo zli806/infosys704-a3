@@ -34,6 +34,8 @@ tr.main-milestone { background: #fff5db; }
 tr.main-milestone td:first-child { border-left: 4px solid #a66b00; font-weight: 700; }
 #elements-error { color: #922b21; }
 #gl-error { color: #922b21; }
+#po-error { color: #922b21; }
+#po-summary { margin-bottom: 16px; font-size: .9rem; }
 #gl-summary { margin-bottom: 16px; font-size: .9rem; }
 .table-scroll { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; text-align: left; font-size: .9rem; }

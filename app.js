@@ -35,6 +35,16 @@
   let glController = null;
   // Only validated linked records enter this state; diagnostic records never do.
   let glRecords = [];
+  const poPanel = document.getElementById("po-panel");
+  const poButton = document.getElementById("load-po-evidence");
+  const poMessage = document.getElementById("po-message");
+  const poError = document.getElementById("po-error");
+  const poSummary = document.getElementById("po-summary");
+  const poBody = document.getElementById("po-body");
+  const rawPO = document.getElementById("raw-po-response");
+  let poRecords = [];
+  let poController = null;
+  let poRequestID = 0;
 
   function setMessage(text, kind = "info") {
     message.textContent = text;
@@ -228,6 +238,7 @@
 
   function resetElementSelection() {
     resetFinancialEvidence();
+    resetProcurementEvidence();
     elementsLoaded = false;
     elementRequestID += 1;
     elementController?.abort();
@@ -242,11 +253,14 @@
 
   async function loadProjectElements(project) {
     resetFinancialEvidence();
+    resetProcurementEvidence();
     elementsLoaded = false;
     const requestID = ++elementRequestID;
     elementController?.abort();
     selectedProject = project;
     glPanel.hidden = false;
+    poPanel.hidden = false;
+    document.getElementById("po-project").textContent = `Selected project: ${project.Project || "Unnamed project"}`;
     document.getElementById("gl-project").textContent = `Selected project: ${project.Project || "Unnamed project"}`;
     projectElements = [];
     elementsPanel.hidden = false;
@@ -316,6 +330,8 @@
       elementsLoaded = true;
       glButton.disabled = false;
       setGLMessage("Project Elements loaded. Click Load Financial Evidence to test project/WBS links.");
+      poButton.disabled = !loadedWBSIDs().length;
+      setPOMessage(poButton.disabled ? "No loaded WBS Internal IDs available; no PO query can be sent." : "WBS IDs loaded. Click Load Purchase Order Evidence to test procurement links.");
       elementsBody.replaceChildren();
       for (const element of projectElements) {
         const milestone = milestoneFlag(element.IsProjectMilestone);
@@ -406,6 +422,23 @@
     return `'${String(value).replace(/'/g, "''")}'`;
   }
 
+  function loadedWBSIDs() {
+    // Keep raw strings intact; WBS linking is exact, never zero-normalised.
+    return [...new Set(projectElements.map(element => element.WBSElementInternalID)
+      .filter(value => typeof value === "string" && value.trim()))];
+  }
+
+  function projectIDsEquivalent(left, right) {
+    if (typeof left !== "string" || typeof right !== "string" || !left || !right) return false;
+    if (left === right) return true;
+    return /^\d+$/.test(left) && /^\d+$/.test(right)
+      && left.replace(/^0+(?=\d)/, "") === right.replace(/^0+(?=\d)/, "");
+  }
+
+  function projectIDVariants(value) {
+    return /^\d+$/.test(value) ? [...new Set([value, value.replace(/^0+(?=\d)/, "")])] : [value];
+  }
+
   function glURL(filter, limit = window.GL_API_CONFIG.limit) {
     const config = window.GL_API_CONFIG;
     const url = new URL(config.baseUrl + config.collectionPath);
@@ -487,9 +520,8 @@
       return;
     }
     const project = selectedProject;
-    const projectID = typeof project.ProjectInternalID === "string" ? project.ProjectInternalID.trim() : "";
-    const wbsIDs = [...new Set(projectElements.map(element => element.WBSElementInternalID)
-      .filter(value => typeof value === "string" && value.trim()).map(value => value.trim()))];
+    const projectID = typeof project.ProjectInternalID === "string" && project.ProjectInternalID.trim() ? project.ProjectInternalID : "";
+    const wbsIDs = loadedWBSIDs();
     resetFinancialEvidence();
     glPanel.hidden = false;
     document.getElementById("gl-project").textContent = `Selected project: ${project.Project || "Unnamed project"}`;
@@ -556,27 +588,35 @@
     try {
       let data;
       let linkMethod = "";
-      if (projectID) {
-        setGLMessage("Testing ProjectInternalID link…");
-        data = await request(`ProjectInternalID eq ${odataString(projectID)}`, window.GL_API_CONFIG.limit);
-        if (data.d.results.length) {
-          if (!data.d.results.every(record => record.ProjectInternalID === projectID)) throw new Error("SAP returned records that do not match the requested ProjectInternalID. They are not used as project evidence; inspect Raw G/L Response.");
-          linkMethod = "ProjectInternalID";
-        }
+      const integrity = [];
+      function acceptLinkedRows(field, identifiers, allowNumericEquivalence = false) {
+        const returned = data.d.results;
+        const matches = returned.filter(record => allowNumericEquivalence
+          ? projectIDsEquivalent(record[field], identifiers[0]) : identifiers.includes(record[field]));
+        const rejected = returned.filter(record => !matches.includes(record));
+        integrity.push({ method: field, returned: returned.length, linked: matches.length,
+          discarded: rejected.length, unexpectedIdentifiers: [...new Set(rejected.map(record => record[field] ?? "(missing)"))].slice(0, 10) });
+        data = { ...data, d: { ...data.d, results: matches } };
+        // Original SAP responses stay in attempts, not in the evidence array.
+        rawGL.textContent = JSON.stringify({ attempts, filterIntegrity: integrity }, null, 2);
       }
-      if (!linkMethod && wbsIDs.length) {
-        setGLMessage("No ProjectInternalID-linked records found (or ID unavailable). Testing loaded WBS Internal IDs…");
+      if (wbsIDs.length) {
+        setGLMessage("Testing primary exact WBS Internal ID link…");
         data = await request(wbsIDs.map(id => `WBSElementInternalID eq ${odataString(id)}`).join(" or "), window.GL_API_CONFIG.limit);
-        if (data.d.results.length) {
-          if (!data.d.results.every(record => wbsIDs.includes(record.WBSElementInternalID))) throw new Error("SAP returned records that do not match the requested WBS IDs. They are not used as project evidence; inspect Raw G/L Response.");
-          linkMethod = "WBS Internal ID";
-        }
+        acceptLinkedRows("WBSElementInternalID", wbsIDs);
+        if (data.d.results.length) linkMethod = "WBS Internal ID";
+      }
+      if (!linkMethod && projectID) {
+        setGLMessage("No exact WBS-linked records found (or WBS unavailable). Testing secondary ProjectInternalID…");
+        data = await request(projectIDVariants(projectID).map(id => `ProjectInternalID eq ${odataString(id)}`).join(" or "), window.GL_API_CONFIG.limit);
+        acceptLinkedRows("ProjectInternalID", [projectID], true);
+        if (data.d.results.length) linkMethod = "ProjectInternalID (secondary; numeric-only leading-zero equivalence allowed)";
       }
       if (requestID !== glRequestID) return;
       if (linkMethod) {
         glRecords = data.d.results;
         renderFinancialEvidence();
-        setGLMessage(`Linked by ${linkMethod} · ${lastHTTP} · ${glRecords.length} returned records.${data.d.__next ? " SAP indicates additional pages; summary covers only this returned page." : ""}`, "success");
+        setGLMessage(`Linked by ${linkMethod} · ${lastHTTP} · ${glRecords.length} linked records.${integrity.some(check => check.discarded) ? " Filter-integrity warning: unrelated returned rows were discarded; inspect Raw G/L Response." : ""}${data.d.__next ? " SAP indicates additional pages; summary covers only this returned page." : ""}`, "success");
         return;
       }
       emptyGL("No linked G/L records found in current SAP Sandbox sample.");
@@ -601,7 +641,195 @@
     }
   }
 
+  function setPOMessage(text, kind = "info") {
+    poMessage.textContent = text;
+    poMessage.dataset.kind = kind;
+  }
+
+  function emptyPO(text) {
+    poBody.replaceChildren();
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 11;
+    cell.className = "empty";
+    cell.textContent = text;
+    row.append(cell);
+    poBody.append(row);
+  }
+
+  function resetProcurementEvidence() {
+    poRequestID += 1;
+    poController?.abort();
+    poController = null;
+    poRecords = [];
+    poPanel.hidden = true;
+    poButton.disabled = true;
+    poButton.textContent = "Load Purchase Order Evidence";
+    document.getElementById("po-project").textContent = "";
+    poSummary.replaceChildren();
+    poError.hidden = true;
+    poError.textContent = "";
+    rawPO.textContent = "No PO query sent yet.";
+    emptyPO("No procurement evidence loaded.");
+    setPOMessage("Select a project and load its WBS IDs first.");
+  }
+
+  function poDecimal(value) {
+    if (typeof value === "number") {
+      if (!Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER) return null;
+      value = String(value);
+    }
+    if (typeof value !== "string" || value.length > 100) return null;
+    const match = /^([+-]?)(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/.exec(value);
+    if (!match) return null;
+    const exponent = Number(match[4] || 0);
+    if (!Number.isInteger(exponent) || Math.abs(exponent) > 30) return null;
+    const fraction = match[3] || "";
+    let scale = fraction.length - exponent;
+    let units = BigInt(match[2] + fraction) * (match[1] === "-" ? -1n : 1n);
+    if (scale < 0) { units *= 10n ** BigInt(-scale); scale = 0; }
+    return { units, scale };
+  }
+
+  function addPODecimals(left, right) {
+    const scale = Math.max(left.scale, right.scale);
+    return { scale, units: left.units * 10n ** BigInt(scale - left.scale)
+      + right.units * 10n ** BigInt(scale - right.scale) };
+  }
+
+  function displayPODecimal(value) {
+    const digits = String(value.units < 0n ? -value.units : value.units).padStart(value.scale + 1, "0");
+    const text = value.scale ? `${digits.slice(0, -value.scale)}.${digits.slice(-value.scale)}` : digits;
+    return (value.units < 0n ? "-" : "") + text;
+  }
+
+  function renderProcurementEvidence() {
+    poBody.replaceChildren();
+    for (const record of poRecords) {
+      const row = document.createElement("tr");
+      const values = [record.PurchaseOrder, record.PurchaseOrderItem, record.WBSElementInternalID,
+        record.PurgDocNetAmount, record.DocumentCurrency, record.Quantity, record.OrderQuantityUnit,
+        record.GLAccount, booleanLabel(record.IsDeleted), booleanLabel(record.IsFinallyInvoiced), formatDate(record.CreationDate)];
+      for (const value of values) {
+        const cell = document.createElement("td");
+        cell.textContent = value === null || value === undefined || value === "" ? "—" : String(value);
+        row.append(cell);
+      }
+      poBody.append(row);
+    }
+    const active = poRecords.filter(record => record.IsDeleted === false);
+    const final = active.filter(record => record.IsFinallyInvoiced === true).length;
+    const notFinal = active.filter(record => record.IsFinallyInvoiced === false).length;
+    const deleted = poRecords.filter(record => record.IsDeleted === true).length;
+    const totals = new Map();
+    let invalidAmounts = 0;
+    for (const record of active) {
+      const amount = poDecimal(record.PurgDocNetAmount);
+      const currency = record.DocumentCurrency;
+      if (!amount || typeof currency !== "string" || !currency.trim()) { invalidAmounts += 1; continue; }
+      const group = totals.get(currency) || { total: { units: 0n, scale: 0 }, notFinal: { units: 0n, scale: 0 } };
+      group.total = addPODecimals(group.total, amount);
+      if (record.IsFinallyInvoiced === false) group.notFinal = addPODecimals(group.notFinal, amount);
+      totals.set(currency, group);
+    }
+    const lines = [
+      `Linked PO account assignments: ${poRecords.length} · Active / non-deleted assignments: ${active.length} · Deleted: ${deleted} · Unknown deletion flags: ${poRecords.length - active.length - deleted}`,
+      `Active assignments — Finally invoiced: ${final} · Not-finally-invoiced: ${notFinal} · Unknown final-invoice flags: ${active.length - final - notFinal}`,
+      "Amounts grouped by DocumentCurrency (active assignments only):"
+    ];
+    for (const [currency, group] of totals) {
+      lines.push(`${currency} — PO-linked procurement amount: ${displayPODecimal(group.total)} · Not-finally-invoiced PO-linked amount: ${displayPODecimal(group.notFinal)}`);
+    }
+    if (!totals.size) lines.push("No valid active procurement amounts available.");
+    lines.push(`${invalidAmounts} active assignments excluded from amounts due to invalid/missing amount or currency. Unknown deletion flags are excluded from active amounts; unknown final-invoice flags are excluded from the not-finally-invoiced indicator.`);
+    lines.push("Returned account assignments only; amounts are not multiplied by quantity or distribution percentage, and no exchange rates or invoiced amounts are invented.");
+    poSummary.replaceChildren();
+    for (const text of lines) {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = text;
+      poSummary.append(paragraph);
+    }
+  }
+
+  async function loadPurchaseOrderEvidence() {
+    if (!selectedProject || !elementsLoaded || !loadedWBSIDs().length) {
+      setPOMessage("Select a project and successfully load its real WBS Internal IDs first.", "error");
+      return;
+    }
+    const project = selectedProject;
+    const wbsIDs = loadedWBSIDs();
+    resetProcurementEvidence();
+    poPanel.hidden = false;
+    document.getElementById("po-project").textContent = `Selected project: ${project.Project || "Unnamed project"}`;
+    const requestID = poRequestID;
+    const configuredKey = window.APP_CONFIG?.SAP_API_KEY;
+    const apiKey = typeof configuredKey === "string" ? configuredKey.trim() : "";
+    if (!apiKey || apiKey === placeholder) {
+      setPOMessage("Please add your SAP Sandbox API key to config.local.js first.", "error");
+      poButton.disabled = false;
+      return;
+    }
+    const config = window.PO_API_CONFIG;
+    const url = new URL(config.baseUrl + config.collectionPath);
+    url.searchParams.set("$top", String(config.limit));
+    url.searchParams.set("$select", config.fields.join(","));
+    url.searchParams.set("$filter", wbsIDs.map(id => `WBSElementInternalID eq ${odataString(id)}`).join(" or "));
+    const controller = new AbortController();
+    poController = controller;
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    poButton.textContent = "Loading…";
+    setPOMessage("Requesting exact WBS-linked Purchase Order account assignments…");
+    let response;
+    let httpStatus = "";
+    try {
+      response = await fetch(url, { method: "GET", headers: { APIKey: apiKey, Accept: "application/json" },
+        credentials: "omit", signal: controller.signal });
+      httpStatus = `HTTP ${response.status} ${redact(response.statusText, apiKey) || "(status text unavailable)"}`;
+      const safeBody = redact(await response.text(), apiKey);
+      if (requestID !== poRequestID) return;
+      let data;
+      try { data = JSON.parse(safeBody); } catch { /* Preserve non-JSON body in debug output. */ }
+      rawPO.textContent = JSON.stringify({ url: url.href, status: httpStatus, response: data ?? safeBody }, null, 2);
+      if (!response.ok) {
+        poError.textContent = `${httpStatus}\n${safeBody || "SAP returned no response body."}`;
+        poError.hidden = false;
+        throw new Error(`${httpStatus}. Purchase Order request failed; inspect the safe response below.`);
+      }
+      if (!Array.isArray(data?.value) || !data.value.every(record => record && typeof record === "object" && !Array.isArray(record))) {
+        throw new Error(`${httpStatus}. Expected OData V4 data.value records. Inspect Raw Purchase Order Response.`);
+      }
+      poRecords = data.value.filter(record => typeof record.WBSElementInternalID === "string" && wbsIDs.includes(record.WBSElementInternalID));
+      const rejected = data.value.filter(record => !poRecords.includes(record));
+      const integrity = { status: rejected.length ? "mismatch" : "ok", returned: data.value.length,
+        exactMatches: poRecords.length, discarded: rejected.length,
+        unexpectedIdentifiers: [...new Set(rejected.map(record => record.WBSElementInternalID ?? "(missing)"))].slice(0, 10) };
+      rawPO.textContent = JSON.stringify({ url: url.href, status: httpStatus, filterIntegrity: integrity, response: data }, null, 2);
+      if (poRecords.length) renderProcurementEvidence();
+      else emptyPO("No linked Purchase Order account assignments found in current SAP Sandbox sample.");
+      setPOMessage(`${poRecords.length ? `Linked by exact WBS Internal ID · ${poRecords.length} PO account assignments.` : "No linked Purchase Order account assignments found in current SAP Sandbox sample."} ${httpStatus}.${rejected.length ? ` Filter-integrity warning: ${rejected.length} unrelated rows discarded; inspect debug information.` : ""}${data["@odata.nextLink"] ? " SAP indicates additional pages; counts and amounts cover the returned page only." : ""}`, poRecords.length ? "success" : "info");
+      if (rejected.length) console.warn("SAP Purchase Order filter-integrity warning", { discarded: rejected.length, unexpectedIdentifiers: integrity.unexpectedIdentifiers });
+    } catch (error) {
+      if (requestID !== poRequestID) return;
+      poRecords = [];
+      poSummary.replaceChildren();
+      emptyPO("No procurement evidence displayed. Inspect the error and raw response.");
+      const detail = error.name === "AbortError" ? "Purchase Order request timed out after 30 seconds." : !response
+        ? "No HTTP response available. A network, browser/CORS or local-file restriction may have blocked the request. Inspect the console and Network tab; do not disable browser security."
+        : redact(error.message, apiKey);
+      setPOMessage(`${httpStatus ? httpStatus + ". " : ""}${detail}`, "error");
+      console.error("SAP Purchase Order evidence request failed", { url: url.href, status: httpStatus || "unavailable", diagnostic: detail });
+    } finally {
+      clearTimeout(timeout);
+      if (requestID === poRequestID) {
+        poController = null;
+        poButton.disabled = false;
+        poButton.textContent = "Load Purchase Order Evidence";
+      }
+    }
+  }
+
   glButton.addEventListener("click", loadFinancialEvidence);
+  poButton.addEventListener("click", loadPurchaseOrderEvidence);
 
   button.addEventListener("click", () => {
     resetElementSelection();

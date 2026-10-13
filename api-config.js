@@ -37,3 +37,16 @@ window.GL_API_CONFIG = Object.freeze({
     "PurchasingDocument", "PurchasingDocumentItem", "Supplier", "DocumentItemText"
   ])
 });
+
+// Purchase Order account assignments are OData V4 (data.value), not V2.
+window.PO_API_CONFIG = Object.freeze({
+  baseUrl: "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001",
+  collectionPath: "/PurchaseOrderAccountAssignment",
+  limit: 100,
+  fields: Object.freeze([
+    "PurchaseOrder", "PurchaseOrderItem", "AccountAssignmentNumber", "WBSElementInternalID",
+    "WBSElementExternalID", "DocumentCurrency", "PurgDocNetAmount", "Quantity",
+    "OrderQuantityUnit", "MultipleAcctAssgmtDistrPercent", "GLAccount", "CompanyCode",
+    "IsDeleted", "IsFinallyInvoiced", "CreationDate", "IsAcctLineFinal", "AcctLineFinalReason"
+  ])
+});

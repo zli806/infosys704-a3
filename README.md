@@ -1,6 +1,6 @@
 # DPE IT Investment Review Prototype
 
-This prototype tests SAP Enterprise Project connectivity, related project elements/milestones, and project-linked financial evidence. Four SAP API JSON specifications are stored in `./api/`. **G/L Account Line Items - Read** is now the second integrated SAP API, alongside **Enterprise Project**. Purchase Order, Purchase Requisition and MCP remain unimplemented. The initial project-list test was confirmed by the user: HTTP 200 and five real projects. The new G/L functionality awaits the user's live test; no G/L Sandbox results are claimed here.
+This prototype integrates three SAP sources: **Enterprise Project** for lifecycle/WBS context, **G/L Account Line Items - Read** for financial postings, and **Purchase Order** for WBS-linked procurement account assignments. Four official specifications remain in `./api/`. WBS is the preferred cross-API linking key. Purchase Requisition and MCP remain unimplemented. The user has confirmed successful remote Enterprise Project/G/L validation; Purchase Order live join results are not yet claimed.
 
 ## Run locally
 
@@ -42,7 +42,7 @@ Read-only checks of all five sample projects returned HTTP 200, with no continua
 
 These observations are documentation only, not application fallback data. Sandbox contents may change. The milestone-data limitation is recorded in `DECISIONS.md`; it does not change the original Stage-Gated Portfolio Continuation Review solution.
 
-## Financial Evidence – G/L (live test pending)
+## Financial Evidence – G/L
 
 1. Refresh/open the local page and click **Load Projects**.
 2. Click **View Project Elements** for a project. Wait for its successful element response (zero elements is also a valid response).
@@ -57,15 +57,33 @@ Every request uses the same local `APIKey` header and `Accept: application/json`
 
 The app attempts these queries in order (placeholders below represent actual selected identifiers, not hard-coded data):
 
-- If available: `$filter=ProjectInternalID eq '<selected ProjectInternalID>'&$top=100&$select=<configured fields>&$format=json`.
-- Only if the first query returns zero records, or the project ID is unavailable: `$filter=WBSElementInternalID eq '<loaded WBS ID 1>' or WBSElementInternalID eq '<loaded WBS ID 2>' ...&$top=100&$select=<configured fields>&$format=json`. IDs are deduplicated from the successfully loaded elements. Apostrophes are doubled for OData strings, then URLSearchParams safely encodes the query. No ID normalisation or fabricated mappings are introduced. Only loaded WBS IDs can be tested if elements span multiple pages.
+- **Primary:** `$filter=WBSElementInternalID eq '<loaded WBS ID 1>' or WBSElementInternalID eq '<loaded WBS ID 2>' ...&$top=100&$select=<configured fields>&$format=json`. IDs are deduplicated from the successfully loaded elements and compared exactly, with no WBS zero-normalisation. Only returned WBS IDs can be tested if elements span multiple pages.
+- **Secondary, only if no safe WBS-linked records exist or WBS IDs are unavailable:** `$filter=ProjectInternalID eq '<raw ProjectInternalID>'&$top=100&$select=<configured fields>&$format=json`. For numeric-only IDs with leading zeros, the query additionally ORs the unpadded variant; client comparison accepts numeric-only zero variants such as `00000041`/`41`. Alphanumeric identifiers require exact matching. Raw identifiers/records are retained unchanged. Apostrophes are doubled for OData strings, and URLSearchParams encodes queries safely.
 - If the available linked queries return zero records: one unfiltered `$top=5&$select=<configured fields>&$format=json` diagnostic request. It appears only under **Unlinked G/L Connectivity Diagnostic**, with a warning. These unrelated records are **never** attached to the project, displayed in its evidence table or included in amounts. With no usable identifiers, no query is sent.
 
-HTTP/network/parser errors stop the chain rather than pretending that a failed filter returned zero records. Non-matching identifiers in a returned filtered response also stop processing without attaching the records. Raw linked-query attempts retain their URL, HTTP status and SAP response separately from the diagnostic. Inspect visible errors, raw responses and the browser console/Network tab on failure; do not share credentials from the Network tab.
+HTTP/network/parser errors stop the chain rather than pretending a failed filter returned zero records. SAP Sandbox filters can return unrelated rows: those are discarded client-side, with counts/identifiers recorded under Raw G/L Response. Only exact WBS matches (or validated secondary project-ID matches) enter evidence. Raw query attempts retain their URL, HTTP status and SAP response separately from the diagnostic. Inspect visible errors, raw responses and the browser console/Network tab on failure; do not share credentials from the Network tab.
 
 G/L records are **financial evidence, not automatically complete project cost**. The summary counts linked records, strict Boolean-false non-commitments, Boolean-true commitments, and unknown commitment flags. Net amounts use only confirmed non-commitments, grouped by CompanyCodeCurrency, with exact three-decimal arithmetic and SAP's supplied signs. Unknown commitment flags and invalid/missing amount or currency values are explicitly reported and excluded from amounts. Currencies are never combined or converted. Reversal/reversed items are retained and their flags displayed. No ledger deduplication or complete accounting-scope interpretation is assumed.
 
-Queries return at most 100 linked records with no automatic pagination. Summaries describe only returned records; a SAP continuation link is reported when present. No fake financial records, material-trigger rules, final continuation-decision workflow, Purchase Order, Purchase Requisition or MCP integration are added in this step. No live G/L requests are made automatically on selection.
+Queries retrieve at most 100 records with no automatic pagination; summaries use only validated linked records from the returned page. A SAP continuation link is reported when present. No live evidence requests run automatically on selection.
+
+### User-confirmed remote G/L findings (14 October 2026)
+
+Exact WBS joins produced 40 linked G/L records for TEMP003 and 2 for I1000. TEMP001, TEMP002 and PROJECT1 produced zero. ProjectInternalID formatting differed across APIs (for example `00000041` versus `41`), motivating WBS-primary linking. These are observed Sandbox findings, not hard-coded application data; contents may change. The evidence decision is appended in `DECISIONS.md` without changing the original business solution.
+
+## Procurement Evidence – Purchase Orders
+
+Use **Load Projects → View Project Elements → Load Financial Evidence → Load Purchase Order Evidence**. The PO button becomes available after real WBS IDs have loaded; it does not require a successful G/L join. Selecting/reloading a project clears old G/L and PO evidence and cancels/ignores stale responses.
+
+The separate `window.PO_API_CONFIG` uses:
+
+`https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001/PurchaseOrderAccountAssignment`
+
+Query: `$top=100&$select=<17 verified fields in api-config.js>&$filter=WBSElementInternalID eq '<actual loaded ID>' or ...`, with the same local APIKey and `Accept: application/json`. This is **OData V4**, parsed from `data.value`; Enterprise Project/G/L remain OData V2 (`data.d.results`). Every returned assignment is client-checked against exact loaded WBS IDs. Unrelated rows are discarded and recorded under **Raw Purchase Order Response / Filter Integrity**, never included in procurement evidence. Zero exact matches are a valid Sandbox-data finding, not invented records or technical success with a fake join.
+
+The table retains full exact-linked assignment records and displays deleted/final-invoice indicators. Active summaries require `IsDeleted === false`; deleted and unknown-deletion assignments do not enter active amounts. Finally invoiced and not-finally-invoiced assignments are counted separately. PO-linked amounts and not-finally-invoiced amounts use PurgDocNetAmount, grouped by DocumentCurrency, without combining currencies or inventing exchange rates/invoiced amounts. Decimal strings and finite, safe-range numbers are supported with decimal coefficient/scale arithmetic; invalid/missing values are reported and excluded rather than silently converted to zero. Unknown final-invoice flags are excluded from the not-finally-invoiced indicator.
+
+These amounts are a **prototype procurement exposure indicator**, not exact outstanding commitments/liability. Amounts are summed at account-assignment level without multiplying again by quantity or allocation percentage; no complete PO/ledger scope is assumed. Counts and amounts cover the returned page only. Purchase Order live join findings await actual GitHub Actions validation; no live PO result is claimed here.
 
 ## Remote SAP Live Validation
 
@@ -73,8 +91,8 @@ Add the repository secret **SAP_API_KEY** yourself under GitHub **Settings → S
 
 Run **Actions → SAP Live Validation → Run workflow**, or have an authorised client update `.github/sap-validation-trigger` and push that harmless change to `master`. Other application commits do not trigger the workflow. The initial trigger-file creation also qualifies for a run on push; without the secret, it fails clearly.
 
-The standard-library Python script checks up to five Enterprise Projects, their Project Elements/WBS IDs, and G/L join feasibility: ProjectInternalID first, then actual WBS IDs only if needed. If no tested project joins, it performs exactly one separate unlinked G/L diagnostic. Zero cross-API matches with working APIs are a valid Sandbox-data finding, **not** a test failure. Authentication, HTTP/network, malformed response and script errors fail the workflow.
+The standard-library Python script checks up to five Enterprise Projects, their Project Elements/WBS IDs, G/L join feasibility (exact WBS first, secondary numeric-safe ProjectInternalID fallback), and Purchase Order account-assignment joins (OData V4, exact WBS only). If no tested project joins an API, it performs one separate unlinked diagnostic for that API. Reports separate exact/secondary G/L matches and unexpected filter identifiers, and add per-project PO counts, filter integrity and unique PO numbers. Unrelated/diagnostic records never become project evidence. Zero matches with working APIs are a valid Sandbox-data finding, **not** a test failure. Authentication, HTTP/network, malformed response and script errors fail the workflow.
 
-Download the **sap-validation-report** artifact for `validation-report.json` and `validation-summary.md`; the Markdown also appears in the run summary. Reports contain counts, identifiers and link statuses, not keys, headers or raw SAP payloads. Exact-key redaction applies before writing reports; redirects are blocked so credentials cannot be forwarded to another target. Counts cover returned pages only (maximum 100 G/L records per linked query); continuation flags and unknown milestone counts make limitations explicit.
+Download the **sap-validation-report** artifact for `validation-report.json` and `validation-summary.md`; the Markdown also appears in the run summary. Reports contain counts, identifiers and link statuses, not keys, headers or raw SAP payloads. Exact-key redaction applies before writing reports; redirects are blocked so credentials cannot be forwarded to another target. The remote gzip/deflate/BOM decoding and filter-integrity diagnostics are preserved. Counts cover returned pages only (maximum 100 G/L/PO records per linked query); continuation flags and unknown milestone counts make limitations explicit.
 
-Application functionality and business behaviour are unchanged by this validation harness. It validates remote API connectivity and joins, not browser CORS/UI behaviour. No workflow success is claimed until an actual run completes. Purchase Order, Purchase Requisition and MCP remain out of scope.
+The harness itself does not change application business behaviour. It validates remote API connectivity/joins, not browser CORS/UI behaviour. Existing Enterprise Project/G/L live findings are user-confirmed; new PO workflow results are not claimed before an actual run. Purchase Requisition, MCP, AI Review Brief and the final continuation-decision workflow remain out of scope. No fake milestones, financial/procurement records or new material-trigger rules are introduced.
