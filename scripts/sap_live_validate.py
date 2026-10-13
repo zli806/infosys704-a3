@@ -1,11 +1,13 @@
 """Read-only SAP Sandbox connectivity/join checks; Python standard library only."""
 
+import gzip
 import html
 import json
 import os
 from pathlib import Path
 import re
 import sys
+import zlib
 from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -98,6 +100,24 @@ class SAPClient:
             raise ValidationError(f"{label}: network, TLS or timeout failure.") from None
         if len(body) > MAX_RESPONSE_BYTES:
             raise ValidationError(f"{label}: response exceeded the safety size limit.", status)
+        encoding = content_encoding.strip().lower()
+        try:
+            if encoding == "gzip":
+                body = gzip.decompress(body)
+            elif encoding == "deflate":
+                body = zlib.decompress(body)
+            elif encoding not in ("", "identity"):
+                raise ValidationError(
+                    f"{label}: HTTP {status}, unsupported Content-Encoding={encoding[:40]}.",
+                    status,
+                )
+        except (OSError, zlib.error):
+            raise ValidationError(
+                f"{label}: HTTP {status}, could not decompress Content-Encoding={encoding or 'unknown'}.",
+                status,
+            ) from None
+        if len(body) > MAX_RESPONSE_BYTES:
+            raise ValidationError(f"{label}: decompressed response exceeded the safety size limit.", status)
         try:
             text_body = body.decode("utf-8-sig")
             data = json.loads(text_body)
