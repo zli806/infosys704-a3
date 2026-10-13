@@ -203,17 +203,24 @@ def run_validation(client, report):
                 )
                 if len(rows) > GL_LIMIT:
                     raise ValidationError("G/L linked query: response exceeded requested 100-record limit.")
-                if any(string_field(row, field) not in identifiers for row in rows):
-                    raise ValidationError("G/L linked query: returned identifiers do not match the requested filter.")
+                observed = [string_field(row, field) for row in rows]
+                exact_count = sum(value in identifiers for value in observed)
+                unexpected = sorted({value for value in observed if value not in identifiers})
             except ValidationError:
                 report["gl_api"]["connectivity"] = "failed"
                 raise
             report["gl_api"]["connectivity"] = "success"
+            if unexpected:
+                report["gl_api"]["filter_integrity_warning"] = True
             entry["gl_queries"].append({
                 "method": field, "http_status": http_status,
-                "returned_record_count": len(rows), "has_more": more,
+                "returned_record_count": len(rows), "exact_match_count": exact_count,
+                "filter_integrity": "ok" if not unexpected else "mismatch",
+                "unexpected_identifiers": unexpected[:10], "has_more": more,
             })
-            return len(rows)
+            # Only exact client-side identifier matches count as project evidence.
+            # Unexpected Sandbox rows are diagnostic only and never attached to the project.
+            return exact_count
 
         linked_count = linked_query("ProjectInternalID", [project_id]) if project_id else 0
         link_method = "ProjectInternalID" if linked_count else "none"
@@ -277,6 +284,8 @@ def summary_markdown(report):
         lines.append("| " + " | ".join(markdown_cell(value) for value in values) + " |")
     gl = report["gl_api"]
     lines.extend(["", f"G/L connectivity: {gl['connectivity']}."])
+    if gl.get("filter_integrity_warning"):
+        lines.append("Warning: at least one SAP Sandbox filtered G/L response contained identifiers outside the requested filter. Only exact client-side matches were counted; unexpected rows were not treated as project evidence.")
     if gl["diagnostic_performed"]:
         lines.append(f"Unlinked diagnostic: HTTP {gl['diagnostic_http_status']}; {gl['diagnostic_record_count']} records.")
         lines.append("Diagnostic records are not linked to any tested project and are not project evidence.")
@@ -295,6 +304,7 @@ def main():
         "enterprise_project": {"status": "not_tested", "project_count": None},
         "projects": [],
         "gl_api": {"connectivity": "not_tested", "any_project_join_found": False,
+                   "filter_integrity_warning": False,
                    "diagnostic_performed": False, "diagnostic_http_status": None,
                    "diagnostic_record_count": None},
     }
