@@ -1,6 +1,9 @@
 name: Frontend Static Checks
 
 on:
+  push:
+    branches:
+      - master
   pull_request:
     branches:
       - master

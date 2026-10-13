@@ -13,11 +13,22 @@ REQUIRED_IDS = (
     "gl-panel", "load-financial-evidence", "gl-project", "gl-message", "gl-error", "gl-summary", "gl-body",
     "raw-gl-response", "gl-diagnostic", "raw-gl-diagnostic",
     "po-panel", "load-po-evidence", "po-project", "po-message", "po-error", "po-summary", "po-body", "raw-po-response",
+    "nav-dashboard", "nav-investments", "nav-reviews", "page-title", "storage-notice",
+    "dashboard-view", "dashboard-cards", "dashboard-view-investments", "dashboard-open-reviews", "dashboard-decisions",
+    "investments-view", "detail-view", "investment-context", "detail-review-status", "start-review", "view-last-decision",
+    "detail-lifecycle-overview", "reload-lifecycle", "load-review-evidence", "detail-financial-overview", "detail-procurement-overview",
+    "reviews-view", "reviews-body", "review-chrome", "current-review-project", "review-steps", "review-timing",
+    "readiness-status", "readiness-missing", "workflow-message", "review-back-investment", "assessment-view", "assessment-form",
+    "review-basis", "assessment-alignment", "assessment-benefits", "assessment-delivery", "assessment-financial-evidence",
+    "assessment-cost", "assessment-risk", "assessment-value", "assessment-comments", "assessment-dependencies", "assessment-owner",
+    "assessment-save-summary", "summary-view", "review-summary", "back-assessment", "proceed-decision", "decision-view", "decision-form",
+    "decision-outcome", "decision-rationale", "decision-owner", "decision-requirements", "decision-action", "decision-action-owner",
+    "decision-next-date", "back-summary", "confirm-decision", "confirmation-view", "confirmation-record", "return-investment", "back-dashboard",
 )
 REQUIRED_SCRIPTS = (
-    "config.local.js", "api-config.js", "js/core/state.js", "js/core/utils.js",
+    "config.local.js", "api-config.js", "js/core/state.js", "js/core/utils.js", "js/core/review-rules.js",
     "js/services/sap-http.js", "js/services/project-service.js", "js/services/gl-service.js",
-    "js/services/po-service.js", "js/ui/renderers.js", "app.js",
+    "js/services/po-service.js", "js/services/review-store.js", "js/ui/renderers.js", "js/ui/governance.js", "app.js",
 )
 
 

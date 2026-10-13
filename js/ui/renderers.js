@@ -2,6 +2,7 @@
   "use strict";
   const app = window.DPEApp = window.DPEApp || {};
   const { formatDate, milestoneFlag, mainMilestoneLabel, booleanLabel } = app.utils;
+  let reviewStatusForProject = () => "No active review";
   const dom = {
     button: document.getElementById("load-projects"),
     connection: document.getElementById("connection-status"),
@@ -71,18 +72,18 @@
     return context.data !== undefined ? JSON.stringify(context.data, null, 2) : context.safeBody || "(Empty response body)";
   }
   function renderProjects(projects, selectedProject, onSelect) {
-    if (!projects.length) { empty(dom.tableBody, 8, "SAP returned no projects."); return; }
+    if (!projects.length) { empty(dom.tableBody, 9, "SAP returned no projects."); return; }
     dom.tableBody.replaceChildren();
     for (const project of projects) {
       const row = document.createElement("tr");
       cells(row, [project.Project, project.ProjectDescription, project.ProcessingStatus,
-        formatDate(project.ProjectStartDate), formatDate(project.ProjectEndDate), project.ProjectCurrency, project.CompanyCode]);
+        formatDate(project.ProjectStartDate), formatDate(project.ProjectEndDate), project.ProjectCurrency, project.CompanyCode, reviewStatusForProject(project)]);
       const actionCell = document.createElement("td");
       const action = document.createElement("button");
       action.type = "button";
       action.className = "row-action";
-      action.textContent = "View Project Elements";
-      action.setAttribute("aria-label", `View Project Elements for ${project.Project || "project"}`);
+      action.textContent = "View Investment";
+      action.setAttribute("aria-label", `View Investment for ${project.Project || "project"}`);
       action.setAttribute("aria-pressed", String(project === selectedProject));
       action.addEventListener("click", () => onSelect(project));
       actionCell.append(action);
@@ -187,6 +188,7 @@
     summary(dom.poSummary, lines);
   }
   app.ui = {
+    configureReviews(callback) { reviewStatusForProject = callback; },
     renderProjects, resetElements, selectProject, renderElements, resetGL, renderGL, resetPO, renderPO,
     bindEvents(actions) {
       dom.glButton.addEventListener("click", actions.loadGL);
@@ -195,7 +197,7 @@
     },
     projectStart() {
       dom.errorDetails.hidden = true; dom.errorDetails.textContent = "";
-      empty(dom.tableBody, 8, "No projects loaded yet."); dom.rawResponse.textContent = "No response received yet.";
+      empty(dom.tableBody, 9, "No projects loaded yet."); dom.rawResponse.textContent = "No response received yet.";
     },
     projectKeyMissing() {
       dom.connection.textContent = "API key required · Not connected";
@@ -212,9 +214,9 @@
     },
     projectFailure(detail) {
       dom.connection.textContent = "Connection test failed";
-      empty(dom.tableBody, 8, "No project data displayed. Resolve the error and try again."); message(dom.message, detail, "error");
+      empty(dom.tableBody, 9, "No project data displayed. Resolve the error and try again."); message(dom.message, detail, "error");
     },
-    projectFinished() { dom.button.disabled = false; dom.button.textContent = "Load Projects"; },
+    projectFinished() { dom.button.disabled = false; dom.button.textContent = "Load SAP Projects"; },
     projectRaw(context) { dom.rawResponse.textContent = raw(context); },
     projectHTTPError(text) { errorBody(dom.errorDetails, text); },
     elementsRaw(context) { dom.rawElements.textContent = raw(context); },

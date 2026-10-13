@@ -26,7 +26,7 @@ Use a short, descriptive branch name:
 
 ## Pull Request Rule
 
-Normal changes go through **branch → PR into `master` → review → merge**. Do not push directly to `master` unless the team explicitly agrees that an emergency repository-maintenance change requires it. Do not automatically merge your own work without the agreed review.
+Normal teammate changes go through **branch → PR into `master` → review → merge**. The repository admin/technical integration owner may directly update `master` for explicitly coordinated baseline/integration work; emergency repository maintenance also requires explicit team agreement. Do not automatically merge ordinary PRs without the agreed review.
 
 Keep each PR focused. Do not combine a large UI redesign, API integration, business-rule changes and unrelated documentation in one PR. Use the [PR template](.github/PULL_REQUEST_TEMPLATE.md); explain the problem, the change and how it was checked. Request a teammate review, including the technical owner for integration changes and the requirement/business-flow owner for material governance changes. No named reviewer or approval-count rule is configured by this documentation.
 
@@ -109,7 +109,7 @@ Coordinate changes in `js/services/`, `api-config.js`, `scripts/sap_live_validat
 
 ## Parallel Development and Automatic PR Checks
 
-The **Frontend Static Checks** workflow runs automatically on Pull Requests into `master`, and supports manual dispatch. It needs no SAP_API_KEY, never calls SAP APIs, and checks required/unique HTML IDs, normal deferred script order, referenced files, JavaScript syntax (including all `js/` modules), and Python syntax without executing the live validator. The separate live SAP workflow remains manual/trigger-file based.
+The **Frontend Static Checks** workflow runs automatically on Pull Requests into `master` and pushes to `master`, and supports manual dispatch. It needs no SAP_API_KEY, never calls SAP APIs, and checks required/unique HTML IDs, normal deferred script order, referenced files, JavaScript syntax (including all `js/` modules), and Python syntax without executing the live validator. The separate live SAP workflow remains manual/trigger-file based.
 
 Use these primary collaboration areas, not absolute ownership restrictions:
 

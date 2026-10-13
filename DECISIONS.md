@@ -152,3 +152,17 @@ Live SAP Sandbox validation confirmed exact Enterprise Project → G/L joins thr
 WBSElementInternalID is now the preferred primary cross-API key. ProjectInternalID remains a secondary/fallback identifier; numeric-only leading-zero variants may be compared as equivalent only for that fallback. Raw SAP identifiers must be retained and not destructively rewritten. WBS matching remains exact.
 
 This is an implementation/evidence decision, not a change to the original Stage-Gated Portfolio Continuation Review business solution.
+
+---
+
+## 2026-10-14 – Playable continuation-review MVP
+
+Use one product combining real SAP Business Accelerator Hub Sandbox evidence, explicitly labelled reviewer/governance input and deterministic system controls. Do not create separate Demo/Live modes or fabricate SAP transactions/milestones/PO joins.
+
+Store versioned prototype reviews and immutable completed decisions in browser localStorage (`dpeA3.reviews.v1`), with whitelisted project identity and concise evidence summaries, never credentials or raw transactions. This is origin/browser-local prototype persistence, not production storage, authentication or SAP write-back.
+
+Readiness checks evidence/assessment completeness only, not an investment score/recommendation. Clearly reported unsuccessful/unavailable G/L/PO attempts satisfy the attempt checks; lifecycle evidence must have loaded. Reviewers remain responsible for evidence quality and for selecting the exact five A2 decision outcomes. Conditional/Modify/Pause decisions require an action, owner and next review date.
+
+Calculate 14-day decision and 30-day escalation thresholds from the actual review-open timestamp using UTC calendar days and the browser's clock. Marked SAP milestones are not a prerequisite for opening a reviewer-selected governance review. AI Review Brief, MCP and Purchase Requisition are deferred from this first playable baseline; no AI decision is introduced.
+
+Normal teammate changes remain branch → PR → review → merge. The repository admin/technical owner may directly update master for explicitly coordinated baseline/integration work; static checks now cover master pushes as well as PRs.

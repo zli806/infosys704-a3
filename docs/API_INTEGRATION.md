@@ -129,7 +129,7 @@ These are **prototype exposure indicators, not validated exact outstanding commi
 
 ## Purchase Requisition
 
-[CE_PURCHASEREQUISITION_0001.json](../api/CE_PURCHASEREQUISITION_0001.json) is downloaded, but no application/validator integration exists. It is stretch scope for procurement pipeline evidence, and must not delay the core review journey. MCP, AI Review Brief and the human decision workflow are also not implemented. See [MVP Scope](MVP_SCOPE.md) for remaining work and the existing AI scope question.
+[CE_PURCHASEREQUISITION_0001.json](../api/CE_PURCHASEREQUISITION_0001.json) is downloaded, but no application/validator integration exists. It is stretch scope for procurement pipeline evidence. MCP and AI Review Brief remain deferred. The human review/decision workflow now exists as local prototype governance state, not SAP data or write-back; concise captured SAP evidence summaries are retained with decisions, not raw payloads. See [MVP Scope](MVP_SCOPE.md).
 
 ## Remote SAP Live Validation
 

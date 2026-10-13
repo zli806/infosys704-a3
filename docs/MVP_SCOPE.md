@@ -1,65 +1,48 @@
-# MVP Scope
+# Playable MVP Scope
 
 ## Business Objective
 
-Implement the A2 **Stage-Gated Portfolio Continuation Review** solution as a functional INFOSYS 704 A3 prototype for DPE. Help a portfolio/PMO user reassess a material IT investment at an appropriate gate or material issue before further avoidable expenditure is committed. The app supports evidence and judgement; an accountable human decides Continue / Continue with Conditions / Modify / Pause / Stop.
+Demonstrate the A2 Stage-Gated Portfolio Continuation Review solution for INFOSYS 704 A3: real SAP Sandbox evidence + explicit human governance input + deterministic system controls, ending in an accountable human decision and retained prototype record. There is one web product, no Demo/Live mode, fabricated SAP data, AI recommendation or SAP write-back.
 
-The original [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md) and dated [DECISIONS.md](../DECISIONS.md) remain the source of truth. This is a capability/status guide for team validation, not a new business solution or final UI design.
+[PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md) remains the business source of truth, with the first playable baseline decisions appended in [DECISIONS.md](../DECISIONS.md). AI Review Brief/MCP/Purchase Requisition are deliberately deferred from this baseline.
 
 ## Current Technical Baseline
 
-Working now:
+The modular plain HTML/CSS/JS app now implements Dashboard → Investments → Investment Details → Assessment → Summary → Decision → Confirmation, plus a Reviews view. Existing Enterprise Project/G/L V2 and PO V4 services retain their endpoints and join semantics. WBS is primary/exact; numeric-only project-ID fallback remains secondary for G/L.
 
-- Live SAP project retrieval, selection and Project Element/WBS retrieval.
-- G/L integration and client-validated joins, with exact WBS preferred and numeric-only project-ID fallback.
-- Live exact WBS G/L joins observed for TEMP003 (40 records) and I1000 (2).
-- Purchase Order connectivity, V4 response handling and exact-WBS matching logic. Current tested public samples produce no exact PO project joins.
-- Cautious financial/procurement summaries grouped by currency; commitment/deletion/reversal/final-invoice flags remain transparent.
-- Truthful zero-result/error handling, raw/debug responses and safe rejection of unrelated rows.
-- Remote connectivity/join validation with GitHub Actions artifacts.
-
-These are real Sandbox evidence capabilities, not yet a complete continuation-review pack. All 26 currently observed project elements lacked marked milestones/main milestones. This and zero PO joins constrain demonstrations, not the original business problem. [API Integration](API_INTEGRATION.md) separates implementation capability from sample availability.
+Live browser smoke test for this baseline: 5 SAP projects; TEMP003 with 4 elements, 40 linked G/L rows and 0 exact PO links. The review flow was exercised through a conditional decision, dashboard update and reload/persistence; the isolated test record was then removed. This is a test observation, not a permanent production fact or DPE investment decision. Earlier sample findings remain in [API Integration](API_INTEGRATION.md).
 
 ## Minimum Viable Product
 
-Proposed capability-level acceptance view for team review:
-
-| Capability | Status | Current evidence / gap |
+| Capability | Status | Scope / remaining gap |
 | --- | --- | --- |
-| 1. Identify/select an in-scope IT project | **PARTIAL** | Selection of real Sandbox projects works; DPE IT-investment scope/filter/review queue is not configured. Sandbox projects are not automatically real DPE investments. |
-| 2. Retrieve lifecycle/WBS evidence | **DONE** | Project/element/WBS retrieval works, with truthful milestone flags and zero states. This does not mean DPE continuation gates are configured. |
-| 3. Retrieve available financial evidence | **DONE** | G/L retrieval and exact WBS joins work. Amounts are returned posting evidence, not validated complete project cost. |
-| 4. Retrieve available procurement evidence | **PARTIAL** | PO connectivity/matching/display/empty-state capability exists; current samples have no project joins, so populated project procurement evidence is not demonstrated. No fake linkage may fill that gap. |
-| 5. Assemble a continuation-review evidence pack | **PARTIAL** | A single page displays source evidence sections. There is no purpose-built consolidated review pack, configured gate/review-due logic or coherent full review journey yet. |
-| 6. Capture governance evidence not available from SAP | **NOT STARTED** | No strategic alignment, benefits outlook, risks/dependencies or review-configuration forms/storage. These must be source-labelled as DPE/prototype governance evidence. |
-| 7. Record an accountable human continuation decision | **NOT STARTED** | No Continue / Continue with Conditions / Modify / Pause / Stop workflow or decision-rights implementation. |
-| 8. Retain/show rationale, action/owner and next review | **NOT STARTED** | No decision record, timestamp/status, action ownership or persistence. In-memory API evidence is not a retained governance record. |
-| 9. Preserve the AI/human decision boundary if AI is added | **PARTIAL** | The principle is documented and no automated decision is made. No AI feature/guardrail workflow has yet been implemented or validated. |
+| Select an in-scope IT investment | **PARTIAL** | All returned real Sandbox projects can be selected/reviewed; no verified DPE production IT-investment classification/scope filter. |
+| Retrieve lifecycle/WBS evidence | **DONE** | Real UUID navigation, elements/WBS/milestone flags and honest empty/error states. No fake marked milestone or automatic gate assignment. |
+| Retrieve available financial evidence | **DONE** | Live G/L joins and cautious returned non-commitment amounts by currency; not complete project cost. |
+| Retrieve available procurement evidence | **PARTIAL** | Live PO connectivity, exact matching and zero/error handling work. Current tested samples have no project PO joins, so populated procurement amounts remain data-limited. |
+| Assemble continuation-review evidence pack | **DONE** | Project context, lifecycle/G/L/PO snapshot summaries, reviewer assessment and timing/readiness are presented together, with raw/debug information secondary. |
+| Capture non-SAP governance evidence | **DONE** | Human basis, six assessment categories, comments/dependencies and decision owner; source-labelled as REVIEWER INPUT. No automatic budget variance is invented. |
+| Record human continuation decision | **DONE** | Exact five A2 outcomes, no preselection/recommendation; required rationale/owner and conditional action requirements enforced again on save. |
+| Retain/show rationale, action/owner, next review | **DONE (prototype)** | Versioned browser-local records include actual timestamps/targets, assessment and concise evidence snapshots. No production database/audit/authentication. |
+| Preserve AI/human decision boundary | **DONE for this baseline** | No AI or automated continuation decision exists. Future AI safeguards still require implementation/validation. |
 
-"DONE" here applies to the specific retrieval capability, not the final assignment or all of its governance requirements. Functional validation should cite an actual flow/test/report and treat graceful empty results as valid, while identifying where the full business demonstration remains incomplete.
+Readiness is a deterministic completeness list, not a weighted score: context exists; lifecycle loaded; G/L and PO attempted; basis selected; all six categories assessed (cost not Insufficient information); owner entered. Zero joins, failed requests or unavailable identifiers are distinguished explicitly. Attempted does not mean successful or adequate evidence; the human remains accountable for judgement. Pending evidence loads block progression/confirmation.
 
-Remaining core work includes agreeing DPE project scope, continuation gate/review configuration, non-SAP governance evidence, a coherent review pack and the human decision record. The A2 14-day decision target / 30-day unresolved escalation concept remains in project context; no rules implementing those targets exist yet. Do not invent a material-trigger rule in documentation.
+Review-open time is set once from the actual browser clock. The 14-day decision target and 30-day escalation threshold use UTC calendar days. Dashboard/Reviews show calculated open/overdue/escalated/recorded states; completed records are excluded from open counts. Thresholds are displayed controls, not external notifications. Decisions never modify SAP processing status.
+
+## Remaining MVP Limitations
+
+- Public Sandbox data is not DPE production data. No marked milestones were present in the 26 tested elements; review basis is chosen by the human rather than inferred from SAP gates.
+- No PO joins in current tested projects. No fabricated procurement records or unrelated diagnostics may fill the gap.
+- Limited returned pages (5 projects / up to 100 G/L or PO rows); no automatic pagination or complete-cost/remaining-liability assurance.
+- LocalStorage is browser/origin-local, editable/clearable and not production-grade, multi-user, tamper-proof or backed up. Owner is entered text, not authenticated decision rights. Storage failure is visible and does not count as a recorded decision.
+- Saved SAP evidence summaries are explicitly snapshots; fresh API evidence is reloaded on demand. Raw payloads are not persisted.
+- Basic desktop presentation awaits UI/UX refinement; no mobile screens. No automatic review queue prioritisation, material-trigger detection, external reminders/escalation or gate configuration.
 
 ## Stretch / Later
 
-- Purchase Requisition pipeline (stretch; not implemented).
-- Advanced analytics/automatic queue prioritisation (only when useful to the review journey).
-- Richer persistence/audit trail (basic retained decision evidence is still needed for the MVP).
-- MCP architecture/integration (not implemented; depends on agreed technical direction).
-- AI Review Brief (not implemented; later implementation work subject to scope confirmation below).
-- Visual polish beyond the usable, professional MVP (not a substitute for the end-to-end flow).
-
-**Scope reconciliation:** `PROJECT_CONTEXT.md` currently lists an AI-assisted Review Brief among MVP/must-have items, while this team-baseline request groups it under later work. This guide does not silently remove that requirement or change the original AI role. Confirm the final assignment/team scope and record any material change in `DECISIONS.md` before treating it as optional. AI may gather/summarise evidence and identify gaps, never make the final accountable continuation decision.
-
-Not every stretch option must be implemented. Avoid a generic ERP dashboard, universal chatbot, fabricated cross-API mapping or unrelated analytics. Deepen one convincing review journey first.
+Purchase Requisition, MCP, AI Review Brief, richer shared persistence/audit, authenticated roles, useful advanced analytics, configured governance gates/triggers, and visual polish beyond the usable MVP. Not every later item must be implemented. This iteration intentionally resolves the earlier AI scope question by deferring AI in the decision log rather than silently changing the human accountability principle.
 
 ## Acceptance Principles
 
-- **Functional:** working click flow, valid identifiers/response versions, understandable evidence and honest empty/error states.
-- **Traceable to A2:** every proposed function should support stage-gated/material-review preparation or the decision record, not merely enlarge the prototype.
-- **No fake SAP evidence:** milestones, financial records and PO joins must come from real defensible evidence; absence remains visible.
-- **Clear source labels:** distinguish public SAP Sandbox data, unlinked diagnostics and future DPE/prototype governance inputs.
-- **Human accountable decision:** decision rights/rationale remain human; AI synthesis cannot replace governance judgement.
-- **Usable end-to-end flow:** project selection → evidence pack → governance evidence → human decision/record, rather than disconnected API screens.
-- **Graceful states and safe interpretation:** prevent stale project evidence, never combine currencies without approved conversion, and do not call partial G/L/PO amounts complete cost/outstanding liability.
-- **Reviewable delivery:** use focused branch/PR/review work and update documentation/material decisions. See [CONTRIBUTING.md](../CONTRIBUTING.md).
+Functional end-to-end flow; traceability to A2; no fake SAP evidence; clear SAP/REVIEWER INPUT/SYSTEM CALCULATED labels; an accountable human decision; defensive joins/currencies/empty states; unchanged API interpretation; focused teammate PR/review work. See [CONTRIBUTING.md](../CONTRIBUTING.md) and [UI Contract](UI_CONTRACT.md).

@@ -3,128 +3,145 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DPE IT Investment Review Prototype</title>
+  <title>DPE IT Investment Governance Hub</title>
   <link rel="stylesheet" href="styles.css">
   <script src="config.local.js" defer></script>
   <script src="api-config.js" defer></script>
   <script src="js/core/state.js" defer></script>
   <script src="js/core/utils.js" defer></script>
+  <script src="js/core/review-rules.js" defer></script>
   <script src="js/services/sap-http.js" defer></script>
   <script src="js/services/project-service.js" defer></script>
   <script src="js/services/gl-service.js" defer></script>
   <script src="js/services/po-service.js" defer></script>
+  <script src="js/services/review-store.js" defer></script>
   <script src="js/ui/renderers.js" defer></script>
+  <script src="js/ui/governance.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
-  <main>
-    <header>
-      <p class="eyebrow">INFOSYS 704 · SAP Sandbox</p>
-      <h1>DPE IT Investment Review Prototype</h1>
-      <p class="subtitle">SAP Enterprise Project API Connection Test</p>
-    </header>
-    <section class="panel" aria-labelledby="connection-heading">
-      <div class="toolbar">
-        <div>
-          <h2 id="connection-heading">Connection</h2>
-          <p id="connection-status" role="status">Not tested</p>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <p class="eyebrow">DPE · INFOSYS 704 A3</p>
+      <h1>IT Investment<br>Governance Hub</h1>
+      <nav aria-label="Main navigation">
+        <button id="nav-dashboard" type="button">Dashboard</button>
+        <button id="nav-investments" type="button">Investments</button>
+        <button id="nav-reviews" type="button">Reviews</button>
+      </nav>
+      <p class="sidebar-note">SAP Sandbox evidence.<br>Human governance decisions.<br>Local prototype records.</p>
+    </aside>
+    <main>
+      <header class="page-header">
+        <div><p class="eyebrow">Continuation Review · Desktop Web Prototype</p><h2 id="page-title" tabindex="-1">Dashboard</h2></div>
+        <button id="load-projects" type="button">Load SAP Projects</button>
+      </header>
+      <div class="source-legend" aria-label="Value sources"><span class="source sap">SAP</span><span class="source reviewer">REVIEWER INPUT</span><span class="source system">SYSTEM CALCULATED</span></div>
+      <p id="storage-notice" class="status-message" role="alert" hidden></p>
+      <section class="connection-strip" aria-label="SAP connection">
+        <p id="connection-status" role="status">Not tested</p>
+        <p id="message" role="status" aria-live="polite">Load SAP projects to begin. Up to 5 real Sandbox projects are returned.</p>
+        <details><summary>Connection Technical Details</summary><pre id="error-details" hidden></pre></details>
+      </section>
+
+      <section id="dashboard-view" aria-label="Dashboard">
+        <div id="dashboard-cards" class="cards"></div>
+        <button id="dashboard-view-investments" type="button">View Investments</button>
+        <section class="panel"><h3>Open Reviews <span class="source system">SYSTEM CALCULATED</span></h3><div id="dashboard-open-reviews"></div></section>
+        <section class="panel"><h3>Recent Decisions</h3><p class="hint">Project: SAP snapshot · Decision: REVIEWER INPUT · Date: SYSTEM CALCULATED</p><div id="dashboard-decisions"></div></section>
+      </section>
+
+      <section id="investments-view" aria-label="Investments" hidden>
+        <div class="panel">
+          <h3>Investments <span class="source sap">SAP</span></h3>
+          <p class="hint">Real public Sandbox projects, not verified DPE production investments. Review status is calculated from local prototype records.</p>
+          <div class="table-scroll"><table>
+            <caption class="sr-only">SAP projects and local governance review status</caption>
+            <thead><tr><th scope="col">Project</th><th scope="col">Description</th><th scope="col">SAP Status</th><th scope="col">Start Date</th><th scope="col">End Date</th><th scope="col">Currency</th><th scope="col">Company Code</th><th scope="col">Review Status<br><span class="source system">SYSTEM CALCULATED</span></th><th scope="col">Action</th></tr></thead>
+            <tbody id="projects-body"><tr><td colspan="9" class="empty">No SAP projects loaded yet.</td></tr></tbody>
+          </table></div>
+          <details><summary>Technical Details – Raw SAP Response</summary><pre id="raw-response">No response received yet.</pre></details>
         </div>
-        <button id="load-projects" type="button">Load Projects</button>
-      </div>
-      <p class="hint">Read-only request · Enterprise Project · Up to 5 real Sandbox records</p>
-      <p id="message" role="status" aria-live="polite">Click Load Projects to test the connection.</p>
-      <pre id="error-details" hidden></pre>
-    </section>
-    <section class="panel" aria-labelledby="projects-heading">
-      <h2 id="projects-heading">Enterprise Projects</h2>
-      <div class="table-scroll">
-        <table>
-          <caption class="sr-only">Projects returned by the SAP Enterprise Project Sandbox API</caption>
-          <thead>
-            <tr><th scope="col">Project</th><th scope="col">Description</th><th scope="col">Status</th><th scope="col">Start Date</th><th scope="col">End Date</th><th scope="col">Currency</th><th scope="col">Company Code</th><th scope="col">Action</th></tr>
-          </thead>
-          <tbody id="projects-body">
-            <tr><td colspan="8" class="empty">No projects loaded yet.</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-    <details class="panel">
-      <summary>Raw SAP Response</summary>
-      <pre id="raw-response">No response received yet.</pre>
-    </details>
-    <section id="elements-panel" class="panel" aria-labelledby="elements-heading" hidden>
-      <h2 id="elements-heading">Selected Project</h2>
-      <p id="selected-project"></p>
-      <p class="hint">Milestone data from SAP supports identification of potential continuation review gates. Final gate configuration is governed by DPE.</p>
-      <h2>Project Elements and Milestones</h2>
-      <p id="elements-message" class="status-message" role="status" aria-live="polite"></p>
-      <pre id="elements-error" hidden></pre>
-      <div class="table-scroll">
-        <table>
-          <caption class="sr-only">SAP project elements for the selected project</caption>
-          <thead>
-            <tr><th scope="col">Element</th><th scope="col">Description</th><th scope="col">Status</th><th scope="col">Planned Start</th><th scope="col">Planned End</th><th scope="col">Forecast End</th><th scope="col">WBS Internal ID</th><th scope="col">Milestone</th><th scope="col">Main Milestone</th><th scope="col">Milestone Approval Status</th></tr>
-          </thead>
-          <tbody id="elements-body"></tbody>
-        </table>
-      </div>
-      <p class="hint">Highlighted main milestones are stronger candidates for future gate configuration, not automatically DPE continuation gates. Status and approval codes are shown as supplied by SAP.</p>
-      <details>
-        <summary>Raw Project Element Response</summary>
-        <pre id="raw-elements-response">No response received yet.</pre>
-      </details>
-    </section>
-    <section id="gl-panel" class="panel" aria-labelledby="gl-heading" hidden>
-      <div class="toolbar">
-        <h2 id="gl-heading">Financial Evidence – G/L</h2>
-        <button id="load-financial-evidence" type="button" disabled>Load Financial Evidence</button>
-      </div>
-      <p id="gl-project"></p>
-      <p class="hint">Prototype financial evidence from returned SAP G/L line items. This is not yet validated as the complete project-cost measure.</p>
-      <p id="gl-message" class="status-message" role="status" aria-live="polite">Select a project and load its Project Elements first.</p>
-      <pre id="gl-error" hidden></pre>
-      <div id="gl-summary"></div>
-      <div class="table-scroll">
-        <table>
-          <caption class="sr-only">Linked SAP G/L line items for the selected project</caption>
-          <thead><tr><th scope="col">Posting Date</th><th scope="col">Accounting Document</th><th scope="col">G/L Account</th><th scope="col">WBS ID</th><th scope="col">Amount</th><th scope="col">Currency</th><th scope="col">Debit/Credit</th><th scope="col">Commitment?</th><th scope="col">Reversal?</th><th scope="col">Reversed?</th><th scope="col">Purchase Document</th><th scope="col">Description</th></tr></thead>
-          <tbody id="gl-body"></tbody>
-        </table>
-      </div>
-      <details>
-        <summary>Raw G/L Response</summary>
-        <pre id="raw-gl-response">No linked query sent yet.</pre>
-      </details>
-      <details id="gl-diagnostic" hidden>
-        <summary>Unlinked G/L Connectivity Diagnostic</summary>
-        <p class="hint">These records are not linked to the selected project and are not used as project evidence.</p>
-        <pre id="raw-gl-diagnostic">No diagnostic request sent.</pre>
-      </details>
-    </section>
-    <section id="po-panel" class="panel" aria-labelledby="po-heading" hidden>
-      <div class="toolbar">
-        <h2 id="po-heading">Procurement Evidence – Purchase Orders</h2>
-        <button id="load-po-evidence" type="button" disabled>Load Purchase Order Evidence</button>
-      </div>
-      <p id="po-project"></p>
-      <p class="hint">PO-linked procurement evidence from SAP. Amounts associated with assignments not marked as finally invoiced provide a prototype exposure indicator, not a validated measure of exact outstanding liability.</p>
-      <p id="po-message" class="status-message" role="status" aria-live="polite">Select a project and load its WBS IDs first.</p>
-      <pre id="po-error" hidden></pre>
-      <div id="po-summary"></div>
-      <div class="table-scroll">
-        <table>
-          <caption class="sr-only">Exact WBS-linked Purchase Order account assignments for the selected project</caption>
-          <thead><tr><th scope="col">Purchase Order</th><th scope="col">Item</th><th scope="col">WBS ID</th><th scope="col">Net Amount</th><th scope="col">Currency</th><th scope="col">Quantity</th><th scope="col">Unit</th><th scope="col">G/L Account</th><th scope="col">Deleted?</th><th scope="col">Finally Invoiced?</th><th scope="col">Creation Date</th></tr></thead>
-          <tbody id="po-body"></tbody>
-        </table>
-      </div>
-      <details>
-        <summary>Raw Purchase Order Response / Filter Integrity</summary>
-        <p class="hint">Unrelated returned rows, if any, are debugging information only and are excluded from project evidence.</p>
-        <pre id="raw-po-response">No PO query sent yet.</pre>
-      </details>
-    </section>
-  </main>
+      </section>
+
+      <section id="detail-view" aria-label="Investment Details" hidden>
+        <section class="panel"><h3>SAP Project Context <span class="source sap">SAP</span></h3><div id="investment-context"></div><p id="detail-review-status"></p>
+          <div class="actions"><button id="start-review" type="button">Start Continuation Review</button><button id="view-last-decision" class="secondary" type="button" hidden>View Last Decision</button></div>
+          <p class="hint">A marked SAP milestone is not required to open a governance review. No SAP status is changed.</p>
+        </section>
+        <section class="panel"><h3>Lifecycle / WBS Evidence <span class="source sap">SAP</span></h3><div id="detail-lifecycle-overview"></div><button id="reload-lifecycle" class="secondary" type="button">Reload Lifecycle Evidence</button>
+          <section id="elements-panel" hidden>
+            <details><summary>Technical Details – Project Elements / WBS</summary>
+              <p id="selected-project"></p><p id="elements-message" class="status-message" role="status" aria-live="polite"></p><pre id="elements-error" hidden></pre>
+              <p class="hint">SAP milestones are lifecycle evidence, not automatically DPE continuation gates. Main milestones are candidates only.</p>
+              <div class="table-scroll"><table><caption class="sr-only">SAP project elements</caption><thead><tr><th scope="col">Element</th><th scope="col">Description</th><th scope="col">Status</th><th scope="col">Planned Start</th><th scope="col">Planned End</th><th scope="col">Forecast End</th><th scope="col">WBS Internal ID</th><th scope="col">Milestone</th><th scope="col">Main Milestone</th><th scope="col">Milestone Approval Status</th></tr></thead><tbody id="elements-body"></tbody></table></div>
+              <details><summary>Raw Project Element Response</summary><pre id="raw-elements-response">No response received yet.</pre></details>
+            </details>
+          </section>
+        </section>
+        <section class="panel"><div class="toolbar"><h3>Evidence Sources</h3><button id="load-review-evidence" type="button">Load Review Evidence</button></div><p class="hint">Loads financial and procurement evidence through the separate existing SAP services. Counts and grouped amounts are SYSTEM CALCULATED from SAP records.</p>
+          <section id="gl-panel" hidden>
+            <div class="toolbar"><h3>Financial Evidence <span class="source sap">SAP</span></h3><button id="load-financial-evidence" class="secondary" type="button" disabled>Load Financial Evidence</button></div>
+            <p id="gl-project" class="hint"></p><div id="detail-financial-overview"></div><p id="gl-message" class="status-message" role="status" aria-live="polite"></p><div id="gl-summary"></div>
+            <p class="hint">Returned G/L postings are not yet validated as the complete project-cost measure. Currencies remain separate; commitment/reversal indicators stay transparent.</p>
+            <details><summary>Technical Details – G/L</summary><pre id="gl-error" hidden></pre><div class="table-scroll"><table><caption class="sr-only">Linked G/L line items</caption><thead><tr><th scope="col">Posting Date</th><th scope="col">Accounting Document</th><th scope="col">G/L Account</th><th scope="col">WBS ID</th><th scope="col">Amount</th><th scope="col">Currency</th><th scope="col">Debit/Credit</th><th scope="col">Commitment?</th><th scope="col">Reversal?</th><th scope="col">Reversed?</th><th scope="col">Purchase Document</th><th scope="col">Description</th></tr></thead><tbody id="gl-body"></tbody></table></div><details><summary>Raw G/L Response</summary><pre id="raw-gl-response">No linked query sent yet.</pre></details><details id="gl-diagnostic" hidden><summary>Unlinked G/L Connectivity Diagnostic</summary><p class="hint">These records are not linked to the selected project and are not used as project evidence.</p><pre id="raw-gl-diagnostic">No diagnostic request sent.</pre></details></details>
+          </section>
+          <section id="po-panel" hidden>
+            <div class="toolbar"><h3>Procurement Evidence <span class="source sap">SAP</span></h3><button id="load-po-evidence" class="secondary" type="button" disabled>Load Purchase Order Evidence</button></div>
+            <p id="po-project" class="hint"></p><div id="detail-procurement-overview"></div><p id="po-message" class="status-message" role="status" aria-live="polite"></p><div id="po-summary"></div>
+            <p class="hint">PO-linked amounts for assignments not marked finally invoiced are prototype exposure indicators, not validated exact outstanding liability. No missing PO records are invented.</p>
+            <details><summary>Technical Details – Purchase Orders</summary><pre id="po-error" hidden></pre><div class="table-scroll"><table><caption class="sr-only">Exact WBS-linked PO account assignments</caption><thead><tr><th scope="col">Purchase Order</th><th scope="col">Item</th><th scope="col">WBS ID</th><th scope="col">Net Amount</th><th scope="col">Currency</th><th scope="col">Quantity</th><th scope="col">Unit</th><th scope="col">G/L Account</th><th scope="col">Deleted?</th><th scope="col">Finally Invoiced?</th><th scope="col">Creation Date</th></tr></thead><tbody id="po-body"></tbody></table></div><details><summary>Raw Purchase Order Response / Filter Integrity</summary><p class="hint">Unrelated returned rows are debug information only, excluded from procurement evidence.</p><pre id="raw-po-response">No PO query sent yet.</pre></details></details>
+          </section>
+        </section>
+      </section>
+
+      <section id="reviews-view" aria-label="Reviews" hidden><div class="panel"><h3>Prototype Reviews <span class="source system">SYSTEM CALCULATED</span></h3><p class="hint">Local browser records only. Project identity is a captured SAP snapshot; review basis is REVIEWER INPUT; opened/target/status are SYSTEM CALCULATED.</p><div class="table-scroll"><table><thead><tr><th scope="col">Project</th><th scope="col">Review Basis</th><th scope="col">Opened</th><th scope="col">Decision Target</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead><tbody id="reviews-body"></tbody></table></div></div></section>
+
+      <section id="review-chrome" hidden>
+        <p id="current-review-project"></p><ol id="review-steps" class="steps"><li>1. Assessment</li><li>2. Summary</li><li>3. Decision</li></ol>
+        <div id="review-timing" class="panel"></div>
+        <div class="panel"><h3>Review Readiness <span class="source system">SYSTEM CALCULATED</span></h3><p id="readiness-status" role="status"></p><ul id="readiness-missing"></ul><p class="hint">Completeness only—not a score, investment recommendation or guarantee of evidence quality. Zero linked records / clearly reported failed or unavailable attempts are not fabricated evidence.</p></div>
+        <p id="workflow-message" class="status-message" role="alert" hidden></p>
+        <button id="review-back-investment" class="secondary" type="button">Back to Investment</button>
+      </section>
+      <section id="assessment-view" aria-label="Review Assessment" hidden>
+        <form id="assessment-form" class="panel" novalidate>
+          <h3>Reviewer Assessment <span class="source reviewer">REVIEWER INPUT</span></h3>
+          <label>Review basis<select id="review-basis"><option value="">Select review basis</option></select></label>
+          <div class="form-grid">
+            <label>Does the investment remain aligned with current enterprise IT strategy?<select id="assessment-alignment"></select></label>
+            <label>Are the expected benefits still achievable?<select id="assessment-benefits"></select></label>
+            <label>How is delivery performing against plan?<select id="assessment-delivery"></select></label>
+          </div>
+          <section class="evidence-card"><h4>Available Financial Evidence <span class="source sap">SAP</span></h4><div id="assessment-financial-evidence"></div><p class="hint">No approved budget is available for automatic variance calculation. The following cost-position judgement is REVIEWER INPUT.</p></section>
+          <div class="form-grid">
+            <label>What is the reviewer’s current assessment of the project cost position?<select id="assessment-cost"></select></label>
+            <label>Risk judgement<select id="assessment-risk"></select></label>
+            <label>Does the investment still appear capable of generating positive future economic value?<select id="assessment-value"></select></label>
+          </div>
+          <label>Reviewer comments<textarea id="assessment-comments" rows="3" maxlength="4000"></textarea></label>
+          <label>Key risks / dependencies<textarea id="assessment-dependencies" rows="3" maxlength="4000"></textarea></label>
+          <label>Decision owner (required for readiness)<input id="assessment-owner" type="text" maxlength="200" autocomplete="off"></label>
+          <p class="hint">Changes are saved locally to this browser/origin. No AI assessment or automatic recommendation is generated.</p>
+          <button id="assessment-save-summary" type="submit">Save &amp; View Summary</button>
+        </form>
+      </section>
+      <section id="summary-view" aria-label="Review Summary" hidden><div id="review-summary"></div><div class="actions"><button id="back-assessment" class="secondary" type="button">Back to Assessment</button><button id="proceed-decision" type="button" disabled>Proceed to Decision</button></div></section>
+      <section id="decision-view" aria-label="Governance Decision" hidden>
+        <form id="decision-form" class="panel" novalidate>
+          <h3>Accountable Human Decision <span class="source reviewer">REVIEWER INPUT</span></h3><p>No decision is pre-selected or recommended. This records a prototype governance decision, not a SAP write-back.</p>
+          <label>Decision<select id="decision-outcome"><option value="">Select a decision</option></select></label>
+          <label>Decision rationale (required)<textarea id="decision-rationale" rows="4" maxlength="4000"></textarea></label>
+          <label>Decision owner (required)<input id="decision-owner" type="text" maxlength="200" autocomplete="off"></label>
+          <p id="decision-requirements" class="hint"></p>
+          <label>Required action<textarea id="decision-action" rows="3" maxlength="4000"></textarea></label>
+          <label>Action owner<input id="decision-action-owner" type="text" maxlength="200" autocomplete="off"></label>
+          <label>Next review date<input id="decision-next-date" type="date"></label>
+          <div class="actions"><button id="back-summary" class="secondary" type="button">Back to Summary</button><button id="confirm-decision" type="submit">Confirm &amp; Record Decision</button></div>
+        </form>
+      </section>
+      <section id="confirmation-view" aria-label="Decision Confirmation" hidden><div class="panel"><h3>Decision Recorded</h3><p class="hint">Saved in prototype localStorage only. SAP project status has not been modified.</p><div id="confirmation-record"></div></div><div class="actions"><button id="return-investment" type="button">Return to Investment</button><button id="back-dashboard" class="secondary" type="button">Back to Dashboard</button></div></section>
+    </main>
+  </div>
 </body>
 </html>
