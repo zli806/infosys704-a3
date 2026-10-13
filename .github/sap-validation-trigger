@@ -6,3 +6,5 @@ Triggered remotely on 2026-10-14.
 Retry after validation parser hardening on 2026-10-14.
 
 Retry after gzip handling on 2026-10-14.
+
+Retry after sandbox filter-integrity handling on 2026-10-14.
