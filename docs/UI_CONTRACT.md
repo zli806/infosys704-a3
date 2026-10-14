@@ -92,3 +92,25 @@ The local credential script is referenced first but is ignored/untracked and nee
 Run `python scripts/check_frontend_contract.py`. It checks unique/nonempty IDs, the required hooks, referenced file existence (except the local credential), the exact deferred script list/order, config before runtime logic, and app.js last. Duplicate ID/script attributes and self-closing script tags are rejected to avoid ambiguity between the checker and browser. It reads HTML, not credentials, and does not semantically parse JavaScript.
 
 **Frontend Static Checks** runs on PRs and master pushes plus manual dispatch, without SAP credentials or API calls. Structural checks cannot prove visual accessibility, browser CORS, event behaviour or API correctness; manual/core regression checks remain necessary. Test the complete assessment → summary → decision → persisted confirmation, missing readiness, each outcome's requirements, storage failures, switching and empty SAP joins. Future UI changes may intentionally revise the contract, but implementation/docs/checks must move together.
+
+## Review workspace presentation (14 October 2026)
+
+The visual contract is [DESIGN.md](../DESIGN.md). This UI revision retains all 94 original hooks and deferred scripts. Added hooks are `connection-details`, `detail-project-id`, `detail-project-name`, `assessment-save-status` and `decision-incomplete`. They are presentation-only; original services, rule/store functions and record schema remain authoritative.
+
+Canonical UI owners:
+
+| Capability | Canonical owner | Source of truth | Allowed variants | Verification |
+| --- | --- | --- | --- | --- |
+| Select/Listbox | Native select fields in index.html | Existing enums in review-rules.js | Platform-owned popup | Keyboard selection / full review flow |
+| Date | Native date input / UI English formatter | Existing UTC date and rules contract | Browser/OS picker; en-NZ UTC display | UTC presentation test / date entry |
+| Form | Rule/store validation and governance.js binding | review-rules.js / review-store.js | Assessment / decision | Missing readiness / conditional decision / retained input |
+| Scrollbar | Global styles.css baseline | DESIGN.md / styles.css | Table horizontal overflow; raw-data bounded scroller | Narrow layout / keyboard scroll |
+| Status | renderers.js / governance.js | Evidence snapshots and storage error state | Loading / zero / error / unavailable / success | Live evidence flow / presentation tests |
+| CRUD | Existing governance.js navigation and controller callbacks | UI_CONTRACT.md / app.js / review-store.js | Local draft / immutable completed record; no delete | Back / resume / summary / persisted decision |
+
+
+Tables retain all columns and the existing bounded API retrieval (5 projects; up to 100 G/L/PO rows). No search/pagination changes or persistence of selection in URLs are introduced. There is no selection/bulk grid. Responsive horizontal table overflow is keyboard focusable; ordinary forms continue to scroll with the document. Native controls, rather than authored popup implementations, are deliberate.
+
+Zero matched records, unavailable identifiers, request errors, partial pages and unrequested evidence are separate UI states. Pending requests supersede saved success badges; existing readiness still checks attempts, not evidence sufficiency. The right rail presents the same existing missing-items list and UTC targets. No scoring/recommendations are added. Comments/dependencies are optional disclosures whose input persists through local drafts; textareas grow rather than permitting manual resizing. Touched fields show text errors with aria-invalid and aria-describedby using the existing missing-item/decision-error rules. Source/amount qualifications and raw technical tables remain available.
+
+Local save feedback reflects visible storage errors. Normal navigation already attempts to save drafts and refuses navigation after a failed save; no new modal or unsaved-data workflow is introduced. Completed records remain immutable under the existing store. No app-owned destructive actions or authentication screens are introduced.
