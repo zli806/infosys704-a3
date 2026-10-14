@@ -58,6 +58,25 @@
     if (!review?.decisionOwner?.trim()) missing.push("Decision owner");
     return { ready: missing.length === 0, missing };
   }
+  function reviewSignals(review) {
+    // Presentation-only decision support from explicit reviewer inputs. These
+    // categories do not change readiness, select an outcome or inspect SAP values.
+    const assessment = review?.assessment || {};
+    const materialConcerns = [];
+    const attentionItems = [];
+    const evidenceGaps = [];
+    if (assessment.strategicAlignment === "Low") materialConcerns.push("Strategic alignment is low");
+    if (assessment.expectedBenefits === "No") materialConcerns.push("Expected benefits are assessed as not achievable");
+    if (assessment.deliveryPerformance === "Off track") materialConcerns.push("Delivery is off track");
+    if (assessment.costPosition === "Material variance") materialConcerns.push("Cost position assessed as Material variance");
+    if (assessment.risk === "High") materialConcerns.push("High project risk");
+    if (assessment.futureEconomicValue === "Negative") materialConcerns.push("Future economic value is negative");
+    if (assessment.expectedBenefits === "Partially") attentionItems.push("Expected benefits are only partially achievable");
+    if (assessment.deliveryPerformance === "At risk") attentionItems.push("Delivery is at risk");
+    if (assessment.futureEconomicValue === "Uncertain") attentionItems.push("Future economic value is uncertain");
+    if (assessment.costPosition === "Insufficient information") evidenceGaps.push("Cost position cannot be fully assessed");
+    return { materialConcerns, attentionItems, evidenceGaps };
+  }
   function validDate(value) {
     return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(value + "T00:00:00Z").getTime())
       && new Date(value + "T00:00:00Z").toISOString().slice(0, 10) === value;
@@ -89,5 +108,5 @@
     return { projectCount, open, decisions, overdue: open.filter(record => timing(record, now).status !== "Within decision window").length };
   }
   app.reviewRules = { BASIS, OUTCOMES, ASSESSMENTS, PROJECT_FIELDS, projectSnapshot, emptyEvidence, defaultAssessment,
-    calendarTarget, timing, readiness, validDate, needsActions, decisionErrors, activeReview, latestReview, projectStatus, dashboard };
+    calendarTarget, timing, readiness, reviewSignals, validDate, needsActions, decisionErrors, activeReview, latestReview, projectStatus, dashboard };
 })();

@@ -174,3 +174,11 @@ Normal teammate changes remain branch → PR → review → merge. The repositor
 Cost Position defaults to `Not assessed`: the reviewer has not completed the assessment. `Insufficient information` means the reviewer assessed available evidence and identified an information gap. With all other readiness requirements satisfied, that explicit finding does not automatically block an accountable human governance decision.
 
 The Summary presents the cost evidence gap as REVIEWER INPUT, not a SAP-data absence claim or Material variance. The app still calculates no score and recommends no outcome; the five A2 decisions remain entirely human-selected.
+
+---
+
+## 2026-10-15 – Executive review and management attention
+
+The Executive Review Snapshot and management-attention indicators are decision support only. Classification is deterministic from explicit reviewer assessments: Low alignment, No benefits, Off track delivery, Material variance, High risk and Negative future value are material concerns; Partially achievable benefits, At risk delivery and Uncertain future value are softer attention items. Cost = Insufficient information is an explicit reviewer evidence gap, not an inferred SAP-data absence.
+
+No score, weights, automated recommendation or new readiness/decision requirement is introduced. Unassessed inputs are not classified as positive assurance. Existing Review Basis is surfaced in review context, Summary and Confirmation; it is not inferred from SAP milestones or detected by a trigger engine. SAP joins/amount semantics and the merged UI hierarchy remain unchanged. Session project counts and zero-match evidence are qualified so they cannot imply portfolio completeness or zero cost/procurement exposure.

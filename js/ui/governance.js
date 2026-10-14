@@ -35,6 +35,16 @@
     else {
       if (key === "lifecycle" && item.loaded) container.append(node("p", `${item.elementCount} returned elements · ${item.milestoneCount} marked milestones · ${item.mainMilestoneCount} main milestones`));
       if (key !== "lifecycle" && item.linkedRecordCount !== null) container.append(node("p", `${item.linkedRecordCount} validated linked records · SYSTEM CALCULATED from SAP`));
+      if (key !== "lifecycle") {
+        let guidance = "";
+        if (item.status === "success" && item.linkedRecordCount === 0) guidance = key === "po"
+          ? "No linked Purchase Order account assignments were found in the current SAP Sandbox sample. This does not establish that procurement exposure is zero. Review other available evidence or document the limitation."
+          : "No linked G/L records were found in the current SAP Sandbox sample. This does not establish that project cost is zero. Review other available evidence or document the limitation.";
+        else if (item.status === "error") guidance = "The evidence request was attempted but failed technically. Retry loading evidence and inspect the technical details; this is not a zero-exposure finding.";
+        else if (item.status === "unavailable") guidance = "Evidence is unavailable with the current identifiers or configuration. Check lifecycle/WBS and connection details, then retry or document the limitation.";
+        else if (item.status !== "success") guidance = "This evidence has not yet been requested. Use Load review evidence to attempt retrieval.";
+        if (guidance) container.append(node("p", guidance, "evidence-note"));
+      }
       if (item.status === "error" || item.status === "unavailable" || item.status === "not_attempted") container.append(node("p", item.note, "evidence-note"));
       else if (sourceDetails) { const details = node("details", undefined, "technical"); details.append(node("summary", "Source result & limitations")); for (const line of evidenceLines(key, evidence)) details.append(node("p", line)); container.append(details); }
       if (item.capturedAt) container.append(node("p", `Captured ${dateTime(item.capturedAt)} · SYSTEM CALCULATED`, "evidence-caption"));
@@ -72,8 +82,9 @@
   function renderDashboard(records, count, onOpen, storageAvailable = true) {
     const result = rules.dashboard(records, count);
     const cards = el("dashboard-cards"); cards.replaceChildren();
-    for (const [label, value] of [["SAP Projects Loaded", result.projectCount], ["Reviews In Progress", storageAvailable ? result.open.length : "Unavailable"], ["Decisions Recorded", storageAvailable ? result.decisions.length : "Unavailable"], ["Overdue Open Reviews", storageAvailable ? result.overdue : "Unavailable"]]) {
+    for (const [label, value] of [["SAP Projects Loaded This Session", result.projectCount], ["Reviews In Progress", storageAvailable ? result.open.length : "Unavailable"], ["Decisions Recorded", storageAvailable ? result.decisions.length : "Unavailable"], ["Overdue Open Reviews", storageAvailable ? result.overdue : "Unavailable"]]) {
       const card = node("div", undefined, "metric"); card.append(badge("SYSTEM CALCULATED"), node("strong", value), node("p", label)); cards.append(card);
+      if (label === "SAP Projects Loaded This Session" && count === 0 && storageAvailable && records.length) card.append(node("p", "Load SAP Projects to refresh the current portfolio view.", "hint"));
     }
     const open = el("dashboard-open-reviews"); open.replaceChildren();
     const recent = el("dashboard-decisions"); recent.replaceChildren();
@@ -140,6 +151,8 @@
   }
   function chrome(record, busy) {
     el("current-review-project").textContent = `${record.project.Project} · ${record.project.ProjectDescription || "Continuation review"}`;
+    const basis = node("span", `Review Basis: ${record.reviewBasis || "Not selected"} `, "review-basis-context");
+    basis.append(badge("REVIEWER INPUT")); el("current-review-project").append(basis);
     renderTiming(el("review-timing"), record);
     const readiness = rules.readiness(record); const missing = [...readiness.missing]; if (busy) missing.push("Wait for current SAP evidence requests to finish");
     el("readiness-status").textContent = readiness.ready && !busy ? "READY – required completeness items captured. No decision recommendation." : "INCOMPLETE – resolve the missing items below.";
@@ -160,12 +173,42 @@
     };
     for (const [id, message] of Object.entries(mapping)) fieldFeedback(id, errors.includes(message) ? message : id === "decision-next-date" && errors.includes("Next review date must be a valid calendar date.") ? "Enter a valid calendar date." : "");
   }
+  function executiveSnapshot(container, record) {
+    const snapshot = section(container, "Executive Review Snapshot", "SYSTEM CALCULATED");
+    const facts = node("dl", undefined, "executive-facts");
+    const assessment = record.assessment;
+    for (const [label, value, source] of [
+      ["Project", `${record.project.Project} · ${record.project.ProjectDescription || "No description"}`, "SAP"],
+      ["Review Basis", record.reviewBasis || "Not selected", "REVIEWER INPUT"],
+      ["Strategic Alignment", assessment.strategicAlignment, "REVIEWER INPUT"],
+      ["Expected Benefits", assessment.expectedBenefits, "REVIEWER INPUT"],
+      ["Delivery Performance", assessment.deliveryPerformance, "REVIEWER INPUT"],
+      ["Risk", assessment.risk, "REVIEWER INPUT"],
+      ["Future Economic Value", assessment.futureEconomicValue, "REVIEWER INPUT"],
+      ["Decision Target", dateTime(rules.timing(record).decisionTarget), "SYSTEM CALCULATED"]
+    ]) {
+      const fact = node("div"); const title = node("dt", label + " "); title.append(badge(source));
+      fact.append(title, node("dd", value || "Not assessed")); facts.append(fact);
+    }
+    snapshot.append(facts, node("h4", "Management Attention"));
+    const signals = rules.reviewSignals(record);
+    const plural = (count, singular) => `${count} ${singular}${count === 1 ? "" : "s"}`;
+    snapshot.append(node("p", [plural(signals.materialConcerns.length, "material concern"), plural(signals.attentionItems.length, "attention item"), plural(signals.evidenceGaps.length, "evidence gap")].join(" · ")));
+    for (const [title, items] of [["Material concerns", signals.materialConcerns], ["Attention items", signals.attentionItems], ["Evidence gaps", signals.evidenceGaps]]) {
+      if (!items.length) continue;
+      const group = node("section", undefined, "evidence-card"); const heading = node("h4", title + " "); heading.append(badge("REVIEWER INPUT"));
+      const list = node("ul"); for (const item of items) list.append(node("li", item)); group.append(heading, list); snapshot.append(group);
+    }
+    if (!signals.materialConcerns.length && !signals.attentionItems.length && !signals.evidenceGaps.length) snapshot.append(node("p", "No material concerns identified from the current reviewer assessment."));
+    snapshot.append(node("p", "Indicators are classified deterministically from explicit REVIEWER INPUT only. They are not scores, weights, recommendations or assurance that the investment is safe to continue. Unassessed categories are not classified; check readiness and the evidence below.", "hint"));
+  }
   function reviewSummary(record) {
     const target = el("review-summary"); target.replaceChildren();
+    executiveSnapshot(target, record);
     const context = section(target, "Project Context", "SAP"); projectContext(context, record.project); context.append(node("p", `Context captured: ${dateTime(record.projectContextCapturedAt)} (SYSTEM CALCULATED)`, "hint"));
     renderEvidence(target, record.evidence);
     const input = section(target, "Reviewer Assessment", "REVIEWER INPUT");
-    pairs(input, [["Review basis", record.reviewBasis || "Not selected"], ...Object.entries(rules.ASSESSMENTS).map(([key, field]) => [field.label, record.assessment[key]]), ["Reviewer comments", record.assessment.comments], ["Key risks / dependencies", record.assessment.keyRisks], ["Decision owner", record.decisionOwner]]);
+    pairs(input, [["Review Basis", record.reviewBasis || "Not selected"], ...Object.entries(rules.ASSESSMENTS).map(([key, field]) => [field.label, record.assessment[key]]), ["Reviewer comments", record.assessment.comments], ["Key risks / dependencies", record.assessment.keyRisks], ["Decision owner", record.decisionOwner]]);
     if (record.assessment.costPosition === "Insufficient information") {
       const gap = node("p", "Evidence gap identified: cost position assessed as Insufficient information. ");
       gap.append(badge("REVIEWER INPUT")); input.append(gap);
@@ -175,7 +218,7 @@
   }
   function confirmation(record) {
     const target = el("confirmation-record"); target.replaceChildren(); const decision = record.decision;
-    pairs(target, [["Record ID (SYSTEM CALCULATED)", record.id], ["SAP Project", record.project.Project], ["ProjectUUID (SAP)", record.project.ProjectUUID],
+    pairs(target, [["Record ID (SYSTEM CALCULATED)", record.id], ["SAP Project", record.project.Project], ["ProjectUUID (SAP)", record.project.ProjectUUID], ["Review Basis (REVIEWER INPUT)", record.reviewBasis || "Not selected"],
       ["Decision (REVIEWER INPUT)", decision.outcome], ["Rationale (REVIEWER INPUT)", decision.rationale], ["Decision owner (REVIEWER INPUT)", decision.owner], ["Decision timestamp (SYSTEM CALCULATED)", dateTime(decision.timestamp)],
       ["Required action (REVIEWER INPUT)", decision.requiredAction], ["Action owner (REVIEWER INPUT)", decision.actionOwner], ["Next review date (REVIEWER INPUT)", decision.nextReviewDate || "Not specified"],
       ["Review opened (SYSTEM CALCULATED)", dateTime(record.reviewOpenedAt)], ["14-day target (SYSTEM CALCULATED)", dateTime(decision.decisionTarget)], ["30-day threshold (SYSTEM CALCULATED)", dateTime(decision.escalationThreshold)]]);

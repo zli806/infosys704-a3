@@ -30,6 +30,8 @@ Readiness is a deterministic completeness list, not a weighted score: context ex
 
 Review-open time is set once from the actual browser clock. The 14-day decision target and 30-day escalation threshold use UTC calendar days. Dashboard/Reviews show calculated open/overdue/escalated/recorded states; completed records are excluded from open counts. Thresholds are displayed controls, not external notifications. Decisions never modify SAP processing status.
 
+The Summary starts with an Executive Review Snapshot: project, explicit Review Basis, key reviewer assessments, decision target and Management Attention. Deterministic material concerns (Low alignment, No benefits, Off track delivery, Material variance, High risk, Negative future value), softer attention items (Partially achievable benefits, At risk delivery, Uncertain future value) and explicit cost-information gaps are derived only from reviewer inputs. No score, recommendation, trigger inference or new readiness gate is added. Detailed evidence remains below, and no indicators is not assurance of safe continuation. Dashboard SAP project counts cover this session only; refresh does not reload SAP automatically or clear saved reviews. Zero linked PO records do not establish zero procurement exposure.
+
 ## Remaining MVP Limitations
 
 - Public Sandbox data is not DPE production data. No marked milestones were present in the 26 tested elements; review basis is chosen by the human rather than inferred from SAP gates.

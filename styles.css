@@ -188,3 +188,10 @@ tr.main-milestone td:first-child { border-left:4px solid var(--color-warning); f
 .evidence-overview > p:first-of-type:not(.evidence-note):not(.evidence-caption) { display:inline; margin-left:10px; }
 .evidence-overview details { margin:7px 0; }
 .evidence-section .technical, .evidence-section > details { margin:8px 0; }
+
+/* Executive summary additions reuse the existing review workspace vocabulary. */
+.review-basis-context { display:block; margin-top:4px; font-size:.83rem; font-weight:400; color:var(--color-muted); }
+.executive-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px 22px; margin:18px 0 24px; }
+.executive-facts dt { font-size:.8rem; color:var(--color-muted); }
+.executive-facts dd { margin:4px 0 0; font-weight:600; overflow-wrap:anywhere; }
+@media (max-width:700px) { .executive-facts { grid-template-columns:1fr; } }
