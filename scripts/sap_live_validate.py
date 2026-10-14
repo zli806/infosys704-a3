@@ -20,6 +20,10 @@ PROJECT_BASE = (
 )
 GL_BASE = "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata/sap/API_GLACCOUNTLINEITEM"
 PO_BASE = "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001"
+RESP_BASE_CANDIDATES = (
+    "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_respymgmt_team_srv/srvd_a2x/sap/ce_api_respym_team_srv/0002",
+    "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/API_RESPYMGMT_TEAM_SRV/srvd_a2x/sap/CE_API_RESPYM_TEAM_SRV/0002",
+)
 PROJECT_PATH = "/A_EnterpriseProject"
 ELEMENT_PATH = "/A_EnterpriseProject(guid'{ProjectUUID}')/to_EnterpriseProjectElement"
 GL_PATH = "/GLAccountLineItem"
@@ -213,6 +217,59 @@ def validate_purchase_orders(client, entry, report):
     report["purchase_order_api"]["filter_integrity_warning"] |= bool(unexpected)
 
 
+def safe_responsibility_sample(record):
+    """Retain non-personal sample values only for API suitability assessment."""
+    safe = {}
+    for key, value in record.items():
+        lowered = key.lower()
+        if any(token in lowered for token in ("name", "email", "phone", "address", "person", "user")):
+            continue
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            safe[key] = value
+    return safe
+
+
+def probe_responsibility_management(client, report):
+    """Exploratory, non-gating probe for a governed Decision Owner data source."""
+    result = report["responsibility_management_api"]
+    entities = ("TeamHeaders", "TeamMembers", "TeamMemberFunctions", "TeamOwners")
+    last_error = None
+    for base in RESP_BASE_CANDIDATES:
+        candidate = {"base_variant": "lowercase" if base == RESP_BASE_CANDIDATES[0] else "documented-case", "entities": {}}
+        try:
+            for entity in entities:
+                rows, status, has_more = client.collection_v4(
+                    base + "/" + entity + "?%24top=5",
+                    f"Responsibility Management {entity}",
+                )
+                candidate["entities"][entity] = {
+                    "http_status": status,
+                    "record_count": len(rows),
+                    "has_more": has_more,
+                    "sample_keys": sorted(rows[0].keys()) if rows else [],
+                    "sample_records": [safe_responsibility_sample(row) for row in rows[:2]],
+                }
+            result.update(
+                status="success",
+                selected_base_variant=candidate["base_variant"],
+                entities=candidate["entities"],
+                note="Read-only Sandbox probe succeeded. Suitability still depends on whether returned team/member/function semantics match IT investment governance decision rights.",
+            )
+            return
+        except ValidationError as error:
+            last_error = error
+            result["attempts"].append({
+                "base_variant": candidate["base_variant"],
+                "http_status": error.http_status,
+                "result": str(error),
+            })
+    result.update(
+        status="unavailable",
+        note="No tested SAP Sandbox URL variant returned usable Responsibility Management collections with the current APIKey pattern.",
+        last_http_status=last_error.http_status if last_error else None,
+    )
+
+
 def run_validation(client, report):
     projects, status, has_more = client.collection(
         collection_url(PROJECT_BASE, PROJECT_PATH, PROJECT_FIELDS, top=PROJECT_LIMIT),
@@ -337,6 +394,7 @@ def run_validation(client, report):
                   diagnostic_record_count=len(rows), diagnostic_has_more=has_more)
     report["message"] += (" Purchase Order connectivity successful; "
                           + ("exact WBS-linked assignments found." if report["purchase_order_api"]["any_project_join_found"] else "no project-linked assignments found in tested Sandbox data."))
+    probe_responsibility_management(client, report)
     report["status"] = "success"
 
 
@@ -383,6 +441,14 @@ def summary_markdown(report):
         lines.append("Purchase Order filter-integrity warning: unrelated rows were discarded; only exact loaded WBS matches count as procurement evidence. Unexpected IDs/counts are in the JSON report.")
     if po["diagnostic_performed"]:
         lines.append(f"Unlinked PO diagnostic: HTTP {po['diagnostic_http_status']}; {po['diagnostic_record_count']} records. These are not project evidence.")
+    responsibility = report["responsibility_management_api"]
+    lines.extend(["", f"Responsibility Management exploratory probe: {responsibility['status']}.", responsibility.get("note", "")])
+    if responsibility["status"] == "success":
+        for entity, details in responsibility["entities"].items():
+            lines.append(f"- {entity}: HTTP {details['http_status']}; {details['record_count']} records returned (top 5 probe).")
+    elif responsibility.get("attempts"):
+        for attempt in responsibility["attempts"]:
+            lines.append(f"- {attempt['base_variant']}: {attempt['result']}")
     unknown = sum(entry.get("unknown_milestone_flag_count", 0) for entry in report["projects"])
     lines.extend(["", f"Unknown/missing milestone flags: {unknown}. Only string X is counted as marked; main milestones require Boolean true.",
                   "Counts cover returned pages only: up to 5 projects and 100 G/L/PO records per linked query. No automatic pagination; has_more flags are in the JSON report. WBS joins use only returned element IDs.",
@@ -404,6 +470,8 @@ def main():
         "purchase_order_api": {"connectivity": "not_tested", "any_project_join_found": False,
                                "filter_integrity_warning": False, "diagnostic_performed": False,
                                "diagnostic_http_status": None, "diagnostic_record_count": None},
+        "responsibility_management_api": {"status": "not_tested", "attempts": [], "entities": {},
+                                          "selected_base_variant": None, "note": ""},
     }
     try:
         try:
