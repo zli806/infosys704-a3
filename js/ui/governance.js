@@ -6,7 +6,7 @@
   const views = ["dashboard", "investments", "detail", "reviews", "assessment", "summary", "decision", "confirmation"];
   const titles = { dashboard: "Dashboard", investments: "Investments", detail: "Investment Details", reviews: "Reviews", assessment: "Continuation Review – Assessment", summary: "Review Summary", decision: "Governance Decision", confirmation: "Decision Confirmation" };
   const assessmentIDs = { strategicAlignment: "assessment-alignment", expectedBenefits: "assessment-benefits", deliveryPerformance: "assessment-delivery", costPosition: "assessment-cost", risk: "assessment-risk", futureEconomicValue: "assessment-value" };
-  const dateTime = value => value && !Number.isNaN(Date.parse(value)) ? new Intl.DateTimeFormat(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(new Date(value)) + " UTC" : "—";
+  const dateTime = value => value && !Number.isNaN(Date.parse(value)) ? new Intl.DateTimeFormat("en-NZ", { year: "numeric", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(new Date(value)) + " UTC" : "—";
   function node(tag, text, className) { const result = document.createElement(tag); if (text !== undefined) result.textContent = String(text); if (className) result.className = className; return result; }
   function paragraphs(container, lines) { container.replaceChildren(...lines.map(line => node("p", line))); }
   function pairs(container, entries) {
@@ -18,6 +18,29 @@
   function section(container, title, source) { const part = node("section", undefined, "panel"); const heading = node("h3", title + " "); heading.append(badge(source)); part.append(heading); container.append(part); return part; }
   function action(text, callback) { const button = node("button", text, "secondary"); button.type = "button"; button.addEventListener("click", callback); return button; }
   function options(select, values) { for (const value of values) { const option = node("option", value); option.value = value; select.append(option); } }
+  function evidenceStatus(item, pending = false) {
+    if (pending) return { label: "Loading", tone: "loading" };
+    if (item.status === "error") return { label: "Request failed", tone: "error" };
+    if (item.status === "unavailable") return { label: "Unavailable", tone: "warning" };
+    if (item.status !== "success") return { label: "Not loaded", tone: "info" };
+    if (item.linkedRecordCount === 0) return { label: "No matching records", tone: "warning" };
+    if (item.hasMore) return { label: "Loaded · partial page", tone: "warning" };
+    return { label: "Loaded", tone: "success" };
+  }
+  function overview(container, key, evidence, pending = false, sourceDetails = true) {
+    const item = evidence[key]; const status = evidenceStatus(item, pending);
+    const badge = node("span", status.label, "evidence-status"); badge.dataset.tone = status.tone;
+    container.replaceChildren(badge);
+    if (pending) container.append(node("p", "Reading SAP evidence. Please wait for this request to finish.", "evidence-note"));
+    else {
+      if (key === "lifecycle" && item.loaded) container.append(node("p", `${item.elementCount} returned elements · ${item.milestoneCount} marked milestones · ${item.mainMilestoneCount} main milestones`));
+      if (key !== "lifecycle" && item.linkedRecordCount !== null) container.append(node("p", `${item.linkedRecordCount} validated linked records · SYSTEM CALCULATED from SAP`));
+      if (item.status === "error" || item.status === "unavailable" || item.status === "not_attempted") container.append(node("p", item.note, "evidence-note"));
+      else if (sourceDetails) { const details = node("details", undefined, "technical"); details.append(node("summary", "Source result & limitations")); for (const line of evidenceLines(key, evidence)) details.append(node("p", line)); container.append(details); }
+      if (item.capturedAt) container.append(node("p", `Captured ${dateTime(item.capturedAt)} · SYSTEM CALCULATED`, "evidence-caption"));
+      if (item.hasMore) container.append(node("p", "Additional pages are available. This is a partial snapshot.", "evidence-note"));
+    }
+  }
   function evidenceLines(key, evidence) {
     const item = evidence[key];
     const lines = [`Status: ${item.status.replace(/_/g, " ")} · ${item.note}`, `Captured: ${dateTime(item.capturedAt)} (SYSTEM CALCULATED)`];
@@ -32,7 +55,7 @@
     for (const [key, title] of [["lifecycle", "Lifecycle / WBS"], ["gl", "G/L Financial Evidence"], ["po", "Purchase Order Evidence"]]) {
       const part = section(container, title, "SAP");
       part.append(node("p", "Counts and grouped amounts: SYSTEM CALCULATED from SAP. Captured snapshots are not a claim of current production data.", "hint"));
-      for (const line of evidenceLines(key, evidence)) part.append(node("p", line));
+      overview(part.appendChild(node("div", undefined, "evidence-overview")), key, evidence, false, true);
     }
   }
   function renderTiming(container, record) {
@@ -44,7 +67,7 @@
   }
   function projectContext(container, project) {
     pairs(container, [["Project", project.Project], ["Description", project.ProjectDescription], ["SAP processing status", project.ProcessingStatus],
-      ["Start date", app.utils.formatDate(project.ProjectStartDate)], ["End date", app.utils.formatDate(project.ProjectEndDate)], ["Company code", project.CompanyCode], ["Currency", project.ProjectCurrency]]);
+      ["Start date", app.ui.formatDate(project.ProjectStartDate)], ["End date", app.ui.formatDate(project.ProjectEndDate)], ["Company code", project.CompanyCode], ["Currency", project.ProjectCurrency]]);
   }
   function renderDashboard(records, count, onOpen, storageAvailable = true) {
     const result = rules.dashboard(records, count);
@@ -75,21 +98,25 @@
     }
   }
   function details(project, evidence, records, capturedContext = false, storageAvailable = true) {
-    const context = el("investment-context"); context.replaceChildren(); projectContext(context, project);
+    el("detail-project-id").textContent = project.Project;
+    el("detail-project-name").textContent = project.ProjectDescription || "Unnamed investment";
+    const context = el("investment-context"); context.replaceChildren();
+    pairs(context, [["Project dates (SAP)", `${app.ui.formatDate(project.ProjectStartDate)} – ${app.ui.formatDate(project.ProjectEndDate)}`], ["Company (SAP)", project.CompanyCode], ["Currency (SAP)", project.ProjectCurrency], ["SAP status code", project.ProcessingStatus]]);
     if (capturedContext) context.append(node("p", "Saved SAP project context from a prototype review. Reload SAP projects/evidence for fresh data.", "hint"));
     el("detail-review-status").textContent = `Local review status (SYSTEM CALCULATED): ${storageAvailable ? rules.projectStatus(records, project.ProjectUUID) : "Unavailable"}`;
     el("start-review").disabled = !storageAvailable;
     el("start-review").textContent = rules.activeReview(records, project.ProjectUUID) ? "Continue Review" : "Start Continuation Review";
     el("view-last-decision").hidden = !storageAvailable || !records.some(record => record.project.ProjectUUID === project.ProjectUUID && record.status === "decision_recorded");
-    paragraphs(el("detail-lifecycle-overview"), evidenceLines("lifecycle", evidence));
-    paragraphs(el("detail-financial-overview"), evidenceLines("gl", evidence).slice(0, 4));
-    paragraphs(el("detail-procurement-overview"), evidenceLines("po", evidence).slice(0, 3));
+    overview(el("detail-lifecycle-overview"), "lifecycle", evidence, !!app.state?.elementController, false);
+    overview(el("detail-financial-overview"), "gl", evidence, !!app.state?.glController, false);
+    overview(el("detail-procurement-overview"), "po", evidence, !!app.state?.poController, false);
   }
   function assessment(record) {
     el("review-basis").value = record.reviewBasis;
     for (const [key, id] of Object.entries(assessmentIDs)) el(id).value = record.assessment[key];
     el("assessment-comments").value = record.assessment.comments; el("assessment-dependencies").value = record.assessment.keyRisks; el("assessment-owner").value = record.decisionOwner;
-    paragraphs(el("assessment-financial-evidence"), evidenceLines("gl", record.evidence));
+    overview(el("assessment-financial-evidence"), "gl", record.evidence, !!app.state?.glController, true);
+    growTextareas();
   }
   function readAssessment() {
     return { reviewBasis: el("review-basis").value, decisionOwner: el("assessment-owner").value,
@@ -100,6 +127,7 @@
     el("decision-outcome").value = draft.outcome; el("decision-rationale").value = draft.rationale; el("decision-owner").value = record.decisionOwner;
     el("decision-action").value = draft.requiredAction; el("decision-action-owner").value = draft.actionOwner; el("decision-next-date").value = draft.nextReviewDate;
     decisionRequirements();
+    growTextareas();
   }
   function readDecision() {
     return { outcome: el("decision-outcome").value, rationale: el("decision-rationale").value, owner: el("decision-owner").value,
@@ -111,13 +139,26 @@
     for (const id of ["decision-action", "decision-action-owner", "decision-next-date"]) el(id).required = required;
   }
   function chrome(record, busy) {
-    el("current-review-project").textContent = `${record.project.Project} · Prototype Review ${record.id}`;
+    el("current-review-project").textContent = `${record.project.Project} · ${record.project.ProjectDescription || "Continuation review"}`;
     renderTiming(el("review-timing"), record);
     const readiness = rules.readiness(record); const missing = [...readiness.missing]; if (busy) missing.push("Wait for current SAP evidence requests to finish");
     el("readiness-status").textContent = readiness.ready && !busy ? "READY – required completeness items captured. No decision recommendation." : "INCOMPLETE – resolve the missing items below.";
+    el("readiness-status").dataset.kind = readiness.ready && !busy ? "success" : "info";
     el("readiness-missing").replaceChildren(...missing.map(item => node("li", item)));
     el("proceed-decision").disabled = !readiness.ready || busy;
     el("confirm-decision").disabled = busy || rules.decisionErrors(record, readDecision()).length > 0;
+    const errors = rules.decisionErrors(record, readDecision());
+    el("decision-incomplete").textContent = busy ? "Wait for SAP evidence requests to finish." : errors.length ? errors.join(" ") : "All required decision fields are complete. Confirm to save the record in this browser.";
+    el("assessment-save-status").textContent = !el("storage-notice").hidden ? "Local save needs attention. See the storage error above." : "Draft saved in this browser only.";
+    for (const [key, id] of Object.entries(assessmentIDs)) fieldFeedback(id, record.assessment[key] === rules.ASSESSMENTS[key].missing ? "Select a completed assessment for this category." : "");
+    fieldFeedback("review-basis", !record.reviewBasis ? "Select the reason for this review." : "");
+    fieldFeedback("assessment-owner", !record.decisionOwner.trim() ? "Enter the accountable decision owner." : "");
+    const mapping = {
+      "decision-outcome": "Select a human governance decision.", "decision-rationale": "Decision rationale is required.",
+      "decision-owner": "Decision owner is required.", "decision-action": "Required action is required for this decision.",
+      "decision-action-owner": "Action owner is required for this decision.", "decision-next-date": "Next review date is required for this decision."
+    };
+    for (const [id, message] of Object.entries(mapping)) fieldFeedback(id, errors.includes(message) ? message : id === "decision-next-date" && errors.includes("Next review date must be a valid calendar date.") ? "Enter a valid calendar date." : "");
   }
   function reviewSummary(record) {
     const target = el("review-summary"); target.replaceChildren();
@@ -153,8 +194,27 @@
     const step = ["assessment", "summary", "decision"].indexOf(view);
     [...el("review-steps").children].forEach((item, index) => { if (index === step) item.setAttribute("aria-current", "step"); else item.removeAttribute("aria-current"); });
     el("workflow-message").hidden = true;
+    document.querySelector("main").dataset.view = view;
+    el("load-projects").hidden = ["assessment", "summary", "decision", "confirmation"].includes(view);
+    el("connection-details").closest("section").hidden = ["assessment", "summary", "decision", "confirmation"].includes(view);
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }
+  function growTextareas() { for (const input of document.querySelectorAll("textarea")) { if (input.offsetParent !== null) { input.style.height = "auto"; input.style.height = Math.max(110, input.scrollHeight + 2) + "px"; } } }
+  function fieldFeedback(id, message) {
+    const input = el(id); const error = el(id + "-error");
+    if (!error) return;
+    const visible = input.dataset.touched === "true" && !!message;
+    error.textContent = visible ? message : ""; error.hidden = !visible;
+    if (visible) input.setAttribute("aria-invalid", "true"); else input.removeAttribute("aria-invalid");
+    const references = [input.dataset.help, visible ? error.id : ""].filter(Boolean).join(" ");
+    if (references) input.setAttribute("aria-describedby", references); else input.removeAttribute("aria-describedby");
   }
   function bind(actions) {
+    for (const input of document.querySelectorAll("input, select, textarea")) {
+      const error = node("span", "", "field-error"); error.id = input.id + "-error"; error.hidden = true;
+      input.dataset.help = input.getAttribute("aria-describedby") || ""; input.closest("label").append(error);
+      for (const event of ["input", "change"]) input.addEventListener(event, () => { input.dataset.touched = "true"; });
+    }
     for (const view of ["dashboard", "investments", "reviews"]) el(`nav-${view}`).addEventListener("click", () => actions.navigate(view));
     el("dashboard-view-investments").addEventListener("click", () => actions.navigate("investments"));
     el("start-review").addEventListener("click", actions.startReview);
@@ -172,11 +232,12 @@
     el("decision-form").addEventListener("submit", event => { event.preventDefault(); actions.confirm(); });
     options(el("review-basis"), rules.BASIS); options(el("decision-outcome"), rules.OUTCOMES);
     for (const [key, id] of Object.entries(assessmentIDs)) options(el(id), rules.ASSESSMENTS[key].options);
+    for (const input of document.querySelectorAll("textarea")) input.addEventListener("input", growTextareas);
   }
-  app.governanceUI = { bind, showView, details, renderDashboard, renderReviews, assessment, readAssessment, decision, readDecision, chrome, reviewSummary, confirmation,
-    storageNotice(text) { el("storage-notice").hidden = !text; el("storage-notice").textContent = text; },
+  app.governanceUI = { bind, showView, details, renderDashboard, renderReviews, assessment, readAssessment, decision, readDecision, chrome, reviewSummary, confirmation, evidenceStatus,
+    storageNotice(text) { el("storage-notice").hidden = !text; el("storage-notice").textContent = text; el("assessment-save-status").textContent = text ? "Local save needs attention. See the storage error above." : "Draft saved in this browser only."; },
     error(text) { el("workflow-message").hidden = false; el("workflow-message").textContent = text; },
-    financialSnapshot(record) { paragraphs(el("assessment-financial-evidence"), evidenceLines("gl", record.evidence)); },
+    financialSnapshot(record) { overview(el("assessment-financial-evidence"), "gl", record.evidence, !!app.state?.glController, true); },
     evidenceButton(enabled) { el("load-review-evidence").disabled = !enabled; }
   };
 })();

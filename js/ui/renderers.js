@@ -1,7 +1,14 @@
 (() => {
   "use strict";
   const app = window.DPEApp = window.DPEApp || {};
-  const { formatDate, milestoneFlag, mainMilestoneLabel, booleanLabel } = app.utils;
+  const { milestoneFlag, mainMilestoneLabel, booleanLabel } = app.utils;
+  function formatDate(value) {
+    if (value === null || value === undefined || value === "") return "—";
+    const match = /^\/Date\((-?\d+)(?:[+-]\d{4})?\)\/$/.exec(String(value));
+    const date = match ? new Date(Number(match[1])) : new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return new Intl.DateTimeFormat("en-NZ", { year: "numeric", month: "short", day: "2-digit", timeZone: "UTC" }).format(date);
+  }
   let reviewStatusForProject = () => "No active review";
   const dom = {
     button: document.getElementById("load-projects"),
@@ -84,7 +91,6 @@
       action.className = "row-action";
       action.textContent = "View Investment";
       action.setAttribute("aria-label", `View Investment for ${project.Project || "project"}`);
-      action.setAttribute("aria-pressed", String(project === selectedProject));
       action.addEventListener("click", () => onSelect(project));
       actionCell.append(action);
       row.append(actionCell);
@@ -142,6 +148,7 @@
     dom.glPanel.hidden = true;
     dom.glButton.disabled = true;
     dom.glButton.textContent = "Load Financial Evidence";
+    dom.glButton.removeAttribute("aria-busy");
     dom.glSummary.replaceChildren();
     dom.glProject.textContent = "";
     dom.glError.hidden = true;
@@ -168,6 +175,7 @@
     dom.poPanel.hidden = true;
     dom.poButton.disabled = true;
     dom.poButton.textContent = "Load Purchase Order Evidence";
+    dom.poButton.removeAttribute("aria-busy");
     dom.poProject.textContent = "";
     dom.poSummary.replaceChildren();
     dom.poError.hidden = true;
@@ -188,6 +196,7 @@
     summary(dom.poSummary, lines);
   }
   app.ui = {
+    formatDate,
     configureReviews(callback) { reviewStatusForProject = callback; },
     renderProjects, resetElements, selectProject, renderElements, resetGL, renderGL, resetPO, renderPO,
     bindEvents(actions) {
@@ -201,22 +210,26 @@
     },
     projectKeyMissing() {
       dom.connection.textContent = "API key required · Not connected";
+      dom.connection.dataset.kind = "error"; document.getElementById("connection-details").open = true;
       message(dom.message, "Please add your SAP Sandbox API key to config.local.js first.", "error");
     },
     projectLoading() {
       dom.button.disabled = true; dom.button.textContent = "Loading…";
+      dom.button.setAttribute("aria-busy", "true"); dom.connection.dataset.kind = "loading";
       dom.connection.textContent = "Connecting to SAP Sandbox…";
       message(dom.message, "Requesting up to five Enterprise Projects…");
     },
     projectSuccess(records, selected, onSelect, status) {
       renderProjects(records, selected, onSelect); dom.connection.textContent = "Connected · SAP Sandbox";
+      dom.connection.dataset.kind = "success";
       message(dom.message, `Successfully loaded ${records.length} project${records.length === 1 ? "" : "s"} from SAP Sandbox (${status}).`, "success");
     },
     projectFailure(detail) {
       dom.connection.textContent = "Connection test failed";
+      dom.connection.dataset.kind = "error"; document.getElementById("connection-details").open = true;
       empty(dom.tableBody, 9, "No project data displayed. Resolve the error and try again."); message(dom.message, detail, "error");
     },
-    projectFinished() { dom.button.disabled = false; dom.button.textContent = "Load SAP Projects"; },
+    projectFinished() { dom.button.disabled = false; dom.button.textContent = "Load SAP Projects"; dom.button.removeAttribute("aria-busy"); },
     projectRaw(context) { dom.rawResponse.textContent = raw(context); },
     projectHTTPError(text) { errorBody(dom.errorDetails, text); },
     elementsRaw(context) { dom.rawElements.textContent = raw(context); },
@@ -227,7 +240,7 @@
       message(dom.elementsMessage, detail, "error");
     },
     glSelected(project) { dom.glPanel.hidden = false; dom.glProject.textContent = `Selected project: ${project.Project || "Unnamed project"}`; },
-    glLoading() { dom.glButton.textContent = "Loading…"; },
+    glLoading() { dom.glButton.textContent = "Loading…"; dom.glButton.disabled = true; dom.glButton.setAttribute("aria-busy", "true"); },
     setGLMessage(text, kind = "info") { message(dom.glMessage, text, kind); },
     glRaw(text) { dom.rawGL.textContent = text; },
     glDiagnosticRaw(text) { dom.rawDiagnostic.textContent = text; },
@@ -240,9 +253,9 @@
       dom.glSummary.replaceChildren(); empty(dom.glBody, 12, "No linked financial evidence displayed. Inspect the error and raw responses.");
       message(dom.glMessage, `${dom.glDiagnostic.hidden ? "G/L evidence request failed" : "No linked records found; unlinked diagnostic failed"}: ${status ? status + ". " : ""}${detail}`, "error");
     },
-    glFinished() { dom.glButton.disabled = false; dom.glButton.textContent = "Load Financial Evidence"; },
+    glFinished() { dom.glButton.disabled = false; dom.glButton.textContent = "Load Financial Evidence"; dom.glButton.removeAttribute("aria-busy"); },
     poSelected(project) { dom.poPanel.hidden = false; dom.poProject.textContent = `Selected project: ${project.Project || "Unnamed project"}`; },
-    poLoading() { dom.poButton.textContent = "Loading…"; message(dom.poMessage, "Requesting exact WBS-linked Purchase Order account assignments…"); },
+    poLoading() { dom.poButton.textContent = "Loading…"; dom.poButton.disabled = true; dom.poButton.setAttribute("aria-busy", "true"); message(dom.poMessage, "Requesting exact WBS-linked Purchase Order account assignments…"); },
     setPOMessage(text, kind = "info") { message(dom.poMessage, text, kind); },
     poRaw(text) { dom.rawPO.textContent = text; },
     poHTTPError(text) { errorBody(dom.poError, text); },
@@ -251,6 +264,6 @@
       dom.poSummary.replaceChildren(); empty(dom.poBody, 11, "No procurement evidence displayed. Inspect the error and raw response.");
       message(dom.poMessage, `${status ? status + ". " : ""}${detail}`, "error");
     },
-    poFinished() { dom.poButton.disabled = false; dom.poButton.textContent = "Load Purchase Order Evidence"; }
+    poFinished() { dom.poButton.disabled = false; dom.poButton.textContent = "Load Purchase Order Evidence"; dom.poButton.removeAttribute("aria-busy"); }
   };
 })();

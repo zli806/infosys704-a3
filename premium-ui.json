@@ -1,0 +1,27 @@
+{
+  "profile": "product-admin",
+  "sourceRoots": [
+    "."
+  ],
+  "locale": "en-NZ",
+  "canonicalMap": "docs/UI_CONTRACT.md",
+  "requiredCapabilities": [
+    "Select/Listbox",
+    "Date",
+    "Form",
+    "Scrollbar",
+    "CRUD"
+  ],
+  "ownership": {
+    "Select/Listbox": "native",
+    "Date": "native"
+  },
+  "requiredCommands": [
+    "contract",
+    "presentation"
+  ],
+  "commands": {
+    "contract": "python3 scripts/check_frontend_contract.py",
+    "presentation": "node --test tests/*.test.js"
+  }
+}
