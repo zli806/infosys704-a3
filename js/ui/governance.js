@@ -22,12 +22,22 @@
   function action(text, callback) { const button = node("button", text, "secondary"); button.type = "button"; button.addEventListener("click", callback); return button; }
   function options(select, values) { for (const value of values) { const option = node("option", value); option.value = value; select.append(option); } }
   function countLabel(count, singular) { return `${count} ${singular}${count === 1 ? "" : "s"}`; }
+  const decisionDescriptions = {
+    Continue: "Proceed under the current approved direction.",
+    "Continue with Conditions": "Proceed subject to specified conditions or corrective actions.",
+    Modify: "Change scope, plan or investment approach before continuing.",
+    Pause: "Temporarily stop further progression while issues are resolved.",
+    Stop: "End the investment / continuation path."
+  };
   function buildChoices(id, values) {
     const group = el(id); const choices = node("div", undefined, "choice-options");
     values.forEach((value, index) => {
       const label = node("label", undefined, "choice-card"); const input = node("input");
       input.type = "radio"; input.name = id; input.value = value; input.id = `${id}-choice-${index}`;
-      label.append(input, node("span", value)); choices.append(label);
+      const copy = node("span", undefined, "choice-copy"); copy.append(node("strong", value));
+      if (id === "decision-outcome") copy.append(node("small", decisionDescriptions[value], "choice-description"));
+      const selected = node("span", "Selected", "choice-selected"); selected.setAttribute("aria-hidden", "true"); copy.append(selected);
+      label.append(input, copy); choices.append(label);
     });
     group.append(choices);
   }
@@ -60,6 +70,7 @@
   function overview(container, key, evidence, pending = false, sourceDetails = true) {
     const item = evidence[key]; const status = evidenceStatus(item, pending);
     if (!pending && key !== "lifecycle" && item.status === "success" && item.linkedRecordCount > 0) status.label = "Evidence available";
+    container.dataset.tone = status.tone;
     const badge = node("span", status.label, "evidence-status"); badge.dataset.tone = status.tone;
     container.replaceChildren(badge);
     if (pending) container.append(node("p", "Reading SAP evidence. Please wait for this request to finish.", "evidence-note"));
@@ -100,7 +111,24 @@
   function renderTiming(container, record) {
     container.replaceChildren(); const control = rules.timing(record);
     const heading = node("h3", "Governance Timing "); heading.append(badge("SYSTEM CALCULATED")); container.append(heading);
-    pairs(container, [["Review opened", dateTime(control.reviewOpenedAt)], ["14-day decision target", dateTime(control.decisionTarget)],
+    const milestones = [{ title: "Review Opened", date: control.reviewOpenedAt, state: "opened" },
+      { title: "14-Day Decision Target", date: control.decisionTarget, state: "target" },
+      { title: "30-Day Escalation Threshold", date: control.escalationThreshold, state: "threshold" }];
+    if (record.status === "decision_recorded" && record.decision?.timestamp) milestones.push({ title: "Decision Recorded", date: record.decision.timestamp, state: "recorded" });
+    milestones.sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+    const timeline = node("ol", undefined, "governance-timeline"); timeline.setAttribute("aria-label", "Governance milestones in date order");
+    for (const milestone of milestones) {
+      const item = node("li", undefined, "timeline-step"); item.dataset.state = milestone.state;
+      const time = node("time", dateTime(milestone.date)); time.dateTime = milestone.date;
+      item.append(node("strong", milestone.title), time); timeline.append(item);
+    }
+    const status = node("p", control.status, "timing-status");
+    status.dataset.tone = control.status === "Decision recorded" ? "recorded" : control.status === "Within decision window" ? "within-window" : "overdue";
+    container.append(status, timeline);
+    if (record.status !== "decision_recorded") container.append(node("p", control.status === "Within decision window" ? `${control.daysRemaining} days remaining` : `${control.daysOverdue} days overdue`, "timing-window"));
+    const precision = node("details", undefined, "technical-disclosure technical"); precision.append(node("summary", "Timing dates & context")); container.append(precision);
+    precision.append(node("p", "Milestone order, not an elapsed-time scale. Exact UTC timestamps are retained in the time elements."));
+    pairs(precision, [["Review opened", dateTime(control.reviewOpenedAt)], ["14-day decision target", dateTime(control.decisionTarget)],
       ["30-day escalation threshold", dateTime(control.escalationThreshold)], ["Current timing status", control.status],
       ["Decision window", record.status === "decision_recorded" ? "Decision recorded; not an open overdue review" : control.status === "Within decision window" ? `${control.daysRemaining} days remaining` : `${control.daysOverdue} days overdue`]]);
   }
@@ -116,18 +144,27 @@
       const items = rules.needsAttention(records);
       if (!items.length) attention.append(node("p", "No open reviews are currently flagged for management attention. Check open reviews for incomplete assessments; this is not assurance of safe continuation."));
       for (const { review, signals, timing } of items) {
-        const row = node("article", undefined, "review-item"); const text = node("div");
-        text.append(node("h4", review.project.Project), node("p", `Review Trigger: ${review.reviewBasis || "Not selected"}`),
-          node("p", [countLabel(signals.materialConcerns.length, "material concern"), countLabel(signals.attentionItems.length, "attention item"), countLabel(signals.evidenceGaps.length, "evidence gap")].join(" · ")),
-          node("p", timing.status === "Within decision window" ? `Decision target: ${dateTime(timing.decisionTarget)}` : `${timing.status} · ${timing.daysOverdue} days overdue`));
-        row.append(text, action("Continue Review", () => onOpen(review.id))); attention.append(row);
+        const row = node("article", undefined, "attention-item"); row.dataset.timing = timing.status;
+        const context = node("div", undefined, "attention-item-context");
+        context.append(node("h4", review.project.Project), node("p", `Review Trigger: ${review.reviewBasis || "Not selected"}`, "attention-trigger"));
+        const counts = node("div", undefined, "attention-counts");
+        for (const [count, label, tone] of [[signals.materialConcerns.length, "material concern", "material"], [signals.attentionItems.length, "attention item", "attention"], [signals.evidenceGaps.length, "evidence gap", "gap"]]) {
+          const indicator = node("span", countLabel(count, label), "attention-count"); indicator.dataset.tone = tone; counts.append(indicator);
+        }
+        const timingText = node("p", timing.status === "Within decision window" ? `Decision due in ${timing.daysRemaining} days · ${dateTime(timing.decisionTarget)}` : `${timing.status} · ${timing.daysOverdue} days overdue`, "attention-timing");
+        const button = action("Continue Review", () => onOpen(review.id)); button.className = "attention-action";
+        row.append(context, counts, timingText, button); attention.append(row);
       }
     }
     const cards = el("dashboard-cards"); cards.replaceChildren();
-    for (const [label, value] of [["SAP Projects Loaded This Session", result.projectCount], ["Reviews In Progress", storageAvailable ? result.open.length : "Unavailable"], ["Decisions Recorded", storageAvailable ? result.decisions.length : "Unavailable"], ["Overdue Open Reviews", storageAvailable ? result.overdue : "Unavailable"]]) {
-      const card = node("div", undefined, "metric"); card.append(badge("SYSTEM CALCULATED"), node("strong", value), node("p", label)); cards.append(card);
-      if (label === "SAP Projects Loaded This Session" && count === 0 && storageAvailable && records.length) card.append(node("p", "Load SAP Projects to refresh the current portfolio view.", "hint"));
+    const openSignals = result.open.map(review => rules.reviewSignals(review));
+    const materialCount = openSignals.reduce((sum, signals) => sum + signals.materialConcerns.length, 0);
+    const gapCount = openSignals.reduce((sum, signals) => sum + signals.evidenceGaps.length, 0);
+    for (const [label, value] of [["Reviews In Progress", result.open.length], ["Material Concerns", materialCount], ["Evidence Gaps", gapCount], ["Decisions Recorded", result.decisions.length]]) {
+      const card = node("div", undefined, "metric status-card"); card.append(node("p", label), node("strong", storageAvailable ? value : "Unavailable"), node("small", label === "Decisions Recorded" ? "Saved local records" : "Across open local reviews")); cards.append(card);
     }
+    const session = node("p", `SAP Projects Loaded This Session: ${result.projectCount} · Overdue open reviews: ${storageAvailable ? result.overdue : "Unavailable"} · SYSTEM CALCULATED`, "session-context");
+    if (count === 0 && storageAvailable && records.length) session.append(node("span", " Load SAP Projects to refresh the current portfolio view.")); cards.append(session);
     const open = el("dashboard-open-reviews"); open.replaceChildren();
     const recent = el("dashboard-decisions"); recent.replaceChildren();
     if (!storageAvailable) { open.append(node("p", "Prototype storage unavailable; review records could not be read.")); recent.append(node("p", "Prototype storage unavailable; decision records could not be read.")); return; }
@@ -181,8 +218,9 @@
   function decision(record) {
     ownerRecord = record;
     const draft = record.decisionDraft;
-    setChoice("decision-outcome", draft.outcome); el("decision-rationale").value = draft.rationale; el("decision-owner").value = ownerLabel(record.decisionOwnerSnapshot, record.decisionOwner);
-    el("decision-owner-help").textContent = record.decisionOwnerId ? "PROTOTYPE GOVERNANCE DIRECTORY · Carried from Assessment; change it there." : "Legacy saved owner text. Select a governed owner in Assessment before a new decision.";
+    setChoice("decision-outcome", draft.outcome); el("decision-rationale").value = draft.rationale; el("decision-owner").value = record.decisionOwner;
+    if (record.decisionOwnerId) ownerContext(el("decision-owner-help"), record.decisionOwnerSnapshot, record.decisionOwner);
+    else el("decision-owner-help").textContent = "Legacy saved owner text. Select a governed owner in Assessment before a new decision.";
     el("decision-action").value = draft.requiredAction; el("decision-action-owner").value = draft.actionOwner; el("decision-next-date").value = draft.nextReviewDate;
     decisionRequirements();
     growTextareas();
@@ -203,12 +241,13 @@
   function chrome(record, busy) {
     ownerRecord = record;
     el("current-review-project").textContent = `${record.project.Project} · ${record.project.ProjectDescription || "Continuation review"}`;
-    const trigger = el("review-trigger"); trigger.replaceChildren(node("h4", "Review Trigger"), node("p", record.reviewBasis || "Not selected"), badge("REVIEWER INPUT"));
+    const trigger = el("review-trigger"); trigger.dataset.trigger = record.reviewBasis === "Material trigger / concern" ? "material" : record.reviewBasis === "Scheduled governance review" ? "scheduled" : "other";
+    trigger.replaceChildren(node("p", "Review Trigger · Why this review is happening", "component-eyebrow"), node("h4", record.reviewBasis || "Not selected"), node("p", "Formal continuation review", "hint"), badge("REVIEWER INPUT"));
     pairs(trigger, [["Opened · SYSTEM CALCULATED", dateTime(record.reviewOpenedAt)], ["Decision target · SYSTEM CALCULATED", dateTime(rules.timing(record).decisionTarget)]]);
     renderTiming(el("review-timing"), record);
     const readiness = rules.readiness(record); const missing = readiness.missing.map(item => item === "Review basis" ? "Review Trigger" : item); if (busy) missing.push("Wait for current SAP evidence requests to finish");
     const eligible = app.services?.governanceDirectory?.eligible(record) ?? rules.ownerAssigned(record);
-    if (eligible) el("governance-directory-status").textContent = `PROTOTYPE GOVERNANCE DIRECTORY · ${ownerLabel(record.decisionOwnerSnapshot, record.decisionOwner)}`;
+    if (eligible) ownerContext(el("governance-directory-status"), record.decisionOwnerSnapshot, record.decisionOwner);
     if (!eligible && !missing.includes("Decision owner")) missing.push("Eligible Decision Owner from prototype governance directory");
     el("readiness-status").textContent = readiness.ready && eligible && !busy ? "READY – required completeness items captured. No decision recommendation." : "INCOMPLETE – resolve the missing items below.";
     el("readiness-status").dataset.kind = readiness.ready && eligible && !busy ? "success" : "info";
@@ -228,6 +267,23 @@
     };
     for (const [id, message] of Object.entries(mapping)) fieldFeedback(id, errors.includes(message) ? message : id === "decision-next-date" && errors.includes("Next review date must be a valid calendar date.") ? "Enter a valid calendar date." : "");
   }
+  function ownerContext(container, snapshot, legacy) {
+    container.className = "accountability-context hint";
+    container.replaceChildren(node("strong", snapshot?.name || legacy || "Not selected"), node("span", snapshot?.role || "Previously saved text owner"), node("small", snapshot?.id ? "PROTOTYPE GOVERNANCE DIRECTORY" : "Not directory-verified"));
+  }
+  function signalMatrix(container, record) {
+    const heading = node("h4", "Reviewer Assessment Signals "); heading.append(badge("REVIEWER INPUT")); container.append(heading);
+    const matrix = node("div", undefined, "signal-matrix"); matrix.setAttribute("aria-label", "Six categorical reviewer assessments; no quantitative score");
+    for (const [key, field] of Object.entries(rules.ASSESSMENTS)) {
+      const value = record.assessment[key]; const signals = rules.reviewSignals({ assessment: { [key]: value } });
+      const missing = !field.options.includes(value) || value === field.missing;
+      const tone = missing ? "unassessed" : signals.materialConcerns.length ? "material" : signals.evidenceGaps.length ? "gap" : signals.attentionItems.length ? "attention" : "assessed";
+      const labels = { unassessed: "Not assessed", material: "Material concern", gap: "Evidence gap", attention: "Attention item", assessed: "Reviewer assessment" };
+      const card = node("article", undefined, "assessment-signal"); card.dataset.dimension = key; card.dataset.tone = tone;
+      card.append(node("h4", field.label), node("p", value || field.missing, "signal-value"), node("span", labels[tone], "semantic-label")); matrix.append(card);
+    }
+    container.append(matrix);
+  }
   function executiveSnapshot(container, record) {
     const snapshot = section(container, "Executive Review Snapshot", "SYSTEM CALCULATED");
     const facts = node("dl", undefined, "executive-facts");
@@ -235,17 +291,12 @@
     for (const [label, value, source] of [
       ["Project", `${record.project.Project} · ${record.project.ProjectDescription || "No description"}`, "SAP"],
       ["Review Trigger", record.reviewBasis || "Not selected", "REVIEWER INPUT"],
-      ["Strategic Alignment", assessment.strategicAlignment, "REVIEWER INPUT"],
-      ["Expected Benefits", assessment.expectedBenefits, "REVIEWER INPUT"],
-      ["Delivery Performance", assessment.deliveryPerformance, "REVIEWER INPUT"],
-      ["Risk", assessment.risk, "REVIEWER INPUT"],
-      ["Future Economic Value", assessment.futureEconomicValue, "REVIEWER INPUT"],
       ["Decision Target", dateTime(rules.timing(record).decisionTarget), "SYSTEM CALCULATED"]
     ]) {
       const fact = node("div"); const title = node("dt", label + " "); title.append(badge(source));
       fact.append(title, node("dd", value || "Not assessed")); facts.append(fact);
     }
-    snapshot.append(facts);
+    snapshot.append(facts); signalMatrix(snapshot, record);
     const signals = rules.reviewSignals(record);
     const hasSignals = signals.materialConcerns.length || signals.attentionItems.length || signals.evidenceGaps.length;
     const attention = node("section", undefined, hasSignals ? "management-attention" : ""); snapshot.append(attention);
@@ -279,6 +330,10 @@
   function confirmation(record) {
     const target = el("confirmation-record"); target.replaceChildren(); const decision = record.decision;
     el("confirmation-outcome").textContent = decision.outcome;
+    const hero = node("header", undefined, "decision-record-context");
+    hero.append(node("h3", record.project.ProjectDescription || record.project.Project), node("p", record.project.Project, "component-eyebrow"));
+    const accountability = node("div"); ownerContext(accountability, decision.ownerSnapshot, decision.owner);
+    hero.append(accountability, node("p", dateTime(decision.timestamp), "record-date")); target.append(hero);
     pairs(target, [["Decision owner", ownerLabel(decision.ownerSnapshot, decision.owner)], ["Decision Date (SYSTEM CALCULATED)", dateTime(decision.timestamp)], ["Decision Rationale (REVIEWER INPUT)", decision.rationale],
       ["Required Action (REVIEWER INPUT)", decision.requiredAction], ["Action Owner (REVIEWER INPUT)", decision.actionOwner], ["Next Review (REVIEWER INPUT)", decision.nextReviewDate || "Not specified"]]);
     target.append(node("p", decision.ownerId ? `Owner ID: ${decision.ownerId} · PROTOTYPE GOVERNANCE DIRECTORY` : "Previously saved text owner — not verified against the prototype directory.", "hint"));

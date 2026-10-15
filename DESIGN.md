@@ -74,6 +74,21 @@ Canonical owners: `styles.css` owns shell/panels/buttons/fields/tables/scrollbar
 
 Keep native controls: assessment/decision fieldsets use visible labelled radios, with explicit unassessed/no-decision defaults. Review Trigger and prototype-directory owner use selects; date-picker language and select popup geometry remain platform-owned. Product labels/help/rendered dates stay English. Textareas grow; forms retain novalidate and the rule/store owner. No new libraries, framework or build step. These product controls reuse the accepted tokens; final visual refinement remains with UI/UX.
 
+### Visual Decision-Support Baseline
+
+- **Attention first:** actionable attention items separate project/trigger, categorical counts, timing and primary action. Governance status cards emphasise open reviews, material concerns, evidence gaps and recorded decisions; loaded SAP project count is smaller session context. Counts are local projections, not portfolio financial analytics.
+- **Evidence status cards:** Lifecycle, Financial and Procurement show business state/counts first, with the existing technical/raw disclosures retained. Zero PO matches are never zero exposure; failed/unavailable/loading states remain explicit.
+- **Trigger and assessment:** the human-selected trigger callout has material/scheduled/other variants. Native assessment radios retain an obvious checked state plus visible Selected text, without choosing a positive answer.
+- **Six-dimension signal matrix:** a two-column/three-row desktop categorical grid uses explicit reviewer values and existing reviewSignals categories. Text labels accompany restrained semantic cues. It stacks on narrow screens; there are no percentages, radar scores or new risk thresholds.
+- **Management attention:** a grouped exception block distinguishes material concerns, attention items and evidence gaps, never recommending an outcome.
+- **Governance timeline:** ordered HTML milestones show opened/14-day/30-day dates and the recorded decision's actual position. Dates/status remain textual and UTC precise; geometry is milestone order, not an elapsed-time chart. The control rail uses the same component vertically.
+- **Decision cards and record hero:** all five native radio cards have neutral UX descriptions and no default choice. Existing required follow-up expands without changing validation. The recorded outcome is strongest, followed by project, owner/role, date and grouped rationale/actions. Owner remains directory-governed and read-only on Decision.
+- **Progressive disclosure:** component classes live in styles.css and presentation in governance.js; technical caveats/record context remain expandable. No business, SAP, storage or source-provenance semantics change.
+
+This is reusable component anatomy, not final brand approval. Jerry retains latitude over DPE branding, final colours/type, spacing, borders/shadows, banners/footer, icons, component sizes and relative visual emphasis. Keep the accepted tokens as the baseline rather than introducing a replacement theme or CSS framework.
+
+Baseline verification: the real TEMP003 browser flow returned 4 elements / 40 G/L links / 0 PO links and completed a keyboard-selected Modify record, reload and isolated QA cleanup. Desktop and 390px embedded-viewport DOM/layout checks found no page overflow; the signal matrix changed from two columns to one. The management-attention / summary / decision checks were structural and interaction checks, not formal 10-second/2-minute/30-second user studies. Screenshot capture was unavailable because the browser tool required a visible desktop window; no screenshot-based visual certification is claimed. Jerry should still review visual emphasis and complete the final usability pass.
+
 ## Do's and Don'ts
 
 - Keep exact raw SAP codes when no authoritative text mapping exists.
