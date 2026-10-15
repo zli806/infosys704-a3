@@ -154,9 +154,60 @@
     container.append(status, timeline);
     if (record.status !== "decision_recorded") container.append(node("p", control.status === "Within decision window" ? `${control.daysRemaining} days remaining` : `${control.daysOverdue} days overdue`, "timing-window"));
   }
+  const signalCategories = [["material", "Material Concerns"], ["emerging", "Emerging Concerns"], ["gap", "Evidence Gaps"]];
+  let selectedAttentionCategory = null;
+  let chartButtons = [];
+  function resumeLabel(record) { return rules.readiness(record).ready ? "Review Summary & Decide" : "Continue Assessment"; }
+  function timingExplanation(record) {
+    const timing = rules.timing(record);
+    return `${timing.status} · Decision due ${shortDate(timing.decisionTarget)} · ${timing.daysOverdue} days overdue${timing.status === "Escalation threshold reached" ? ` · Escalation threshold ${shortDate(timing.escalationThreshold)}` : ""}`;
+  }
+  function appendAssessmentFindings(container, entries) {
+    for (const [category, label] of signalCategories) {
+      const matching = entries.filter(entry => entry.category === category); if (!matching.length) continue;
+      const group = node("section", undefined, "attention-group"); group.dataset.category = label.toLowerCase().replace(/ /g, "-");
+      const list = node("ul"); for (const entry of matching) list.append(node("li", `${entry.dimension} — ${entry.value}`));
+      group.append(node("h4", label), list); container.append(group);
+    }
+  }
+  function whyFlagged(review, expanded) {
+    const details = node("details", undefined, "flag-explanation"); details.dataset.reviewId = review.id; details.open = expanded;
+    details.append(node("summary", "Why is this flagged?"));
+    appendAssessmentFindings(details, rules.signalBreakdown(review));
+    if (rules.timing(review).status !== "Within decision window") details.append(node("h4", "Timing requires attention"), node("p", timingExplanation(review), "hint"));
+    return details;
+  }
+  function renderAttentionBreakdown(records, storageAvailable) {
+    const target = el("attention-breakdown"); target.replaceChildren();
+    const category = selectedAttentionCategory;
+    const groups = storageAvailable && category ? records.filter(record => record.status === "in_progress").map(review => ({ review,
+      entries: category === "overdue" ? [] : rules.signalBreakdown(review).filter(entry => entry.category === category) }))
+      .filter(group => category === "overdue" ? rules.timing(group.review).status !== "Within decision window" : group.entries.length) : [];
+    if (!groups.length) selectedAttentionCategory = null;
+    target.hidden = !groups.length;
+    for (const button of chartButtons) button.setAttribute("aria-expanded", String(button.dataset.category === selectedAttentionCategory));
+    if (!groups.length) return;
+    const label = category === "overdue" ? "Overdue Reviews" : signalCategories.find(([key]) => key === category)[1];
+    target.append(node("h4", label));
+    const count = groups.reduce((sum, group) => sum + group.entries.length, 0);
+    target.append(node("p", category === "overdue" ? `${countLabel(groups.length, "overdue open review")}`
+      : `${countLabel(count, "assessment signal")} across ${countLabel(groups.length, "open review")}`, "hint"));
+    for (const { review, entries } of groups) {
+      const group = node("section", undefined, "drilldown-review"); group.append(node("h5", review.project.ProjectDescription || review.project.Project));
+      if (category === "overdue") group.append(node("p", timingExplanation(review), "hint"));
+      else { const list = node("ul"); for (const entry of entries) list.append(node("li", `${entry.dimension} — ${entry.value}`)); group.append(list); }
+      target.append(group);
+    }
+    target.append(action("Close breakdown", () => {
+      const previous = chartButtons.find(button => button.dataset.category === selectedAttentionCategory);
+      selectedAttentionCategory = null; renderAttentionBreakdown(records, storageAvailable); previous?.focus();
+    }));
+  }
   function renderDashboard(records, count, onOpen, storageAvailable = true) {
     const result = rules.dashboard(records, count);
-    const attention = el("dashboard-attention"); attention.replaceChildren();
+    const attention = el("dashboard-attention");
+    const expanded = new Set(Array.from(attention.querySelectorAll("details[open]"), details => details.dataset.reviewId));
+    attention.replaceChildren();
     if (!storageAvailable) attention.append(node("p", "Review storage unavailable; review signals cannot be refreshed."));
     else {
       const items = rules.needsAttention(records);
@@ -173,8 +224,8 @@
         }
         if (!counts.children.length) counts.append(node("span", "Decision timing requires attention", "hint"));
         const timingText = node("p", timing.status === "Within decision window" ? `Decision due in ${timing.daysRemaining} days · ${shortDate(timing.decisionTarget)}` : `${timing.status} · ${timing.daysOverdue} days overdue`, "attention-timing");
-        const button = action("Continue Review", () => onOpen(review.id)); button.className = "attention-action";
-        row.append(context, counts, timingText, button); attention.append(row);
+        const button = action(resumeLabel(review), () => onOpen(review.id)); button.className = "attention-action";
+        row.append(context, counts, timingText, whyFlagged(review, expanded.has(review.id)), button); attention.append(row);
       }
     }
     const cards = el("dashboard-cards"); cards.replaceChildren();
@@ -186,19 +237,25 @@
     }
     cards.append(node("p", `${result.projectCount} investments available`, "session-context"));
     const profile = el("attention-profile"); profile.replaceChildren();
-    const values = [["Material concerns", materialCount], ["Emerging concerns", openSignals.reduce((sum, signals) => sum + signals.attentionItems.length, 0)], ["Evidence gaps", gapCount], ["Overdue reviews", result.overdue]];
+    chartButtons = [];
+    const values = [["material", "Material concerns", materialCount], ["emerging", "Emerging concerns", openSignals.reduce((sum, signals) => sum + signals.attentionItems.length, 0)], ["gap", "Evidence gaps", gapCount], ["overdue", "Overdue reviews", result.overdue]];
     if (!storageAvailable) profile.append(node("p", "Review storage unavailable."));
-    else if (!values.some(([, value]) => value)) profile.append(node("p", "No active review signals yet."));
+    else if (!values.some(([, , value]) => value)) profile.append(node("p", "No active review signals yet."));
     else {
       const chart = node("ul", undefined, "attention-chart"); chart.setAttribute("aria-label", "Governance Attention Profile — counts across open reviews");
-      const max = Math.max(...values.map(([, value]) => value));
-      for (const [label, value] of values) {
-        const row = node("li", undefined, "chart-row"); const track = node("span", undefined, "chart-track"); track.setAttribute("aria-hidden", "true");
+      const max = Math.max(...values.map(([, , value]) => value));
+      for (const [category, label, value] of values) {
+        const item = node("li"), row = node("button", undefined, "chart-row chart-select"); row.type = "button"; row.dataset.category = category; row.disabled = value === 0;
+        row.setAttribute("aria-controls", "attention-breakdown"); row.setAttribute("aria-label", `${label}: ${value}. Inspect breakdown`);
+        row.addEventListener("click", () => { selectedAttentionCategory = selectedAttentionCategory === category ? null : category; renderAttentionBreakdown(records, storageAvailable); });
+        chartButtons.push(row);
+        const track = node("span", undefined, "chart-track"); track.setAttribute("aria-hidden", "true");
         const bar = node("span", undefined, "chart-bar"); bar.style.width = `${value / max * 100}%`; track.append(bar);
-        row.append(node("span", label), track, node("strong", value)); chart.append(row);
+        row.append(node("span", label), track, node("strong", value)); item.append(row); chart.append(item);
       }
       profile.append(chart);
     }
+    renderAttentionBreakdown(records, storageAvailable);
     const open = el("dashboard-open-reviews"); open.replaceChildren();
     const recent = el("dashboard-decisions"); recent.replaceChildren();
     if (!storageAvailable) { open.append(node("p", "Review storage unavailable.")); recent.append(node("p", "Decision records could not be read.")); return; }
@@ -206,7 +263,7 @@
     const other = result.open.filter(record => !flagged.has(record.id));
     if (!other.length) open.append(node("p", "No other open reviews."));
     for (const record of other) {
-      const row = node("div", undefined, "review-item"); row.append(node("p", `${record.project.Project} · ${rules.timing(record).status}`), action("Continue Review", () => onOpen(record.id))); open.append(row);
+      const row = node("div", undefined, "review-item"); row.append(node("p", `${record.project.Project} · ${rules.timing(record).status}`), action(resumeLabel(record), () => onOpen(record.id))); open.append(row);
     }
     if (!result.decisions.length) recent.append(node("p", "No decisions recorded yet."));
     for (const record of result.decisions.slice(0, 5)) {
@@ -223,7 +280,7 @@
       const control = rules.timing(record); const row = node("tr");
       for (const value of [record.project.Project, rules.normalizeBasis(record.reviewBasis) || "Not selected", dateTime(record.reviewOpenedAt), dateTime(control.decisionTarget), record.status === "decision_recorded" ? "Decision recorded" : control.status === "Within decision window" ? "In progress" : control.status]) row.append(node("td", value));
       row.children[0].append(sourceBadge(record.project));
-      const cell = node("td"); cell.append(action(record.status === "decision_recorded" ? "View Decision" : "Continue Review", () => onOpen(record.id))); row.append(cell); body.append(row);
+      const cell = node("td"); cell.append(action(record.status === "decision_recorded" ? "View Decision" : resumeLabel(record), () => onOpen(record.id))); row.append(cell); body.append(row);
     }
   }
   function details(project, evidence, records, capturedContext = false, storageAvailable = true) {
@@ -242,12 +299,15 @@
     pairs(context, [["Project dates", `${app.ui.formatDate(project.ProjectStartDate)} – ${app.ui.formatDate(project.ProjectEndDate)}`], ["Company", project.CompanyCode], ["Currency", project.ProjectCurrency]]);
     if (capturedContext) context.append(node("p", "Saved project context. Refresh evidence for current activity.", "hint"));
     const active = rules.activeReview(records, project.ProjectUUID), timing = active ? rules.timing(active) : null;
+    const recorded = records.some(record => record.project.ProjectUUID === project.ProjectUUID && record.status === "decision_recorded");
+    const ready = active && rules.readiness(active).ready;
     el("detail-review-status").textContent = !storageAvailable ? "Review storage unavailable" : timing
-      ? `${timing.status === "Within decision window" ? "Review in progress" : timing.status} · Decision due ${shortDate(timing.decisionTarget)}` : rules.projectStatus(records, project.ProjectUUID);
+      ? `${ready ? "Assessment complete · Ready for governance decision" : "Review in progress"} · ${timing.status === "Within decision window" ? "Decision due" : timing.status + " · Due"} ${shortDate(timing.decisionTarget)}` : rules.projectStatus(records, project.ProjectUUID);
     el("start-review").disabled = !storageAvailable;
-    el("start-review").textContent = rules.activeReview(records, project.ProjectUUID) ? "Continue Review" : "Start Review";
-    el("start-review").hidden = !!synthetic && !rules.activeReview(records, project.ProjectUUID) && records.some(record => record.project.ProjectUUID === project.ProjectUUID && record.status === "decision_recorded");
-    el("view-last-decision").hidden = !storageAvailable || !records.some(record => record.project.ProjectUUID === project.ProjectUUID && record.status === "decision_recorded");
+    el("start-review").textContent = active ? resumeLabel(active) : "Start Review";
+    el("start-review").hidden = !active && recorded;
+    el("view-last-decision").hidden = !storageAvailable || !recorded;
+    el("view-last-decision").className = active ? "secondary" : "";
     overview(el("detail-lifecycle-overview"), "lifecycle", evidence, !!app.state?.elementController, false);
     overview(el("detail-financial-overview"), "gl", evidence, !!(app.state?.glController || app.state?.elementController), false);
     overview(el("detail-procurement-overview"), "po", evidence, !!(app.state?.poController || app.state?.elementController), false);
@@ -283,6 +343,10 @@
     if (record.decisionOwnerId) el("decision-owner-help").textContent = "Decision Owner · selected in Assessment";
     else el("decision-owner-help").textContent = "Legacy saved owner text. Select a governed owner in Assessment before a new decision.";
     el("decision-action").value = draft.requiredAction; el("decision-action-owner").value = draft.actionOwner; el("decision-next-date").value = draft.nextReviewDate;
+    const signals = rules.reviewSignals(record), counts = el("decision-context-counts");
+    counts.replaceChildren(...[[signals.materialConcerns.length, "Material Concern"], [signals.attentionItems.length, "Emerging Concern"], [signals.evidenceGaps.length, "Evidence Gap"]]
+      .map(([count, label]) => node("span", countLabel(count, label), "attention-count")));
+    el("decision-rationale-help").hidden = signals.materialConcerns.length === 0;
     decisionRequirements();
     growTextareas();
   }

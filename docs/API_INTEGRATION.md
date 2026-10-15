@@ -46,6 +46,8 @@ Exact derived fixture totals (AUD, no conversion):
 
 These are synthetic activity/context amounts, not real DPE costs or exact outstanding liabilities. Seeded qualitative assessments remain editable; numeric variance never automatically selects an assessment, trigger or final decision. Production trigger/materiality criteria require DPE design/pilot calibration.
 
+Compatibility is with the **SAP API response schema**, not a claim of valid SAP production records. The downloaded read schemas do not define authoritative semantic code lists for ProcessingStatus, EntProjectElementType, MilestoneApprovalStatus or DebitCreditCode. Existing synthetic values stay unchanged and are shown only as raw codes where relevant; no named status is inferred from `20` or another unverified code. Understandable showcase stage labels come from separate governance context, not a SAP-code mapping.
+
 ## Live Enterprise Project
 
 Specification: [API_ENTERPRISE_PROJECT_SRV_0002.json](../api/API_ENTERPRISE_PROJECT_SRV_0002.json).

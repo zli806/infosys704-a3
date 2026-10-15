@@ -21,7 +21,7 @@ Reviews/decisions are browser/origin-local. Owners come from an explicitly ficti
 
 **Dashboard → Investments → Investment Details → Continuation Review → Summary → Decision → Confirmation**
 
-Readiness checks completeness—not a score or recommendation. The human selects Continue, Continue with Conditions, Modify, Pause or Stop. Review-open time drives the 14-day target / 30-day escalation threshold. Saved evidence is a labelled snapshot, not a fresh SAP call or complete project-cost/outstanding-liability claim.
+Ready reviews resume at Summary; incomplete ones resume Assessment. **Make Governance Decision** exposes five human choices: Continue, Continue with Conditions, Modify, Pause or Stop—never a system recommendation. Rationale is required; signals inform, not determine, the outcome. Dashboard categories and collapsed explanations show why reviews are flagged. Review-open time drives the 14/30-day controls; saved evidence is a snapshot, not a fresh SAP call or complete-cost/liability claim.
 
 ## Team Working Rule
 

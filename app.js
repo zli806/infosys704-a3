@@ -98,7 +98,7 @@
     try {
       if (!refreshRecords()) return;
       const record = store.start(state.selectedProject, state.evidence);
-      refreshRecords(); state.currentReviewID = record.id; showReviewStep("assessment", false);
+      refreshRecords(); state.currentReviewID = record.id; resumeReview(record);
     } catch (error) { governance.storageNotice(error.message); }
   }
   function openReview(id) {
@@ -112,8 +112,9 @@
     }
     state.currentReviewID = id;
     if (record.status === "decision_recorded") { state.view = "confirmation"; governance.showView("confirmation"); governance.confirmation(record); refreshGovernance(); }
-    else showReviewStep("assessment", false);
+    else resumeReview(record);
   }
+  function resumeReview(record) { showReviewStep(rules.readiness(record).ready ? "summary" : "assessment", false); }
   function showReviewStep(view, save = true) {
     if (save && !saveDraft()) return;
     const record = currentReview(); if (!record || record.status !== "in_progress") return;

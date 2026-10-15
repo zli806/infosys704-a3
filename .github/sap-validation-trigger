@@ -1,14 +1,2 @@
 SAP live validation trigger.
-Update this file only to start a new remote validation run.
-
-Triggered remotely on 2026-10-14.
-
-Retry after validation parser hardening on 2026-10-14.
-
-Retry after gzip handling on 2026-10-14.
-
-Retry after sandbox filter-integrity handling on 2026-10-14.
-
-Validate Purchase Order integration on 2026-10-14.
-
-Probe Responsibility Management sandbox availability on 2026-10-15.
+Final pre-handover validation: 2026-10-15.

@@ -21,7 +21,10 @@ function workspace({ fetchImpl, storage, controller = false, key = '', serviceOv
     focus() { this.focused = true; }
     scrollIntoView() {}
     closest() { return this.parentElement || new Element('label'); }
-    querySelectorAll(selector) { return descendants(this).slice(1).filter(child => child.tag === 'input' && child.type === 'radio' && (!selector.includes(':checked') || child.checked)); }
+    querySelectorAll(selector) {
+      if (selector === 'details[open]') return descendants(this).slice(1).filter(child => child.tag === 'details' && child.open);
+      return descendants(this).slice(1).filter(child => child.tag === 'input' && child.type === 'radio' && (!selector.includes(':checked') || child.checked));
+    }
     querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
   }
   function descendants(element) { return [element, ...element.children.flatMap(descendants)]; }

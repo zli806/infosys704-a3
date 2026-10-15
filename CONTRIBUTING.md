@@ -1,121 +1,38 @@
 # Contributing
 
-This university group project uses focused branches and reviewed Pull Requests. The technical/integration owner coordinates API/state changes; teammates can lead UI/UX, requirement validation and business-flow refinement. Agree the goal and affected files before overlapping work.
+## Coordinate and review
 
-## Before Starting Work
+Normal teammate work follows **branch → PR → review → merge**. The repository admin/technical integration owner may directly update `master` only for explicitly authorised integration work. Agree scope before overlapping UI, core, controller or API changes; never discard another contributor's edits.
 
-Check `git status` first. Do not discard someone else's edits, overwrite `config.local.js`, or switch branches over unclear local work. If the tree is clean:
+Start with `git status`; if clean, sync with `git checkout master` and `git pull --ff-only origin master`, then create a focused branch. Read [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), [DECISIONS.md](DECISIONS.md), [README.md](README.md) and the relevant [docs/](docs/) pages. Stage explicit files and inspect the staged diff. Describe behaviour and actual validation in the [PR template](.github/PULL_REQUEST_TEMPLATE.md); get the appropriate technical/BA/PO review before merging.
 
-```sh
-git checkout master
-git pull origin master
-git checkout -b ui/review-pack-layout
-```
+## Validate the current workflow
 
-Prefer `git pull --ff-only origin master` when you want Git to stop rather than create an unexpected merge. Read [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), [DECISIONS.md](DECISIONS.md), [README.md](README.md) and the relevant [docs/](docs/) pages before changing behaviour.
+The app loads showcase immediately; live SAP auto-loads when configured. Opening an investment auto-loads evidence. New/incomplete reviews open Assessment; ready reviews resume at Summary, then the human chooses **Make Governance Decision**. Recorded decisions open their saved record. No manual sequence of API load buttons is needed.
 
-Use a short, descriptive branch name:
-
-| Prefix | Example |
-| --- | --- |
-| `feature/` | `feature/decision-record` |
-| `fix/` | `fix/po-empty-state` |
-| `ui/` | `ui/review-pack-layout` |
-| `docs/` | `docs/update-architecture` |
-| `chore/` | `chore/team-collaboration-baseline` |
-
-## Pull Request Rule
-
-Normal teammate changes go through **branch → PR into `master` → review → merge**. The repository admin/technical integration owner may directly update `master` for explicitly coordinated baseline/integration work; emergency repository maintenance also requires explicit team agreement. Do not automatically merge ordinary PRs without the agreed review.
-
-Keep each PR focused. Do not combine a large UI redesign, API integration, business-rule changes and unrelated documentation in one PR. Use the [PR template](.github/PULL_REQUEST_TEMPLATE.md); explain the problem, the change and how it was checked. Request a teammate review, including the technical owner for integration changes and the requirement/business-flow owner for material governance changes. No named reviewer or approval-count rule is configured by this documentation.
-
-Stage explicit files, inspect the staged diff, commit, and push **your branch**:
+Run:
 
 ```sh
-git add styles.css index.html
-git diff --cached
-git commit -m "Refine evidence page layout"
-git push -u origin ui/review-pack-layout
-```
-
-Then create a PR on GitHub with base `master`. Wait for review and resolve comments; do not make normal changes directly on `master`.
-
-## Before Opening a PR
-
-- Fetch/pull the latest `master` and resolve conflicts on your branch without discarding others' work. One explicit approach is `git fetch origin` followed by `git merge origin/master` on your feature branch; re-run checks afterwards.
-- Run relevant static/manual checks; confirm the page loads and that selection, empty/error states and existing evidence flows still work.
-- Confirm credentials are not tracked:
-
-  ```sh
-  git check-ignore config.local.js
-  git ls-files config.local.js
-  ```
-
-  The first should name `config.local.js`; the second must return nothing. Check the entire staged diff too—this does not detect a key copied into another file.
-- Check `git status`, `git diff`, `git diff --cached` and `git diff --check`. Stage only intended files; avoid generated reports, bytecode and unrelated changes.
-- Update the documentation if behaviour changes, and append material decisions to `DECISIONS.md` rather than rewriting history.
-
-Suggested checks, where the tools are installed:
-
-```sh
-node --check app.js
-node --check api-config.js
-python -c "import ast; from pathlib import Path; ast.parse(Path('scripts/sap_live_validate.py').read_text(encoding='utf-8'))"
+node --test tests/*.test.js
 python scripts/check_frontend_contract.py
+node --check api-config.js
+node --check app.js
+git diff --check
+git check-ignore config.local.js
+git ls-files config.local.js
 ```
 
-Also run `node --check` on every JavaScript file under `js/` that your change could affect. Node is a syntax-check/CI tool, **not** an application runtime/build dependency. Python syntax parsing above does not create bytecode. No committed runtime unit-test suite currently exists; structural/syntax checks are not proof of behaviour. Record what you actually tested, not a generic "all tests passed" claim.
+Also syntax-check every affected `js/**/*.js` file and syntax-parse the Python scripts without executing validators. The committed Node suite covers rules, controller/DOM flows, persistence, showcase schemas and totals; CI runs it without SAP credentials. It does not replace browser testing.
 
-For UI/app changes, manually follow **Load Projects → View Project Elements → Load Financial Evidence → Load Purchase Order Evidence**. Check that switching/reloading projects removes old evidence, and that the current zero-PO-join state remains truthful. Inspect raw responses for filter-integrity warnings without sharing request credentials.
+For UI changes, exercise ready-review and new-review paths, all five unselected outcome choices, rationale/follow-up validation, reload persistence, dashboard explanations, empty/error states, source switching and narrow/keyboard operation. Update [UI Contract](docs/UI_CONTRACT.md), implementation and checker together when hooks change. Record what passed and what was not tested.
 
-For integration changes, use [remote SAP validation](docs/API_INTEGRATION.md#remote-sap-live-validation) as appropriate. It is manual/trigger-file based, **not** an automatic PR or every-commit check. A green remote result validates connectivity/joins, not browser layout or CORS. Do not update the trigger file just to force a routine documentation/UI run.
+For agreed integration validation, use the existing [remote SAP workflow](docs/API_INTEGRATION.md#remote-sap-live-validation). It is manual/trigger-file based, not a routine every-commit live test. A green result validates connectivity/joins, not browser rendering or production data completeness.
 
-## Security
+## Security and data integrity
 
-Never commit `config.local.js`, API keys, passwords, tokens or copied secrets from browser developer tools. Do not put secrets into screenshots, issues, PR bodies, console output, raw captures or report artifacts. Browser Network screenshots can expose the `APIKey` header: redact or omit them.
-
-Keep `config.example.js` as a placeholder. Local browser configuration is not a production secret store. CI uses the repository secret `SAP_API_KEY`, managed by an authorised repository owner, not copied into code. Do not publish the local page with a real key.
-
-## SAP Data Integrity Rules
-
-Never:
-
-- fabricate SAP records or milestone/procurement evidence;
-- claim unrelated Sandbox records belong to a selected project;
-- modify downloaded API specifications simply to make code work;
-- combine currencies without valid, explicitly approved conversion logic;
-- represent prototype governance data as SAP data.
-
-Cross-API joins must remain defensible. The preferred identifier is **WBSElementInternalID**, compared exactly. ProjectInternalID is secondary, with leading-zero equivalence limited to numeric-only strings. Retain raw SAP identifiers and distinguish integration capability from the current Sandbox sample availability. See [API Integration](docs/API_INTEGRATION.md) before changing financial/procurement labels or calculations.
-
-## UI/UX Contributions
-
-Start with `styles.css` for visual presentation, `index.html` for layout/accessibility and `js/ui/` for rendering/DOM interactions. Read [UI Contract](docs/UI_CONTRACT.md) before changing hooks. Do not hide API changes inside a layout PR. Preserve required buttons, status/debug areas and their functional hooks.
-
-Before changing/removing element IDs, search for usage (for example `git grep "load-financial-evidence"`), update JavaScript consistently, and regression-test the complete click flow, selection resets and error/empty states. Include before/after screenshots when practical, without secrets.
-
-## Business / Requirement Contributions
-
-Use [MVP Scope](docs/MVP_SCOPE.md) to validate functions and identify gaps. Keep behaviour aligned with `PROJECT_CONTEXT.md` unless the team deliberately agrees to change the solution.
-
-If a PR materially changes continuation-review logic, decision rights, review triggers, evidence requirements or the AI/human decision boundary, append a dated decision to `DECISIONS.md`. Humans remain accountable for Continue / Continue with Conditions / Modify / Pause / Stop. SAP milestones are lifecycle evidence, not automatically DPE continuation gates. Do not invent a trigger rule to compensate for missing Sandbox data.
-
-## API Integration Contributions
-
-Inspect the official JSON specification under `api/` before using any endpoint, property or data type. Preserve OData V2 (`d.results`) versus V4 (`value`) handling and client-side join validation. Update [docs/API_INTEGRATION.md](docs/API_INTEGRATION.md) and extend/update remote validation where appropriate, retaining its decompression, redaction and filter-integrity safeguards.
-
-Coordinate changes in `js/services/`, `api-config.js`, `scripts/sap_live_validate.py` and the live workflow with the technical owner. Keep V2/V4 interpretation and amount semantics visible in the relevant API service, not a generic parser or renderer.
-
-## Parallel Development and Automatic PR Checks
-
-The **Frontend Static Checks** workflow runs automatically on Pull Requests into `master` and pushes to `master`, and supports manual dispatch. It needs no SAP_API_KEY, never calls SAP APIs, and checks required/unique HTML IDs, normal deferred script order, referenced files, JavaScript syntax (including all `js/` modules), and Python syntax without executing the live validator. The separate live SAP workflow remains manual/trigger-file based.
-
-Use these primary collaboration areas, not absolute ownership restrictions:
-
-- UI: `index.html`, `styles.css`, `js/ui/`.
-- Integration: `js/services/`, `api-config.js`.
-- Orchestration: `app.js` (actions → state → service → UI).
-- Shared core: `js/core/`—coordinate changes because state, identifiers, dates and arithmetic affect every contributor.
-
-Modules use normal deferred browser scripts and `window.DPEApp`, not ES modules, a framework or a build step. Keep [UI_CONTRACT.md](docs/UI_CONTRACT.md), the HTML and `scripts/check_frontend_contract.py` aligned whenever intentionally changing hooks or script dependencies. A green static check does not prove browser behaviour, live joins or data interpretation; still regression-test switching, loading, empty/error states and relevant integration flows.
+- Never commit `config.local.js`, API keys, tokens, generated raw captures or secrets copied from developer tools. `git check-ignore` must name the local config; `git ls-files config.local.js` must be empty. Inspect the whole staged diff for copied credentials. Do not publish a page containing a real key or share Network screenshots/headers.
+- Keep `config.example.js` a placeholder. Only an authorised repository owner manages CI secret `SAP_API_KEY`; browser-side configuration is not a production secret store.
+- Keep SHOWCASE synthetic payloads/context separate from the live SAP Sandbox path. Never fabricate live evidence, fill empty joins with showcase rows, or claim synthetic data is valid SAP production records.
+- Inspect downloaded specifications before using fields/types. Preserve V2 `d.results`, V4 `value`, exact WBS joins, numeric-only project-ID fallback, raw identifiers, currency separation, filter-integrity checks and qualified amount interpretation. Do not invent meanings for SAP codes without verified code lists.
+- Coordinate changes in API services/configuration/validation with the integration owner. Do not change specs to fit code or hide integration changes in a visual PR. See [Architecture](docs/ARCHITECTURE.md) and [API Integration](docs/API_INTEGRATION.md) rather than duplicating them here.
+- **Evidence → assessment → signals → human decision → rationale/follow-up.** All five outcomes remain human-selected. Signals are not recommendations; there is no system decision to override. Rationale is required for every outcome; conditional/Modify/Pause follow-up remains required. Material business changes require an agreed, dated entry in `DECISIONS.md`.

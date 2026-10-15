@@ -29,6 +29,12 @@
   for (const entries of Object.values(SIGNAL_RULES)) { for (const rule of Object.values(entries)) Object.freeze(rule); Object.freeze(entries); }
   Object.freeze(SIGNAL_RULES);
   function classifyAssessment(key, value) { return Object.hasOwn(SIGNAL_RULES[key] || {}, value) ? SIGNAL_RULES[key][value][0] : "unassessed"; }
+  function signalBreakdown(review) {
+    return Object.entries(ASSESSMENTS).map(([key, field]) => {
+      const value = review?.assessment?.[key];
+      return { dimension: field.label, value, category: classifyAssessment(key, value) };
+    }).filter(entry => ["material", "emerging", "gap"].includes(entry.category));
+  }
   function projectSnapshot(project) {
     return Object.fromEntries(PROJECT_FIELDS.map(field => [field, typeof project[field] === "string" ? project[field] : ""]));
   }
@@ -129,6 +135,6 @@
     const decisions = records.filter(record => record.status === "decision_recorded").sort((a, b) => b.decision.timestamp.localeCompare(a.decision.timestamp));
     return { projectCount, open, decisions, overdue: open.filter(record => timing(record, now).status !== "Within decision window").length };
   }
-  app.reviewRules = { BASIS, normalizeBasis, SIGNAL_RULES, classifyAssessment, OUTCOMES, ASSESSMENTS, PROJECT_FIELDS, projectSnapshot, emptyEvidence, defaultAssessment,
+  app.reviewRules = { BASIS, normalizeBasis, SIGNAL_RULES, classifyAssessment, signalBreakdown, OUTCOMES, ASSESSMENTS, PROJECT_FIELDS, projectSnapshot, emptyEvidence, defaultAssessment,
     calendarTarget, timing, readiness, ownerAssigned, needsAttention, reviewSignals, validDate, needsActions, decisionErrors, activeReview, latestReview, projectStatus, dashboard };
 })();

@@ -1,6 +1,6 @@
 # Frontend UI Contract
 
-This contract covers the customer workflow and retained SAP diagnostics. `js/ui/renderers.js` owns evidence tables/status; `js/ui/governance.js` owns navigation/forms/summaries. The checker requires 111 IDs. Implementation, contract and checks must change together.
+This contract covers the customer workflow and retained SAP diagnostics. `js/ui/renderers.js` owns evidence tables/status; `js/ui/governance.js` owns navigation/forms/summaries. The checker requires 116 IDs. Implementation, contract and checks must change together.
 
 ## Functional Hooks
 
@@ -68,6 +68,10 @@ Showcase hooks: `detail-source` displays SHOWCASE / SAP SANDBOX; each investment
 Review basis displays canonical Material trigger / Scheduled stage-gate review, read-through-normalising legacy wording. Trigger is not an assessment concern. Matrix labels are Normal / no concern identified, Emerging Concern, Material Concern, Evidence Gap and Not assessed; the central qualitative map owns semantics. Internal `attentionItems` remains compatible but no customer text says Attention Items. Not assessed is never a gap. The historical synthetic Stop uses normal stored-record confirmation and is labelled as history; no current decision is preselected. Dates are real clock based; fixed showcase seeds are explicitly synthetic historical dates.
 
 Selecting an investment starts structure retrieval, then financial/procurement calls using existing identifier rules. Card retry controls retain their historical IDs but are secondary and hidden on success. `load-review-evidence` is now Refresh Evidence, not a required happy-path task. Summary contains the six-signal matrix, grouped management attention, timeline, three evidence rows and a link to the consolidated details; no repeated raw tables. Native form semantics and the store's final validation remain authoritative.
+
+Final handover UX: all review entry points resume an incomplete active review at Assessment and a ready one at Summary, never directly at Decision; recorded decisions open Confirmation. Investment CTA is Start Review / Continue Assessment / Review Summary & Decide / View Decision. `proceed-decision` is the primary Make Governance Decision action. `decision-context-title` / `decision-context-counts` summarise current reviewSignals without selecting any outcome; `decision-rationale-help` is non-blocking material-concern guidance, not a validation rule.
+
+Dashboard explanations: each native Why is this flagged? details starts collapsed and lists dimension/value findings from `signalBreakdown()` over the unchanged assessment map; timing-only flags explain timing without inventing concerns. Native chart buttons control `attention-breakdown` with aria-expanded/aria-controls, show one inline category at a time, and disable empty categories. Counts distinguish assessment signals from affected open reviews; overdue counts reviews. Closing returns focus to the category; refresh reconciles content and clears stale/now-empty selections. `signals-help` is the collapsed How signals work disclosure. No new route, persisted filter, pre-assessment classification hints, score or recommendation is introduced.
 
 ## Script Contract
 

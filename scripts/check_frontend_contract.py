@@ -28,6 +28,7 @@ REQUIRED_IDS = (
     "decision-follow-up", "decision-follow-up-title", "confirmation-outcome",
     "attention-profile", "project-refresh-error", "retry-projects", "project-diagnostics", "investment-technical-details", "technical-evidence-context", "decision-incomplete",
     "detail-source", "showcase-investment-context", "technical-source", "showcase-project-payload", "raw-showcase-project", "reset-showcase",
+    "attention-breakdown", "signals-help", "decision-context-title", "decision-context-counts", "decision-rationale-help",
 )
 REQUIRED_SCRIPTS = (
     "config.local.js", "api-config.js", "js/data/showcase-portfolio.js", "js/core/state.js", "js/core/utils.js", "js/core/review-rules.js",
