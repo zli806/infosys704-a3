@@ -182,3 +182,13 @@ The Summary presents the cost evidence gap as REVIEWER INPUT, not a SAP-data abs
 The Executive Review Snapshot and management-attention indicators are decision support only. Classification is deterministic from explicit reviewer assessments: Low alignment, No benefits, Off track delivery, Material variance, High risk and Negative future value are material concerns; Partially achievable benefits, At risk delivery and Uncertain future value are softer attention items. Cost = Insufficient information is an explicit reviewer evidence gap, not an inferred SAP-data absence.
 
 No score, weights, automated recommendation or new readiness/decision requirement is introduced. Unassessed inputs are not classified as positive assurance. Existing Review Basis is surfaced in review context, Summary and Confirmation; it is not inferred from SAP milestones or detected by a trigger engine. SAP joins/amount semantics and the merged UI hierarchy remain unchanged. Session project counts and zero-match evidence are qualified so they cannot imply portfolio completeness or zero cost/procurement exposure.
+
+---
+
+## 2026-10-15 – Governed owner and management decision productisation
+
+Decision Owner is selected once in Assessment from a clearly labelled synthetic prototype governance directory and carried into Summary, Decision and Confirmation. Retain owner ID/name/role snapshot alongside existing text. Completed legacy text owners remain readable and are never silently matched to directory members; open legacy reviews retain that text but require explicit eligible selection before a new decision. Action Owner remains free text, distinct from decision authority. This configuration is neither authentication nor real DPE/SAP personnel data.
+
+SAP Responsibility Management has high semantic fit for production governance authority, but the separate Sandbox/APIKey probe returned HTTP 500/unavailable. It remains a non-gating technical exploration, not a browser/MVP dependency. Reports retain counts/schema/status, not member/sample values.
+
+Needs Attention projects open local reviews from existing explicit reviewSignals/timing, not invented portfolio metrics. Visible native assessment/decision radios keep stored enum values, unassessed defaults and no preselected outcome. Existing reviewBasis is presented consistently as Review Trigger, never inferred. Progressive disclosure emphasises business evidence, trigger, management concerns and the recorded human outcome while retaining diagnostics/caveats. No scoring, recommendation, new SAP semantics or write-back is added. Jerry's visual tokens/component direction remain the foundation.

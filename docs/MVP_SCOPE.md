@@ -21,7 +21,7 @@ Live browser smoke test for this baseline: 5 SAP projects; TEMP003 with 4 elemen
 | Retrieve available financial evidence | **DONE** | Live G/L joins and cautious returned non-commitment amounts by currency; not complete project cost. |
 | Retrieve available procurement evidence | **PARTIAL** | Live PO connectivity, exact matching and zero/error handling work. Current tested samples have no project PO joins, so populated procurement amounts remain data-limited. |
 | Assemble continuation-review evidence pack | **DONE** | Project context, lifecycle/G/L/PO snapshot summaries, reviewer assessment and timing/readiness are presented together, with raw/debug information secondary. |
-| Capture non-SAP governance evidence | **DONE** | Human basis, six assessment categories, comments/dependencies and decision owner; source-labelled as REVIEWER INPUT. No automatic budget variance is invented. |
+| Capture non-SAP governance evidence | **DONE** | Human Review Trigger, six visible assessment choice groups, comments/dependencies and a selected prototype-directory owner. No automatic budget variance is invented. |
 | Record human continuation decision | **DONE** | Exact five A2 outcomes, no preselection/recommendation; required rationale/owner and conditional action requirements enforced again on save. |
 | Retain/show rationale, action/owner, next review | **DONE (prototype)** | Versioned browser-local records include actual timestamps/targets, assessment and concise evidence snapshots. No production database/audit/authentication. |
 | Preserve AI/human decision boundary | **DONE for this baseline** | No AI or automated continuation decision exists. Future AI safeguards still require implementation/validation. |
@@ -30,16 +30,19 @@ Readiness is a deterministic completeness list, not a weighted score: context ex
 
 Review-open time is set once from the actual browser clock. The 14-day decision target and 30-day escalation threshold use UTC calendar days. Dashboard/Reviews show calculated open/overdue/escalated/recorded states; completed records are excluded from open counts. Thresholds are displayed controls, not external notifications. Decisions never modify SAP processing status.
 
-The Summary starts with an Executive Review Snapshot: project, explicit Review Basis, key reviewer assessments, decision target and Management Attention. Deterministic material concerns (Low alignment, No benefits, Off track delivery, Material variance, High risk, Negative future value), softer attention items (Partially achievable benefits, At risk delivery, Uncertain future value) and explicit cost-information gaps are derived only from reviewer inputs. No score, recommendation, trigger inference or new readiness gate is added. Detailed evidence remains below, and no indicators is not assurance of safe continuation. Dashboard SAP project counts cover this session only; refresh does not reload SAP automatically or clear saved reviews. Zero linked PO records do not establish zero procurement exposure.
+The Executive Review Snapshot prioritises project, Review Trigger (stored reviewBasis unchanged), key assessments, target and Management Attention. Existing reviewSignals semantics are unchanged. Needs Attention lists open reviews with explicit signals or overdue/escalated timing, in deadline order, without priority scores or outcome recommendations. Open Reviews and Recent Decisions remain below. Session counts do not auto-reload SAP or clear saved reviews; zero linked PO records never establish zero procurement exposure.
+
+Decision Owner is selected once from `data/governance-directory.json`, explicitly fictional PROTOTYPE GOVERNANCE DIRECTORY configuration, not SAP/DPE personnel. Store ID/name/role and carry it forward read-only on Decision. Legacy completed text owners remain readable; open legacy reviews keep the text until explicitly selecting an eligible owner for a new decision. Action Owner stays free text. Visible native radio choices preserve every stored enum and Not assessed default; new decision cards start unselected. Required follow-up expands for conditional/Modify/Pause; other outcomes keep optional fields secondary. Confirmation emphasises the human outcome, owner/date/rationale/action/next review.
 
 ## Remaining MVP Limitations
 
 - Public Sandbox data is not DPE production data. No marked milestones were present in the 26 tested elements; review basis is chosen by the human rather than inferred from SAP gates.
 - No PO joins in current tested projects. No fabricated procurement records or unrelated diagnostics may fill the gap.
 - Limited returned pages (5 projects / up to 100 G/L or PO rows); no automatic pagination or complete-cost/remaining-liability assurance.
-- LocalStorage is browser/origin-local, editable/clearable and not production-grade, multi-user, tamper-proof or backed up. Owner is entered text, not authenticated decision rights. Storage failure is visible and does not count as a recorded decision.
+- LocalStorage is browser/origin-local, editable/clearable and not production-grade, multi-user, tamper-proof or backed up. The fictional controlled directory is not authenticated authority. Legacy records are preserved; storage failure never counts as a successful save.
 - Saved SAP evidence summaries are explicitly snapshots; fresh API evidence is reloaded on demand. Raw payloads are not persisted.
-- Basic desktop presentation awaits UI/UX refinement; no mobile screens. No automatic review queue prioritisation, material-trigger detection, external reminders/escalation or gate configuration.
+- Product hierarchy builds on Jerry's UI; final visual refinement remains with UI/UX. No automatic material-trigger detection, outcome recommendations, external notifications/escalation or gate configuration. Attention projections are local decision support, not a new analytics/notification service.
+- Responsibility Management has high semantic fit, but its public Sandbox/APIKey probe returned HTTP 500/unavailable. It is not an MVP dependency; the non-gating remote probe emits no member values.
 
 ## Stretch / Later
 

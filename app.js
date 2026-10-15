@@ -45,7 +45,7 @@
     const record = currentReview();
     if (!record || record.status !== "in_progress" || !["assessment", "decision"].includes(state.view)) return true;
     try {
-      const patch = state.view === "assessment" ? governance.readAssessment() : { decisionDraft: governance.readDecision(), decisionOwner: governance.readDecision().owner };
+      const patch = state.view === "assessment" ? governance.readAssessment() : { decisionDraft: governance.readDecision() };
       store.update(record.id, patch); refreshRecords(); refreshGovernance(); return true;
     } catch (error) { governance.storageNotice(error.message); governance.error(error.message); return false; }
   }
@@ -296,5 +296,7 @@
       if (record) openReview(record.id);
     } });
   refreshRecords(); governance.showView("dashboard"); refreshGovernance();
+  services.governanceDirectory.load().then(people => { governance.setDirectory(people); refreshGovernance(); })
+    .catch(error => { governance.setDirectory([], error.message); refreshGovernance(); });
   setInterval(refreshGovernance, 60000);
 })();

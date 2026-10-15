@@ -243,11 +243,11 @@ def probe_responsibility_management(client, report):
                     f"Responsibility Management {entity}",
                 )
                 candidate["entities"][entity] = {
+                    # Schema/count/status only: never emit member/sample values.
                     "http_status": status,
                     "record_count": len(rows),
                     "has_more": has_more,
                     "sample_keys": sorted(rows[0].keys()) if rows else [],
-                    "sample_records": [safe_responsibility_sample(row) for row in rows[:2]],
                 }
             result.update(
                 status="success",

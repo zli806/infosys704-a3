@@ -1,42 +1,17 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { readFileSync } = require('node:fs');
-const { join } = require('node:path');
-const { runInNewContext } = require('node:vm');
+const { workspace, directory } = require('./helpers/workspace');
 
 // In-memory review/view models only: no API mocks, SAP transactions, persistent
 // records or application seed data are introduced by these tests.
-function workspace() {
-  class Element {
-    constructor(tag = 'div') { this.tag = tag; this.children = []; this.dataset = {}; this.attributes = {}; this.value = ''; this._text = ''; }
-    set textContent(value) { this._text = String(value); this.children = []; }
-    get textContent() { return this._text + this.children.map(child => child.textContent).join(''); }
-    append(...children) { this.children.push(...children); }
-    appendChild(child) { this.append(child); return child; }
-    replaceChildren(...children) { this._text = ''; this.children = children; }
-    setAttribute(name, value) { this.attributes[name] = value; }
-    removeAttribute(name) { delete this.attributes[name]; }
-    addEventListener() {}
-  }
-  const elements = new Map();
-  const document = {
-    getElementById(id) { if (!elements.has(id)) { const element = new Element(); element.id = id; elements.set(id, element); } return elements.get(id); },
-    createElement(tag) { return new Element(tag); },
-    querySelectorAll() { return []; }
-  };
-  const context = { window: {}, document, Intl, Date };
-  for (const file of ['js/core/utils.js', 'js/core/review-rules.js', 'js/ui/renderers.js', 'js/ui/governance.js']) {
-    runInNewContext(readFileSync(join(__dirname, '..', file), 'utf8'), context, { filename: file });
-  }
-  return { ...context.window.DPEApp, elements, runtime: context.window.DPEApp };
-}
 const plain = value => JSON.parse(JSON.stringify(value));
 function record(rules, assessment = {}) {
   return {
     id: 'unit-review', status: 'in_progress',
     project: { Project: 'Unit view-model context', ProjectDescription: 'Rendering test, not SAP sample data' },
     reviewBasis: 'Material trigger / concern', reviewOpenedAt: '2026-10-15T00:00:00Z', projectContextCapturedAt: '2026-10-15T00:00:00Z',
-    assessment: { ...rules.defaultAssessment(), ...assessment }, evidence: rules.emptyEvidence(), decisionOwner: 'Unit reviewer',
+    assessment: { ...rules.defaultAssessment(), ...assessment }, evidence: rules.emptyEvidence(), decisionOwner: directory.people[0].name,
+    decisionOwnerId: directory.people[0].id, decisionOwnerSnapshot: directory.people[0],
     decisionDraft: { outcome: '', rationale: '', requiredAction: '', actionOwner: '', nextReviewDate: '' }
   };
 }
@@ -85,7 +60,7 @@ test('executive snapshot leads Summary, shows mixed indicators and retains detai
   const target = elements.get('review-summary');
   assert.match(target.children[0].textContent, /^Executive Review Snapshot/);
   assert.match(target.children[0].textContent, /3 material concerns · 1 attention item · 1 evidence gap/);
-  for (const value of ['Review Basis', review.reviewBasis, 'Strategic Alignment', 'Expected Benefits', 'Delivery Performance', 'Risk', 'Future Economic Value', 'Decision Target', 'Management Attention', 'High project risk', 'Delivery is off track', 'Future economic value is negative', 'Cost position cannot be fully assessed']) assert(target.children[0].textContent.includes(value), value);
+  for (const value of ['Review Trigger', review.reviewBasis, 'Strategic Alignment', 'Expected Benefits', 'Delivery Performance', 'Risk', 'Future Economic Value', 'Decision Target', 'Management Attention', 'High project risk', 'Delivery is off track', 'Future economic value is negative', 'Cost position cannot be fully assessed']) assert(target.children[0].textContent.includes(value), value);
   for (const title of ['Project Context', 'Lifecycle / WBS', 'G/L Financial Evidence', 'Purchase Order Evidence', 'Reviewer Assessment', 'Governance Timing']) assert(target.children.some(child => child.textContent.startsWith(title)), title);
   assert(target.textContent.includes('Evidence gap identified: cost position assessed as Insufficient information.'));
   assert.equal(review.assessment.costPosition, 'Insufficient information');
@@ -97,23 +72,23 @@ test('no signals is qualified, not assurance of safe continuation; outcome stays
   const review = record(rules);
   ui.reviewSummary(review); ui.decision(review);
   const snapshot = elements.get('review-summary').children[0].textContent;
-  assert(snapshot.includes('No material concerns identified from the current reviewer assessment.'));
+  assert(snapshot.includes('Complete the reviewer assessment to identify management concerns.'));
   assert(snapshot.includes('not scores, weights, recommendations or assurance that the investment is safe to continue'));
   assert(snapshot.includes('Unassessed categories are not classified'));
   assert.equal(elements.get('decision-outcome').value, '');
   assert(rules.decisionErrors(review, ui.readDecision()).includes('Select a human governance decision.'));
 });
 
-test('Review Basis is visible in header and saved confirmation without trigger inference', () => {
+test('Review Trigger is visible in its callout and saved confirmation without inference', () => {
   const { reviewRules: rules, governanceUI: ui, elements } = workspace();
   const review = record(rules);
   ui.decision(review); ui.chrome(review, false);
-  assert(elements.get('current-review-project').textContent.includes('Review Basis: ' + review.reviewBasis));
+  assert(elements.get('review-trigger').textContent.includes('Review Trigger') && elements.get('review-trigger').textContent.includes(review.reviewBasis));
   review.status = 'decision_recorded';
   review.decision = { outcome: 'Pause', rationale: 'Explicit unit-test reviewer choice', owner: 'Unit reviewer', timestamp: '2026-10-15T01:00:00Z', requiredAction: 'Follow up', actionOwner: 'Unit owner', nextReviewDate: '2026-11-01', decisionTarget: rules.calendarTarget(review.reviewOpenedAt, 14), escalationThreshold: rules.calendarTarget(review.reviewOpenedAt, 30), assessmentSnapshot: review.assessment, evidenceSnapshot: review.evidence };
   ui.confirmation(review);
   const text = elements.get('confirmation-record').textContent;
-  for (const label of ['Review Basis (REVIEWER INPUT)', review.reviewBasis, 'Decision (REVIEWER INPUT)', 'Rationale (REVIEWER INPUT)', 'Decision owner (REVIEWER INPUT)', 'Required action (REVIEWER INPUT)', 'Action owner (REVIEWER INPUT)', 'Next review date (REVIEWER INPUT)']) assert(text.includes(label), label);
+  for (const label of ['Review Trigger (REVIEWER INPUT)', review.reviewBasis, 'Decision (REVIEWER INPUT)', 'Rationale (REVIEWER INPUT)', 'Decision owner (REVIEWER INPUT)', 'Required action (REVIEWER INPUT)', 'Action owner (REVIEWER INPUT)', 'Next review date (REVIEWER INPUT)']) assert(text.includes(label), label);
 });
 
 test('session project count explains saved records after refresh without loading or clearing anything', () => {

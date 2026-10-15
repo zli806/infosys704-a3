@@ -11,7 +11,7 @@ An INFOSYS 704 A3 web prototype combining **real SAP Sandbox evidence**, **human
 3. Open `index.html` through a trusted local static web preview (`http://localhost`). No npm/build/backend is required; do not disable browser security.
 4. Click **Load SAP Projects**, then **View Investment**. Load lifecycle/financial/procurement evidence and start a review.
 
-Reviews/decisions are saved only in this browser/origin's localStorage. Keep the same preview address to resume them. Empty SAP joins are reported honestly; storage failures are visible, not treated as successful saves.
+Reviews/decisions are browser/origin-local. Owners come from an explicitly fictional prototype governance directory, not SAP/DPE staff. Keep the same preview address to resume records. Empty SAP joins and storage failures remain visible.
 
 ## MVP Flow
 

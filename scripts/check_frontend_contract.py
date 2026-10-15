@@ -24,11 +24,13 @@ REQUIRED_IDS = (
     "assessment-save-summary", "summary-view", "review-summary", "back-assessment", "proceed-decision", "decision-view", "decision-form",
     "decision-outcome", "decision-rationale", "decision-owner", "decision-requirements", "decision-action", "decision-action-owner",
     "decision-next-date", "back-summary", "confirm-decision", "confirmation-view", "confirmation-record", "return-investment", "back-dashboard",
+    "dashboard-attention", "review-trigger", "governance-directory-status", "decision-owner-help",
+    "decision-follow-up", "decision-follow-up-title", "confirmation-outcome",
 )
 REQUIRED_SCRIPTS = (
     "config.local.js", "api-config.js", "js/core/state.js", "js/core/utils.js", "js/core/review-rules.js",
     "js/services/sap-http.js", "js/services/project-service.js", "js/services/gl-service.js",
-    "js/services/po-service.js", "js/services/review-store.js", "js/ui/renderers.js", "js/ui/governance.js", "app.js",
+    "js/services/po-service.js", "js/services/governance-directory.js", "js/services/review-store.js", "js/ui/renderers.js", "js/ui/governance.js", "app.js",
 )
 
 

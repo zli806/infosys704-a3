@@ -55,8 +55,18 @@
       const value = review?.assessment?.[key];
       if (!field.options.includes(value) || value === field.missing) missing.push(field.label);
     }
-    if (!review?.decisionOwner?.trim()) missing.push("Decision owner");
+    if (!ownerAssigned(review)) missing.push("Decision owner");
     return { ready: missing.length === 0, missing };
+  }
+  function ownerAssigned(review) {
+    const owner = review?.decisionOwnerSnapshot;
+    return !!review?.decisionOwner?.trim() && typeof review.decisionOwnerId === "string" && !!review.decisionOwnerId
+      && owner?.id === review.decisionOwnerId && owner.name === review.decisionOwner && typeof owner.role === "string" && !!owner.role.trim();
+  }
+  function needsAttention(records, now = new Date()) {
+    return records.filter(review => review.status === "in_progress").map(review => ({ review, signals: reviewSignals(review), timing: timing(review, now) }))
+      .filter(item => item.signals.materialConcerns.length || item.signals.attentionItems.length || item.signals.evidenceGaps.length || item.timing.status !== "Within decision window")
+      .sort((left, right) => left.timing.decisionTarget.localeCompare(right.timing.decisionTarget));
   }
   function reviewSignals(review) {
     // Presentation-only decision support from explicit reviewer inputs. These
@@ -108,5 +118,5 @@
     return { projectCount, open, decisions, overdue: open.filter(record => timing(record, now).status !== "Within decision window").length };
   }
   app.reviewRules = { BASIS, OUTCOMES, ASSESSMENTS, PROJECT_FIELDS, projectSnapshot, emptyEvidence, defaultAssessment,
-    calendarTarget, timing, readiness, reviewSignals, validDate, needsActions, decisionErrors, activeReview, latestReview, projectStatus, dashboard };
+    calendarTarget, timing, readiness, ownerAssigned, needsAttention, reviewSignals, validDate, needsActions, decisionErrors, activeReview, latestReview, projectStatus, dashboard };
 })();

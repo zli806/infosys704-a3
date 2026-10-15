@@ -72,7 +72,7 @@ Flat surfaces with a thin border. Do not add marketing gradients, hero artwork, 
 
 Canonical owners: `styles.css` owns shell/panels/buttons/fields/tables/scrollbars. `js/ui/renderers.js` owns SAP tables, status feedback and English dates; `js/ui/governance.js` owns evidence overview, navigation, native form control binding and local-review presentation. `docs/UI_CONTRACT.md` owns functional hooks and behavior.
 
-Keep native select and date controls: platform-owned popup geometry and date-picker language are accepted. Product labels, help and rendered dates are English. Textareas grow with content; forms retain novalidate and the existing rule owner. No new libraries, framework or build step.
+Keep native controls: assessment/decision fieldsets use visible labelled radios, with explicit unassessed/no-decision defaults. Review Trigger and prototype-directory owner use selects; date-picker language and select popup geometry remain platform-owned. Product labels/help/rendered dates stay English. Textareas grow; forms retain novalidate and the rule/store owner. No new libraries, framework or build step. These product controls reuse the accepted tokens; final visual refinement remains with UI/UX.
 
 ## Do's and Don'ts
 

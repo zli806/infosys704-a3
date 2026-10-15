@@ -1,6 +1,6 @@
 # Frontend UI Contract
 
-This contract covers the playable desktop workflow and retained SAP/debug areas. `js/ui/renderers.js` owns SAP views; `js/ui/governance.js` owns navigation, local-review forms and source-labelled summaries. The structural checker lists 94 required IDs, all present in index.html. IDs must change together with implementation/checks, not independently during visual refinement.
+This contract covers the playable workflow and retained SAP/debug areas. `js/ui/renderers.js` owns SAP views; `js/ui/governance.js` owns navigation/forms/source-labelled summaries. The checker retains original hooks plus seven product controls (101 required IDs). IDs must change with implementation/checks, not independently during visual refinement.
 
 ## Functional Hooks
 
@@ -50,12 +50,16 @@ All of these are functional IDs (in addition to the SAP hooks above):
 | Investment details | `investments-view`, `detail-view`, `investment-context`, `detail-review-status`, `start-review`, `view-last-decision`, `detail-lifecycle-overview`, `reload-lifecycle`, `load-review-evidence`, `detail-financial-overview`, `detail-procurement-overview` | Source-labelled context, evidence loads and start/continue/view decision actions. |
 | Reviews | `reviews-view`, `reviews-body` | Local-record list with six-column rows and resume/view actions. |
 | Shared review controls | `review-chrome`, `current-review-project`, `review-steps`, `review-timing`, `readiness-status`, `readiness-missing`, `workflow-message`, `review-back-investment` | Step indicator, UTC controls, completeness list, errors/back navigation. |
-| Assessment | `assessment-view`, `assessment-form`, `review-basis`, `assessment-alignment`, `assessment-benefits`, `assessment-delivery`, `assessment-financial-evidence`, `assessment-cost`, `assessment-risk`, `assessment-value`, `assessment-comments`, `assessment-dependencies`, `assessment-owner`, `assessment-save-summary` | Six select fields, human text/owner, actual captured G/L evidence first, local autosave/summary. |
+| Assessment | `assessment-view`, `assessment-form`, `review-basis`, `assessment-alignment`, `assessment-benefits`, `assessment-delivery`, `assessment-financial-evidence`, `assessment-cost`, `assessment-risk`, `assessment-value`, `assessment-comments`, `assessment-dependencies`, `assessment-owner`, `assessment-save-summary` | Review Trigger select, six radio fieldsets, directory-owner dropdown, reviewer text and local save/summary. |
 | Summary | `summary-view`, `review-summary`, `back-assessment`, `proceed-decision` | Review evidence/assessment/control pack; decision progression only when READY and no request pending. |
 | Decision | `decision-view`, `decision-form`, `decision-outcome`, `decision-rationale`, `decision-owner`, `decision-requirements`, `decision-action`, `decision-action-owner`, `decision-next-date`, `back-summary`, `confirm-decision` | No initial outcome selection; required human decision fields and conditional actions; store revalidates on confirmation. |
 | Confirmation | `confirmation-view`, `confirmation-record`, `return-investment`, `back-dashboard` | Saved immutable prototype record/snapshots and return actions. |
 
-Forms use input/change events for local draft saves and submit events for progression/confirmation. Preserve `novalidate` plus deterministic rule validation, source labels, type=date for next review, the assessment comments/dependencies text areas and six assessment selectors. Changing display text must not change enum values or data meaning. The owner appears in assessment because it is a readiness prerequisite, then is carried into Decision. No form edits may modify a completed record or project status. Use textContent rendering for untrusted input, never raw innerHTML.
+Forms use input/change for local drafts and submit for progression/confirmation. The six assessment IDs and `decision-outcome` now identify native fieldsets, not selects. Generated radios keep original enum strings, a shared group name and unique `-choice-N` IDs. Preserve native keyboard/checked semantics, explicit Not assessed defaults, visible focus/selection and no preselected decision. Feedback attaches to groups rather than individual radios. Preserve novalidate, date input, source meanings and safe textContent rendering.
+
+Added required IDs: `dashboard-attention` (open-review signals/timing), `review-trigger` (header callout), `governance-directory-status` (configuration/error/legacy notice), `decision-owner-help` (read-only provenance), `decision-follow-up` (details), `decision-follow-up-title` (required/optional summary), `confirmation-outcome` (prominent saved human outcome).
+
+`assessment-owner` is a directory-ID select with an empty placeholder, not free text. A disabled legacy option preserves old text until explicit selection; never infer identity from names. `decision-owner` is read-only, not an independent owner source. Follow-up expands and is required for conditional/Modify/Pause only; optional fields remain available and are not erased when outcomes change. Action Owner stays text. Completed records remain immutable.
 
 ## Script Contract
 
@@ -71,6 +75,7 @@ js/services/sap-http.js
 js/services/project-service.js
 js/services/gl-service.js
 js/services/po-service.js
+js/services/governance-directory.js
 js/services/review-store.js
 js/ui/renderers.js
 js/ui/governance.js
@@ -101,7 +106,7 @@ Canonical UI owners:
 
 | Capability | Canonical owner | Source of truth | Allowed variants | Verification |
 | --- | --- | --- | --- | --- |
-| Select/Listbox | Native select fields in index.html | Existing enums in review-rules.js | Platform-owned popup | Keyboard selection / full review flow |
+| Choices / owner select | Native radios in governance.js; Trigger/owner selects in index.html | Existing enums / validated prototype directory | Visible cards, platform-owned select popup | Defaults / keyboard / requirements / owner carry-through |
 | Date | Native date input / UI English formatter | Existing UTC date and rules contract | Browser/OS picker; en-NZ UTC display | UTC presentation test / date entry |
 | Form | Rule/store validation and governance.js binding | review-rules.js / review-store.js | Assessment / decision | Missing readiness / conditional decision / retained input |
 | Scrollbar | Global styles.css baseline | DESIGN.md / styles.css | Table horizontal overflow; raw-data bounded scroller | Narrow layout / keyboard scroll |

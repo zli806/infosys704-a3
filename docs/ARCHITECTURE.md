@@ -40,6 +40,7 @@ The WBS arrows describe logical joins, **not SAP API-to-API calls**. The browser
 - `js/services/sap-http.js` owns fetch headers, timeout, safe response processing and HTTP metadata. API services retain explicit OData V2 versus V4 interpretation, joins and financial/procurement summary semantics; they never render DOM.
 - `js/ui/renderers.js` retains SAP tables/status/error/debug areas. `js/ui/governance.js` owns desktop navigation, dashboard/review projections, assessment/summary/decision forms and confirmation. Neither UI module fetches SAP or makes continuation decisions.
 - `js/services/review-store.js` owns versioned local prototype storage. It whitelists project identity, human inputs, system timestamps and concise evidence summaries, and rejects edits to completed records. It stores no full raw SAP transactions, request headers or credentials. Exact local credential text is redacted if accidentally pasted into input.
+- `js/services/governance-directory.js` loads/validates static `data/governance-directory.json`, without a SAP header. Fictional people/roles are labelled PROTOTYPE GOVERNANCE DIRECTORY, not SAP/DPE personnel or authenticated authority.
 - `app.js` is now the orchestration/controller layer: user actions → state/reset/cancellation → service calls/results → UI. Event callbacks are coordinated here and bound through the UI layer.
 - The page first retrieves up to five projects. Selecting one loads its elements and retains WBS IDs. Separate buttons load G/L and PO evidence; they are not automatically loaded on selection.
 - Selecting/reloading a project clears prior financial/procurement evidence. Request cancellation and request IDs prevent stale responses from populating a different project's panels.
@@ -67,6 +68,16 @@ Opening a review creates its real browser timestamp once; resuming does not rese
 Targets are opened timestamp +14/+30 UTC calendar days. Status is calculated using the browser clock and refreshed periodically; no external escalation or reminder is sent. Conditional/Modify/Pause outcomes require action/owner/next date. Every decision requires an outcome, rationale and owner; no decision is preselected. Saving revalidates readiness/fields in the store, captures assessment/evidence/timing and makes the completed record immutable through app APIs.
 
 LocalStorage is not authenticated, shared, encrypted or tamper-proof production storage. Keep the same static-preview origin to resume records; browser clearing/site changes remove access. Saved snapshots are not proof of fresh evidence—reload SAP where appropriate. No backend, database, AI, MCP or production role/approval enforcement is added.
+
+### Product controls and owner compatibility
+
+Owner is selected only in Assessment and displayed read-only on Decision. The store resolves ID against the loaded directory rather than trusting a second text field. Additive `decisionOwnerId`/`decisionOwnerSnapshot` and decision `ownerId`/`ownerSnapshot` retain the `dpeA3.reviews.v1` namespace and legacy text. Reads do not rewrite records. Completed legacy owners keep historic text; open legacy reviews require explicit eligible selection before a new decision, without name-based inference. Action Owner remains independent free text. A failed directory load never creates fallback eligible owners or destroys saved reviews.
+
+Native radios in fieldsets expose assessment/outcome choices with original stored strings and explicit unassessed/no-decision defaults. Review Trigger is a callout for existing reviewBasis, not an inferred event. Existing reviewSignals/timing drive Needs Attention for open reviews only. Progressive disclosure retains limitations/raw records below concise evidence summaries; no new risk threshold or recommendation is introduced.
+
+### Responsibility Management exploration
+
+Semantic fit for production team/function-based authority is high. The separate remote Sandbox/APIKey probe returned HTTP 500/unavailable; it is not called by the browser or required for owner selection. The probe stays non-gating. Reports may contain schema keys/counts/status but no personal/member sample values. Main Enterprise Project/G/L/PO validation is preserved.
 
 ## OData Versions
 
@@ -107,7 +118,13 @@ The tree below includes the local-only configuration explicitly; a fresh clone w
 │   ├── ARCHITECTURE.md
 │   ├── API_INTEGRATION.md
 │   ├── MVP_SCOPE.md
-│   └── UI_CONTRACT.md
+│   ├── UI_CONTRACT.md
+│   ├── UI_VERIFICATION.md
+│   └── screenshots/
+│       ├── review-workspace-assessment.jpg
+│       └── review-workspace-investment.jpg
+├── data/
+│   └── governance-directory.json
 ├── js/
 │   ├── core/
 │   │   ├── state.js
@@ -118,6 +135,7 @@ The tree below includes the local-only configuration explicitly; a fresh clone w
 │   │   ├── project-service.js
 │   │   ├── gl-service.js
 │   │   ├── po-service.js
+│   │   ├── governance-directory.js
 │   │   └── review-store.js
 │   └── ui/
 │       ├── renderers.js
@@ -125,6 +143,12 @@ The tree below includes the local-only configuration explicitly; a fresh clone w
 ├── scripts/
 │   ├── check_frontend_contract.py
 │   └── sap_live_validate.py
+├── tests/
+│   ├── helpers/
+│   │   └── workspace.js
+│   ├── productisation.test.js
+│   ├── review-feedback.test.js
+│   └── ui-presentation.test.js
 ├── .gitignore
 ├── api-config.js
 ├── app.js
@@ -132,9 +156,11 @@ The tree below includes the local-only configuration explicitly; a fresh clone w
 ├── config.local.js                 # local-only, ignored/untracked
 ├── CONTRIBUTING.md
 ├── DECISIONS.md
+├── DESIGN.md
 ├── FIRST_OPENCODE_PROMPT.md
 ├── index.html
 ├── PROJECT_CONTEXT.md
+├── premium-ui.json
 ├── README.md
 └── styles.css
 ```

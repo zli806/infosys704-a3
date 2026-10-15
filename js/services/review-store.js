@@ -37,18 +37,24 @@
     return { outcome: rules.OUTCOMES.includes(value.outcome) ? value.outcome : "", rationale: text(value.rationale),
       owner: text(value.owner, 200), requiredAction: text(value.requiredAction), actionOwner: text(value.actionOwner, 200), nextReviewDate: text(value.nextReviewDate, 10) };
   }
+  function cleanOwner(value) {
+    return value && typeof value.id === "string" && typeof value.name === "string" && typeof value.role === "string"
+      ? { id: text(value.id, 100), name: text(value.name, 200), role: text(value.role, 200), source: "PROTOTYPE GOVERNANCE DIRECTORY" } : null;
+  }
   function sanitize(record) {
     const result = {
       id: text(record.id, 100), project: rules.projectSnapshot(record.project || {}),
       projectContextCapturedAt: text(record.projectContextCapturedAt, 40), status: record.status,
       reviewBasis: rules.BASIS.includes(record.reviewBasis) ? record.reviewBasis : "",
       reviewOpenedAt: record.reviewOpenedAt, assessment: cleanAssessment(record.assessment),
-      decisionOwner: text(record.decisionOwner, 200), evidence: cleanEvidence(record.evidence),
+      decisionOwner: text(record.decisionOwner, 200), decisionOwnerId: text(record.decisionOwnerId, 100),
+      decisionOwnerSnapshot: cleanOwner(record.decisionOwnerSnapshot), evidence: cleanEvidence(record.evidence),
       decisionDraft: cleanDraft(record.decisionDraft), decision: null,
       sources: { project: "SAP", assessment: "REVIEWER INPUT", controls: "SYSTEM CALCULATED" }
     };
     if (record.decision) result.decision = {
       ...cleanDraft(record.decision), timestamp: text(record.decision.timestamp, 40),
+      ownerId: text(record.decision.ownerId, 100), ownerSnapshot: cleanOwner(record.decision.ownerSnapshot),
       decisionTarget: rules.calendarTarget(record.reviewOpenedAt, 14), escalationThreshold: rules.calendarTarget(record.reviewOpenedAt, 30),
       assessmentSnapshot: cleanAssessment(record.decision.assessmentSnapshot), evidenceSnapshot: cleanEvidence(record.decision.evidenceSnapshot)
     };
@@ -102,7 +108,7 @@
     const now = new Date().toISOString();
     const record = { id: window.crypto?.randomUUID?.() || `review-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       project: rules.projectSnapshot(project), projectContextCapturedAt: now, status: "in_progress", reviewBasis: "", reviewOpenedAt: now,
-      assessment: rules.defaultAssessment(), decisionOwner: "", evidence: cleanEvidence(evidence), decisionDraft: cleanDraft() };
+      assessment: rules.defaultAssessment(), decisionOwner: "", decisionOwnerId: "", decisionOwnerSnapshot: null, evidence: cleanEvidence(evidence), decisionDraft: cleanDraft() };
     return write([...records, record]).find(item => item.id === record.id);
   }
   function update(id, patch) {
@@ -110,14 +116,20 @@
     const record = records.find(item => item.id === id);
     if (!record || record.status !== "in_progress") throw new Error("This review is missing or already completed; its decision record cannot be edited.");
     // Only explicit governance/evidence fields can be updated, not identity/opened date/status.
-    for (const field of ["reviewBasis", "assessment", "decisionOwner", "decisionDraft", "evidence"]) if (Object.hasOwn(patch, field)) record[field] = patch[field];
+    for (const field of ["reviewBasis", "assessment", "decisionDraft", "evidence"]) if (Object.hasOwn(patch, field)) record[field] = patch[field];
+    if (Object.hasOwn(patch, "decisionOwnerId")) {
+      const owner = patch.decisionOwnerId ? app.services.governanceDirectory.resolve(patch.decisionOwnerId) : null;
+      record.decisionOwnerId = owner?.id || ""; record.decisionOwner = owner?.name || ""; record.decisionOwnerSnapshot = owner;
+    }
     return write(records).find(item => item.id === id);
   }
   function confirm(id, draft) {
     const records = list(); const record = records.find(item => item.id === id);
     if (!record || record.status !== "in_progress") throw new Error("This review is missing or its decision is already recorded.");
-    const decision = cleanDraft(draft);
-    record.decisionOwner = decision.owner;
+    if (!app.services.governanceDirectory.eligible(record)) throw new Error("Select an eligible Decision Owner from the prototype governance directory in Assessment. Previously saved owner text is retained for reference.");
+    const owner = app.services.governanceDirectory.resolve(record.decisionOwnerId);
+    // The assessment's governed owner is authoritative, not an independently edited decision field.
+    const decision = { ...cleanDraft(draft), owner: owner.name, ownerId: owner.id, ownerSnapshot: owner };
     const errors = rules.decisionErrors(record, decision);
     if (errors.length) throw new Error(errors.join(" "));
     record.status = "decision_recorded";
