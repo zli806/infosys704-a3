@@ -35,18 +35,20 @@
     container.hidden = !synthetic; container.replaceChildren(); if (!synthetic) return;
     const context = app.services.showcase.financialContext(project);
     container.append(node("p", "SHOWCASE CONTEXT", "component-eyebrow"), node("h3", "Investment Context"), node("p", context.stageLabel, "hint"));
-    const grid = node("div", undefined, "investment-metrics");
+    const primary = node("div", undefined, "investment-metrics investment-primary");
+    const supporting = node("div", undefined, "investment-metrics investment-supporting");
     const variance = context.forecastVariance === null ? "Not validated" : `${compactAmount(context.forecastVariance, true)} (${Number(context.variancePercent) > 0 ? "+" : ""}${context.variancePercent}%)`;
-    for (const [label, amount, display] of [["Approved Investment", context.approvedInvestment], ["Posted Financial Activity", context.postedFinancialActivity],
-      [context.historical ? "Forecast before Stop" : "Forecast at Completion", context.forecastAtCompletion], ["Forecast Variance", context.forecastVariance, variance],
-      [context.historical ? "Remaining Forecast Investment before Stop" : "Remaining Forecast Investment", context.remainingForecastInvestment],
-      ["PO-linked Procurement Activity", context.procurementActivity], ["Not-finally-invoiced PO-linked amount", context.notFinallyInvoiced]]) {
+    for (const [label, amount, display, target] of [["Approved Investment", context.approvedInvestment, null, primary],
+      [context.historical ? "Forecast before Stop" : "Forecast at Completion", context.forecastAtCompletion, null, primary], ["Forecast Variance", context.forecastVariance, variance, primary],
+      ["Posted Financial Activity", context.postedFinancialActivity, null, supporting],
+      [context.historical ? "Remaining Forecast Investment before Stop" : "Remaining Forecast Investment", context.remainingForecastInvestment, null, supporting],
+      ["PO-linked Procurement Activity", context.procurementActivity, null, supporting], ["Not-finally-invoiced PO-linked amount", context.notFinallyInvoiced, null, supporting]]) {
       const metric = node("div"); const value = node("strong", display || compactAmount(amount));
       value.title = amount === null ? "Not validated; no numeric forecast inferred" : `AUD ${amount}`;
-      metric.append(node("p", label), value); grid.append(metric);
+      metric.append(node("p", label), value); target.append(metric);
     }
     const dates = node("p", `Planned completion ${shortDate(context.plannedCompletion)} · Forecast completion ${context.forecastCompletion ? shortDate(context.forecastCompletion) : "Not validated"}`, "hint");
-    container.append(grid, dates, node("p", context.reviewReason, "context-reason"));
+    container.append(node("p", context.reviewReason, "context-reason"), primary, dates, supporting);
     if (context.historical) container.append(node("small", "Synthetic pre-Stop position, not a current continuation plan."));
   }
   const decisionDescriptions = {
@@ -412,6 +414,13 @@
   }
   function reviewSummary(record) {
     const target = el("review-summary"); target.replaceChildren();
+    const signals = rules.reviewSignals(record), control = rules.timing(record);
+    const decisionOverview = el("summary-decision-overview");
+    decisionOverview.dataset.tone = signals.materialConcerns.length ? "material" : signals.evidenceGaps.length ? "gap" : signals.attentionItems.length ? "emerging" : "neutral";
+    decisionOverview.replaceChildren(node("p", signals.materialConcerns.length ? "Management Attention Required" : "Review Findings", "summary-context-label"),
+      node("p", [countLabel(signals.materialConcerns.length, "material concern"), countLabel(signals.attentionItems.length, "emerging concern"), countLabel(signals.evidenceGaps.length, "evidence gap")].join(" · "), "summary-signal-counts"),
+      node("p", `${control.status} · Decision due ${shortDate(control.decisionTarget)}`, "summary-deadline"),
+      node("p", `Decision Owner: ${record.decisionOwnerSnapshot?.name || record.decisionOwner || "Not selected"}${record.decisionOwnerSnapshot?.role ? ` · ${record.decisionOwnerSnapshot.role}` : ""}`, "summary-owner"));
     executiveSnapshot(target, record);
     renderTiming(section(target, "Governance Timeline"), record);
     const evidence = section(target, "Evidence Reviewed");

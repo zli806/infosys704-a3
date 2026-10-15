@@ -39,6 +39,7 @@
       <section id="dashboard-view" aria-label="Dashboard">
         <div id="dashboard-cards" class="cards"></div>
         <div class="dashboard-columns">
+          <section class="panel attention-panel"><h3>Needs Attention</h3><div id="dashboard-attention" class="attention-list"></div><details class="other-reviews"><summary>Other open reviews</summary><div id="dashboard-open-reviews"></div></details></section>
           <section class="panel"><h3>Governance Attention Profile</h3><p class="hint">Counts of assessment signals across current open reviews. One review may contribute more than one signal. Overdue reviews counts reviews.</p><div id="attention-profile"></div>
             <div id="attention-breakdown" class="signal-breakdown" role="region" aria-label="Governance attention breakdown" aria-live="polite" hidden></div>
             <details id="signals-help" class="signal-help"><summary>How signals work</summary>
@@ -50,7 +51,6 @@
               <p>These classifications are transparent prototype governance conventions. Production criteria and thresholds would be calibrated with DPE during governance design and pilot.</p>
             </details>
           </section>
-          <section class="panel attention-panel"><h3>Needs Attention</h3><div id="dashboard-attention" class="attention-list"></div><details class="other-reviews"><summary>Other open reviews</summary><div id="dashboard-open-reviews"></div></details></section>
         </div>
         <section class="panel"><div class="section-header"><h3>Recent Decisions</h3><button id="dashboard-view-investments" class="secondary" type="button">View Investments</button></div><div id="dashboard-decisions"></div></section>
       </section>
@@ -100,7 +100,10 @@
             <div class="form-footer"><p id="assessment-save-status" role="status"></p><button id="assessment-save-summary" type="submit">Review Summary</button></div>
           </form>
         </section>
-        <section id="summary-view" aria-label="Review Summary" hidden><div id="review-summary"></div><p class="hint">Review the findings, then record the accountable continuation decision.</p><div class="actions"><button id="back-assessment" class="secondary" type="button">Back to Assessment</button><button id="proceed-decision" type="button">Make Governance Decision</button></div></section>
+        <section id="summary-view" aria-label="Review Summary" hidden>
+          <section class="summary-decision-strip" aria-label="Decision overview"><div id="summary-decision-overview"></div><button id="proceed-decision" type="button">Make Governance Decision</button></section>
+          <div id="review-summary"></div><p class="hint">Review the findings, then record the accountable continuation decision.</p><div class="actions"><button id="back-assessment" class="secondary" type="button">Back to Assessment</button></div>
+        </section>
         <section id="decision-view" aria-label="Governance Decision" hidden><form id="decision-form" class="panel" novalidate><h3>Governance Decision</h3><p class="hint">Select one outcome. Assessment signals inform this decision but do not determine it.</p><section class="decision-context" aria-labelledby="decision-context-title"><h4 id="decision-context-title">Decision Context</h4><div id="decision-context-counts" class="attention-counts"></div><p class="hint">These signals support governance judgement; they do not automatically select an outcome.</p></section><fieldset id="decision-outcome" class="choice-group decision-choices"><legend>Decision</legend></fieldset><label>Decision rationale<textarea id="decision-rationale" rows="4" maxlength="4000" aria-describedby="decision-rationale-help" required></textarea></label><p id="decision-rationale-help" class="hint" hidden>This review contains material concerns. Explain how the selected outcome addresses them.</p><div id="decision-owner" class="accountability-owner"></div><p id="decision-owner-help" class="hint"></p>
           <details id="decision-follow-up" class="form-section"><summary id="decision-follow-up-title">Optional follow-up</summary><p id="decision-requirements" class="hint"></p><label>Required Action<textarea id="decision-action" rows="3" maxlength="4000"></textarea></label><label>Action Owner<input id="decision-action-owner" type="text" maxlength="200"></label><label>Next Review<input id="decision-next-date" type="date"></label></details><p id="decision-incomplete" class="hint" role="alert" hidden></p><div class="form-footer"><button id="back-summary" class="secondary" type="button">Back to Summary</button><button id="confirm-decision" type="submit">Record Decision</button></div></form></section>
       </div>

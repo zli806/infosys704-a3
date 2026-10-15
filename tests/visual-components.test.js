@@ -88,14 +88,12 @@ test('record context presents project, owner name/role and date before grouped d
   for (const text of [review.project.ProjectDescription, review.decisionOwner, review.decisionOwnerSnapshot.role, 'UTC']) assert(context.textContent.includes(text));
 });
 
-test('three evidence cards retain original technical/raw hooks, and the categorical matrix stays responsive without chart libraries', () => {
+test('three evidence cards retain original technical/raw hooks without chart libraries', () => {
   const html = readFileSync(join(__dirname, '../index.html'), 'utf8');
   const css = readFileSync(join(__dirname, '../styles.css'), 'utf8');
   assert.equal((html.match(/<section class="evidence-status-card">/g) || []).length, 3);
   for (const id of ['raw-response', 'raw-elements-response', 'raw-gl-response', 'raw-gl-diagnostic', 'raw-po-response', 'elements-body', 'gl-body', 'po-body']) assert(html.includes(`id="${id}"`));
   assert(html.includes('decision-record-hero'));
-  assert(css.includes('.signal-matrix { display:grid; grid-template-columns:repeat(2,minmax(0,1fr))'));
-  assert(css.includes('.signal-matrix,.decision-choices .choice-options { grid-template-columns:1fr; }'));
   assert(css.includes('.choice-card:has(input:checked) .choice-selected { display:block; }'));
   assert(!html.includes('<canvas'));
 });

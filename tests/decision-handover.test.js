@@ -66,6 +66,32 @@ test('new Infrastructure review remains at Assessment until trigger, six judgeme
   assert.equal(w.state.view, 'confirmation'); assert.equal(store.get(id).decision.outcome, 'Continue'); reset(w);
 });
 
+test('summary decision context follows the current review without stale concerns, owner or an automatic outcome', async () => {
+  const w = workspace({ controller: true });
+  await openInvestment(w, 0); click(w, 'start-review');
+  const context = w.elements.get('summary-decision-overview');
+  assert(context, 'Summary must expose the current decision context beside the decision action');
+  assert(context.textContent.includes('3 material concerns'));
+  assert(context.textContent.includes('2 emerging concerns'));
+  assert(context.textContent.includes('0 evidence gaps'));
+  assert(context.textContent.includes('Alex Lee'));
+  assert.equal(w.elements.get('proceed-decision').disabled, false);
+  const before = JSON.stringify(w.services.reviewStore.get('SHOWCASE-ODP-REVIEW'));
+  w.governanceUI.reviewSummary(w.services.reviewStore.get('SHOWCASE-ODP-REVIEW'));
+  assert.equal(JSON.stringify(w.services.reviewStore.get('SHOWCASE-ODP-REVIEW')), before);
+  await openInvestment(w, 2); click(w, 'start-review');
+  assert(context.textContent.includes('0 material concerns'));
+  assert(context.textContent.includes('1 emerging concern'));
+  assert(context.textContent.includes('1 evidence gap'));
+  assert(!context.textContent.includes('3 material concerns'));
+  assert(context.textContent.includes('Morgan Chen'));
+  assert(!context.textContent.includes('Alex Lee'));
+  assert(context.textContent.includes('26 Oct 2026'));
+  click(w, 'proceed-decision');
+  assert(w.elements.get('decision-outcome').querySelectorAll('input').every(radio => !radio.checked));
+  reset(w);
+});
+
 test('all five human outcomes remain valid with material concerns; every outcome still needs rationale and only the existing three need follow-up', () => {
   for (const outcome of ['Continue', 'Continue with Conditions', 'Modify', 'Pause', 'Stop']) {
     const w = workspace(), store = w.services.reviewStore; store.seedShowcase();
