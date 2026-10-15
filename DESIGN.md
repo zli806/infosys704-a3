@@ -40,15 +40,15 @@ omitted:
 
 ## Overview
 
-Jerry approved the review-workspace direction on 14 October 2026. The interface serves a portfolio/PMO reviewer preparing an accountable continuation decision. Preserve the existing eight views, SAP services, captured records and five human outcomes. This is a product workspace, with visual expression concentrated in the evidence/source distinction rather than decoration.
+The customer-facing workspace serves a portfolio/governance manager: what needs attention, why a review exists, what evidence and judgement support it, and what accountable action follows. The customer simplification pass supersedes the earlier control-rail/source-legend presentation, not the underlying governance architecture.
 
-The signature is a readable path from **SAP evidence → reviewer assessment → human decision**, with system controls visible beside the assessment. Keep the navy sidebar; use blue for actions, purple for reviewer input, and text-labelled states for evidence.
+Keep the eight views, native controls and five human outcomes. SAP services, exact joins, amount interpretation, source provenance, readiness, 14/30-day rules and browser-local immutable decision records remain authoritative. No recommendations or scores.
 
 ## Colors
 
 Runtime ownership: **styles.css :root is canonical (Model B)**. The frontmatter mirrors its accepted palette; the CSS is hand-maintained, not generated. `colors.background` maps to `--color-bg`, `colors.surface` to `--color-paper`, `colors.border` to `--color-line`; other semantic names map to corresponding kebab-case `--color-*` variables. Scrollbar colors map to `--color-scroll-thumb` / `--color-scroll-track`. `colors.primary` is the documentation alias of `colors.action`, mapping to the same `--color-action` owner. All screens consume these shared variables.
 
-Success means a successfully returned result; a zero-match result is a labelled warning, not failed connectivity or a zero project-cost claim. Loading supersedes captured evidence. Error, unavailable and not-loaded states remain distinct. Source labels and explanatory text supplement color.
+Text accompanies semantic colour. Available, Limited evidence, Unavailable, Loading and Error are not interchangeable. Zero matches are not zero exposure; partial financial activity is not complete project cost.
 
 ## Typography
 
@@ -56,9 +56,9 @@ Success means a successfully returned result; a zero-match result is a labelled 
 
 ## Layout
 
-Desktop shell: navy sidebar, compact page title/connection strip, project title/actions and four-field context strip. Investment evidence occupies the main column, with a quiet human-review guide alongside. Assessment/summary/decision share a step indicator and a control rail. Dashboard and Reviews use the same panel/table vocabulary.
+Desktop shell: navy navigation, generous whitespace, quiet surfaces and clear primary actions. No global source legend or persistent review rail. Source labels appear only where useful; prototype/Sandbox context is a small footer note.
 
-Document scrolling owns page height. Evidence tables own horizontal overflow only; raw captures have bounded internal scrolling. Forms have natural height, including long comments. At 980px the control rail moves below the form; at 700px navigation moves above content and fields stack. No mobile-only functions are introduced.
+Document scrolling owns page height. Tables have keyboard-focusable horizontal overflow; raw captures have bounded scrolling. At narrow widths dashboard/evidence columns, assessment groups, matrix and timeline stack; navigation moves above content. All actions remain available without horizontal page overflow.
 
 ## Elevation & Depth
 
@@ -74,20 +74,24 @@ Canonical owners: `styles.css` owns shell/panels/buttons/fields/tables/scrollbar
 
 Keep native controls: assessment/decision fieldsets use visible labelled radios, with explicit unassessed/no-decision defaults. Review Trigger and prototype-directory owner use selects; date-picker language and select popup geometry remain platform-owned. Product labels/help/rendered dates stay English. Textareas grow; forms retain novalidate and the rule/store owner. No new libraries, framework or build step. These product controls reuse the accepted tokens; final visual refinement remains with UI/UX.
 
-### Visual Decision-Support Baseline
+### Customer-facing components
 
-- **Attention first:** actionable attention items separate project/trigger, categorical counts, timing and primary action. Governance status cards emphasise open reviews, material concerns, evidence gaps and recorded decisions; loaded SAP project count is smaller session context. Counts are local projections, not portfolio financial analytics.
-- **Evidence status cards:** Lifecycle, Financial and Procurement show business state/counts first, with the existing technical/raw disclosures retained. Zero PO matches are never zero exposure; failed/unavailable/loading states remain explicit.
-- **Trigger and assessment:** the human-selected trigger callout has material/scheduled/other variants. Native assessment radios retain an obvious checked state plus visible Selected text, without choosing a positive answer.
-- **Six-dimension signal matrix:** a two-column/three-row desktop categorical grid uses explicit reviewer values and existing reviewSignals categories. Text labels accompany restrained semantic cues. It stacks on narrow screens; there are no percentages, radar scores or new risk thresholds.
-- **Management attention:** a grouped exception block distinguishes material concerns, attention items and evidence gaps, never recommending an outcome.
-- **Governance timeline:** ordered HTML milestones show opened/14-day/30-day dates and the recorded decision's actual position. Dates/status remain textual and UTC precise; geometry is milestone order, not an elapsed-time chart. The control rail uses the same component vertically.
-- **Decision cards and record hero:** all five native radio cards have neutral UX descriptions and no default choice. Existing required follow-up expands without changing validation. The recorded outcome is strongest, followed by project, owner/role, date and grouped rationale/actions. Owner remains directory-governed and read-only on Decision.
-- **Progressive disclosure:** component classes live in styles.css and presentation in governance.js; technical caveats/record context remain expandable. No business, SAP, storage or source-provenance semantics change.
+- **Attention dashboard:** Open Reviews, Material Concerns, Evidence Gaps, Decisions Recorded; small investment-availability context. Below: Governance Attention Profile beside Needs Attention, then Recent Decisions. Other open reviews are secondary and exclude flagged duplicates.
+- **Real chart:** lightweight labelled HTML/CSS horizontal bars count material concerns, attention items, evidence gaps and overdue open reviews from reviewSignals()/timing(). Shared count scale; textual counts stay accessible. No active signals means an empty message, not fabricated bars. Storage failure is not zero.
+- **Automatic loading:** a configured key starts one project refresh while Dashboard remains visible. Opening an investment loads structure, then dependent financial/procurement evidence. Happy-path success is quiet; refresh/retry are secondary. Failures do not auto-loop. HTTP status/raw diagnostics never lead the normal workflow.
+- **Three evidence cards:** Project Structure, Financial Activity, Procurement Activity. One state, actual count and short qualification. One collapsed Technical Details section near the bottom retains all original tables, raw responses, HTTP/filter diagnostics and provenance. No nested technical toggles on Investment Details.
+- **Assessment:** three-step header plus compact human-selected trigger/due date. Two desktop groups: Investment Case and Delivery & Risk. Six native radio groups retain Not assessed defaults and visible checked/Selected states. Owner follows; optional comments/dependencies are collapsed. Missing items appear only after Review Summary is attempted.
+- **Short Summary:** a two-column/three-row categorical signal matrix is central, followed by grouped Management Attention, horizontal governance timeline and three evidence rows. Optional reviewer context and a link to Investment Technical Details avoid repeating context/raw lists.
+- **Timeline:** actual opened/14-day/30-day milestones with text status. Dates are concise; exact UTC timestamps remain in time elements, accessible names and hover titles. Geometry denotes milestone order, not elapsed-time scale. Recorded milestones retain actual chronological position.
+- **Decision:** five spacious native cards with neutral descriptions and no default choice. Existing conditional follow-up expands; the selected owner/name/role is a small read-only accountability card. Record Decision validates the unchanged rules/store on submit.
+- **Record:** outcome hero, project/name, owner/role/date, then separate rationale and follow-up sections rather than a key/value dump. Saved provenance/snapshots remain secondary.
+- **Owner configuration:** immutable fictional Alex Lee, Morgan Chen and Taylor Singh roles live only in governance-directory.js. Normal deferred JS populates immediately even on local-file loads; no JSON fetch. This does not make SAP file-origin requests supported or create authenticated authority.
 
 This is reusable component anatomy, not final brand approval. Jerry retains latitude over DPE branding, final colours/type, spacing, borders/shadows, banners/footer, icons, component sizes and relative visual emphasis. Keep the accepted tokens as the baseline rather than introducing a replacement theme or CSS framework.
 
-Baseline verification: the real TEMP003 browser flow returned 4 elements / 40 G/L links / 0 PO links and completed a keyboard-selected Modify record, reload and isolated QA cleanup. Desktop and 390px embedded-viewport DOM/layout checks found no page overflow; the signal matrix changed from two columns to one. The management-attention / summary / decision checks were structural and interaction checks, not formal 10-second/2-minute/30-second user studies. Screenshot capture was unavailable because the browser tool required a visible desktop window; no screenshot-based visual certification is claimed. Jerry should still review visual emphasis and complete the final usability pass.
+Verification retains engineering tests, CI, static checks and the remote SAP validator. Qualitative manager self-checks are not formal timed user studies; Jerry still owns the final client-projection/usability and brand refinement.
+
+Customer-pass smoke check: real TEMP003 loaded automatically (5 projects, 4 components, 40 accounting entries, no matching PO records). Mixed assessment, GOV-001, chart counts, short Summary, Modify follow-up, confirmation and reload persistence passed; only the labelled QA record was removed. A simulated network failure showed one concise error/no retry loop; explicit Retry restored the real projects. 390px/1280px embedded-viewport checks found no page overflow and the expected one/two-column assessment and matrix. Normal visible text contained no HTTP 200 and the single technical area stayed collapsed. Qualitative structure checks passed for immediate attention, understandable evidence and an internals-free review path. Screenshot and desktop-key delivery were unavailable in the browser harness: choices were exercised through native DOM controls, not a certified keyboard/projector visual study. Final visual confidence remains Jerry's review.
 
 ## Do's and Don'ts
 

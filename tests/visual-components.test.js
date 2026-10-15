@@ -22,12 +22,12 @@ test('dashboard uses governance metrics, separate session context and actionable
   let opened;
   w.governanceUI.renderDashboard([first, second, completed], 5, id => { opened = id; });
   const cards = byClass(w.elements.get('dashboard-cards'), 'status-card');
-  assert.deepEqual(cards.map(card => card.children[0].textContent), ['Reviews In Progress', 'Material Concerns', 'Evidence Gaps', 'Decisions Recorded']);
+  assert.deepEqual(cards.map(card => card.children[0].textContent), ['Open Reviews', 'Material Concerns', 'Evidence Gaps', 'Decisions Recorded']);
   assert.deepEqual(cards.map(card => card.children[1].textContent), ['2', '2', '1', '1']);
   assert.equal(byClass(w.elements.get('dashboard-cards'), 'session-context').length, 1);
   const items = byClass(w.elements.get('dashboard-attention'), 'attention-item'); assert.equal(items.length, 2);
-  assert.equal(byClass(items[0], 'attention-count').length, 3);
-  assert(items[0].textContent.includes('Review Trigger') && items[0].textContent.includes('days overdue'));
+  assert.equal(byClass(items[0], 'attention-count').length, 1);
+  assert(items[0].textContent.includes(first.reviewBasis) && items[0].textContent.includes('days overdue'));
   byClass(items[0], 'attention-action')[0].events.click[0](); assert.equal(opened, first.id);
 });
 
@@ -46,15 +46,14 @@ test('six-dimension matrix uses explicit input and existing categorical signals,
 
 test('governance timeline keeps actual dates/text and positions the recorded milestone in date order', () => {
   const w = workspace(); const review = record(w.reviewRules);
-  w.governanceUI.decision(review); w.governanceUI.chrome(review, false);
-  const timing = w.elements.get('review-timing'); let steps = byClass(timing, 'timeline-step');
+  w.governanceUI.reviewSummary(review);
+  const timing = w.elements.get('review-summary'); let steps = byClass(timing, 'timeline-step');
   assert.equal(steps.length, 3);
   assert.deepEqual(steps.map(step => step.children[1].dateTime), [review.reviewOpenedAt, w.reviewRules.calendarTarget(review.reviewOpenedAt, 14), w.reviewRules.calendarTarget(review.reviewOpenedAt, 30)]);
   assert.equal(byClass(timing, 'timing-status')[0].textContent, w.reviewRules.timing(review).status);
-  assert(timing.textContent.includes('not an elapsed-time scale'));
-  assert(steps.every(step => step.children[1].textContent.includes('UTC')));
+  assert(steps.every(step => step.children[1].getAttribute('aria-label').includes('UTC')));
   review.status = 'decision_recorded'; review.decision = { timestamp: '2026-01-10T12:00:00.000Z' };
-  w.governanceUI.chrome(review, false); steps = byClass(timing, 'timeline-step');
+  w.governanceUI.reviewSummary(review); steps = byClass(timing, 'timeline-step');
   assert.equal(steps.length, 4); assert.equal(steps[1].dataset.state, 'recorded');
   assert.equal(byClass(timing, 'timing-status')[0].textContent, 'Decision recorded');
 });
@@ -62,7 +61,7 @@ test('governance timeline keeps actual dates/text and positions the recorded mil
 test('trigger treatment reflects only the selected basis, with a neutral scheduled variant', () => {
   const w = workspace(); const review = record(w.reviewRules); w.governanceUI.decision(review); w.governanceUI.chrome(review, false);
   assert.equal(w.elements.get('review-trigger').dataset.trigger, 'material');
-  assert(w.elements.get('review-trigger').textContent.includes('Why this review is happening'));
+  assert(w.elements.get('review-trigger').textContent.includes('Decision due'));
   review.reviewBasis = 'Scheduled governance review'; w.governanceUI.chrome(review, false);
   assert.equal(w.elements.get('review-trigger').dataset.trigger, 'scheduled');
 });
@@ -89,10 +88,10 @@ test('record context presents project, owner name/role and date before grouped d
   for (const text of [review.project.ProjectDescription, review.decisionOwner, review.decisionOwnerSnapshot.role, 'UTC']) assert(context.textContent.includes(text));
 });
 
-test('three evidence cards retain original technical/raw hooks, and CSS has responsive categorical rather than chart anatomy', () => {
+test('three evidence cards retain original technical/raw hooks, and the categorical matrix stays responsive without chart libraries', () => {
   const html = readFileSync(join(__dirname, '../index.html'), 'utf8');
   const css = readFileSync(join(__dirname, '../styles.css'), 'utf8');
-  assert.equal((html.match(/evidence-section evidence-status-card/g) || []).length, 3);
+  assert.equal((html.match(/<section class="evidence-status-card">/g) || []).length, 3);
   for (const id of ['raw-response', 'raw-elements-response', 'raw-gl-response', 'raw-gl-diagnostic', 'raw-po-response', 'elements-body', 'gl-body', 'po-body']) assert(html.includes(`id="${id}"`));
   assert(html.includes('decision-record-hero'));
   assert(css.includes('.signal-matrix { display:grid; grid-template-columns:repeat(2,minmax(0,1fr))'));

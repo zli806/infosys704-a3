@@ -53,18 +53,18 @@ test('signals ignore SAP evidence, unknown/missing answers and do not mutate rev
   }
 });
 
-test('executive snapshot leads Summary, shows mixed indicators and retains detailed SAP sections', () => {
+test('categorical assessment leads the shorter Summary, with management attention, timeline and evidence rows', () => {
   const { reviewRules: rules, governanceUI: ui, elements } = workspace();
   const review = record(rules, { strategicAlignment: 'Medium', expectedBenefits: 'Partially', deliveryPerformance: 'Off track', costPosition: 'Insufficient information', risk: 'High', futureEconomicValue: 'Negative' });
   ui.reviewSummary(review);
   const target = elements.get('review-summary');
-  assert.match(target.children[0].textContent, /^Executive Review Snapshot/);
+  assert.match(target.children[0].textContent, /^Assessment at a Glance/);
   assert.match(target.children[0].textContent, /3 material concerns · 1 attention item · 1 evidence gap/);
-  for (const value of ['Review Trigger', review.reviewBasis, 'Strategic Alignment', 'Expected Benefits', 'Delivery Performance', 'Risk', 'Future Economic Value', 'Decision Target', 'Management Attention', 'High project risk', 'Delivery is off track', 'Future economic value is negative', 'Cost position cannot be fully assessed']) assert(target.children[0].textContent.includes(value), value);
-  for (const title of ['Project Context', 'Lifecycle / WBS', 'G/L Financial Evidence', 'Purchase Order Evidence', 'Reviewer Assessment', 'Governance Timing']) assert(target.children.some(child => child.textContent.startsWith(title)), title);
-  assert(target.textContent.includes('Evidence gap identified: cost position assessed as Insufficient information.'));
+  for (const value of ['Strategic Alignment', 'Expected Benefits', 'Delivery Performance', 'Risk', 'Future Economic Value', 'Management Attention', 'High project risk', 'Delivery is off track', 'Future economic value is negative', 'Cost position cannot be fully assessed']) assert(target.children[0].textContent.includes(value), value);
+  for (const title of ['Governance Timeline', 'Evidence Reviewed']) assert(target.children.some(child => child.textContent.startsWith(title)), title);
+  assert.equal(target.children.length, 3); assert(target.textContent.includes('View SAP Technical Details'));
   assert.equal(review.assessment.costPosition, 'Insufficient information');
-  assert(descendants(target.children[0]).some(child => child.className === 'source reviewer' && child.textContent === 'REVIEWER INPUT'));
+  assert(!descendants(target.children[0]).some(child => child.className === 'source reviewer'));
 });
 
 test('no signals is qualified, not assurance of safe continuation; outcome stays human-selected', () => {
@@ -73,8 +73,7 @@ test('no signals is qualified, not assurance of safe continuation; outcome stays
   ui.reviewSummary(review); ui.decision(review);
   const snapshot = elements.get('review-summary').children[0].textContent;
   assert(snapshot.includes('Complete the reviewer assessment to identify management concerns.'));
-  assert(snapshot.includes('not scores, weights, recommendations or assurance that the investment is safe to continue'));
-  assert(snapshot.includes('Unassessed categories are not classified'));
+  assert(!snapshot.includes('Safe to continue')); assert(!snapshot.includes('recommendation'));
   assert.equal(elements.get('decision-outcome').value, '');
   assert(rules.decisionErrors(review, ui.readDecision()).includes('Select a human governance decision.'));
 });
@@ -83,7 +82,7 @@ test('Review Trigger is visible in its callout and saved confirmation without in
   const { reviewRules: rules, governanceUI: ui, elements } = workspace();
   const review = record(rules);
   ui.decision(review); ui.chrome(review, false);
-  assert(elements.get('review-trigger').textContent.includes('Review Trigger') && elements.get('review-trigger').textContent.includes(review.reviewBasis));
+  assert(elements.get('review-trigger').textContent.includes('Decision due') && elements.get('review-trigger').textContent.includes(review.reviewBasis));
   review.status = 'decision_recorded';
   review.decision = { outcome: 'Pause', rationale: 'Explicit unit-test reviewer choice', owner: 'Unit reviewer', timestamp: '2026-10-15T01:00:00Z', requiredAction: 'Follow up', actionOwner: 'Unit owner', nextReviewDate: '2026-11-01', decisionTarget: rules.calendarTarget(review.reviewOpenedAt, 14), escalationThreshold: rules.calendarTarget(review.reviewOpenedAt, 30), assessmentSnapshot: review.assessment, evidenceSnapshot: review.evidence };
   ui.confirmation(review);
@@ -95,8 +94,8 @@ test('session project count explains saved records after refresh without loading
   const { reviewRules: rules, governanceUI: ui, elements } = workspace();
   const reviews = [record(rules)]; const before = JSON.stringify(reviews);
   ui.renderDashboard(reviews, 0, () => {});
-  assert(elements.get('dashboard-cards').textContent.includes('SAP Projects Loaded This Session'));
-  assert(elements.get('dashboard-cards').textContent.includes('Load SAP Projects to refresh the current portfolio view.'));
+  assert(elements.get('dashboard-cards').textContent.includes('0 investments available'));
+  assert(!elements.get('dashboard-cards').textContent.includes('Load SAP Projects'));
   assert.equal(JSON.stringify(reviews), before);
   ui.renderDashboard(reviews, 5, () => {});
   assert(!elements.get('dashboard-cards').textContent.includes('refresh the current portfolio view'));
@@ -110,12 +109,12 @@ test('business evidence wording distinguishes zero matches, failure, unavailable
   function summary(status, linkedRecordCount = null) {
     review.evidence.po = { ...rules.emptyEvidence().po, attempted: status !== 'not_attempted', status, linkedRecordCount };
     ui.reviewSummary(review);
-    return elements.get('review-summary').children.find(child => child.textContent.startsWith('Purchase Order Evidence')).textContent;
+    return elements.get('review-summary').children.find(child => child.textContent.startsWith('Evidence Reviewed')).textContent;
   }
   assert(summary('success', 0).includes('This does not establish that procurement exposure is zero.'));
-  assert(summary('error').includes('attempted but failed technically'));
-  assert(summary('unavailable').includes('current identifiers or configuration'));
-  assert(summary('not_attempted').includes('not yet been requested'));
+  assert(summary('error').includes('Could not refresh this evidence'));
+  assert(summary('unavailable').includes('current project information'));
+  assert(summary('not_attempted').includes('Waiting for project structure'));
   assert(!summary('success', 2).includes('No linked Purchase Order account assignments were found'));
   review.evidence.gl = { ...rules.emptyEvidence().gl, attempted: true, status: 'success', linkedRecordCount: 0 };
   ui.reviewSummary(review);
@@ -124,7 +123,7 @@ test('business evidence wording distinguishes zero matches, failure, unavailable
   const loaded = workspace(); loaded.runtime.state = { poController: {} };
   loaded.governanceUI.details(review.project, review.evidence, [review]);
   const pending = loaded.elements.get('detail-procurement-overview').textContent;
-  assert(pending.includes('Loading') && pending.includes('Please wait'));
+  assert(pending.includes('Loading') && pending.includes('Refreshing evidence'));
   assert(!pending.includes('validated linked records'));
   assert.equal(ui.evidenceStatus(review.evidence.po, true).label, 'Loading');
 });

@@ -1,16 +1,16 @@
 # Frontend UI Contract
 
-This contract covers the playable workflow and retained SAP/debug areas. `js/ui/renderers.js` owns SAP views; `js/ui/governance.js` owns navigation/forms/source-labelled summaries. The checker retains original hooks plus seven product controls (101 required IDs). IDs must change with implementation/checks, not independently during visual refinement.
+This contract covers the customer workflow and retained SAP diagnostics. `js/ui/renderers.js` owns SAP tables/status; `js/ui/governance.js` owns navigation/forms/summaries. The checker requires 105 IDs. Implementation, contract and checks must change together.
 
 ## Functional Hooks
 
 | Area | ID | Role / expected element behaviour |
 | --- | --- | --- |
-| Projects | `load-projects` | Button: click loads projects; supports disabled/loading state. |
+| Projects | `load-projects` | Secondary Refresh SAP Data button; startup loads automatically with a configured key without leaving Dashboard. |
 | Projects | `connection-status` | Connection status text. |
 | Projects | `message` | Status text and `data-kind` styling. |
 | Projects | `error-details` | Safe error body text; supports `hidden`. |
-| Projects | `projects-body` | Table `tbody` for nine-column rows, local review status and View Investment actions. |
+| Projects | `projects-body` | Table `tbody` for six-column business rows, local review status and View Investment actions. Raw status/company/currency remain in SAP context/diagnostics. |
 | Projects | `raw-response` | Raw project-list JSON/text output. |
 | Elements | `elements-panel` | Selected-project/elements section; supports `hidden`. |
 | Elements | `selected-project` | Selected-project summary text. |
@@ -49,17 +49,21 @@ All of these are functional IDs (in addition to the SAP hooks above):
 | Dashboard | `dashboard-view`, `dashboard-cards`, `dashboard-view-investments`, `dashboard-open-reviews`, `dashboard-decisions` | Real/system counts and local review/decision actions, never fabricated portfolio metrics. |
 | Investment details | `investments-view`, `detail-view`, `investment-context`, `detail-review-status`, `start-review`, `view-last-decision`, `detail-lifecycle-overview`, `reload-lifecycle`, `load-review-evidence`, `detail-financial-overview`, `detail-procurement-overview` | Source-labelled context, evidence loads and start/continue/view decision actions. |
 | Reviews | `reviews-view`, `reviews-body` | Local-record list with six-column rows and resume/view actions. |
-| Shared review controls | `review-chrome`, `current-review-project`, `review-steps`, `review-timing`, `readiness-status`, `readiness-missing`, `workflow-message`, `review-back-investment` | Step indicator, UTC controls, completeness list, errors/back navigation. |
+| Shared review context | `review-chrome`, `current-review-project`, `review-steps`, `workflow-message`, `review-back-investment` | Step indicator, compact trigger/due date, submit-only missing-fields message and back navigation. No persistent control rail. |
 | Assessment | `assessment-view`, `assessment-form`, `review-basis`, `assessment-alignment`, `assessment-benefits`, `assessment-delivery`, `assessment-financial-evidence`, `assessment-cost`, `assessment-risk`, `assessment-value`, `assessment-comments`, `assessment-dependencies`, `assessment-owner`, `assessment-save-summary` | Review Trigger select, six radio fieldsets, directory-owner dropdown, reviewer text and local save/summary. |
 | Summary | `summary-view`, `review-summary`, `back-assessment`, `proceed-decision` | Review evidence/assessment/control pack; decision progression only when READY and no request pending. |
 | Decision | `decision-view`, `decision-form`, `decision-outcome`, `decision-rationale`, `decision-owner`, `decision-requirements`, `decision-action`, `decision-action-owner`, `decision-next-date`, `back-summary`, `confirm-decision` | No initial outcome selection; required human decision fields and conditional actions; store revalidates on confirmation. |
 | Confirmation | `confirmation-view`, `confirmation-record`, `return-investment`, `back-dashboard` | Saved immutable prototype record/snapshots and return actions. |
 
-Forms use input/change for local drafts and submit for progression/confirmation. The six assessment IDs and `decision-outcome` now identify native fieldsets, not selects. Generated radios keep original enum strings, a shared group name and unique `-choice-N` IDs. Preserve native keyboard/checked semantics, explicit Not assessed defaults, visible focus/selection and no preselected decision. Feedback attaches to groups rather than individual radios. Preserve novalidate, date input, source meanings and safe textContent rendering.
+Forms use input/change for local drafts and submit for progression/confirmation. The six assessment IDs and `decision-outcome` identify native fieldsets, not selects. Generated radios keep original enum strings, a shared group name and unique `-choice-N` IDs. Preserve native keyboard/checked semantics, explicit Not assessed defaults, visible focus/selection and no preselected decision. Shared alert messages appear after an incomplete submit and clear on editing. Preserve novalidate, date input, source meanings and safe textContent rendering.
 
 Added required IDs: `dashboard-attention` (open-review signals/timing), `review-trigger` (header callout), `governance-directory-status` (configuration/error/legacy notice), `decision-owner-help` (read-only provenance), `decision-follow-up` (details), `decision-follow-up-title` (required/optional summary), `confirmation-outcome` (prominent saved human outcome).
 
-`assessment-owner` is a directory-ID select with an empty placeholder, not free text. A disabled legacy option preserves old text until explicit selection; never infer identity from names. `decision-owner` is read-only, not an independent owner source. Follow-up expands and is required for conditional/Modify/Pause only; optional fields remain available and are not erased when outcomes change. Action Owner stays text. Completed records remain immutable.
+`assessment-owner` is a directory-ID select with an empty placeholder, populated synchronously from deferred JS configuration (no JSON fetch). A disabled legacy option preserves old text until explicit selection; never infer identity from names. `decision-owner` is a display-only accountability div, not an input or independent owner source. Follow-up expands and is required for conditional/Modify/Pause only; optional fields remain available and are not erased when outcomes change. Action Owner stays text. Completed records remain immutable.
+
+Customer simplification hooks: `attention-profile` renders labelled horizontal bars from open-review signals/timing only, or a truthful empty/unavailable message. `project-refresh-error`, `retry-projects`, `project-diagnostics` provide one concise refresh failure and explicit retry/details. `investment-technical-details` is the single, initially collapsed Investment Details disclosure; all raw/error/table/filter diagnostics and `technical-evidence-context` provenance live inside. `decision-incomplete` shows validation errors only on a recording attempt. Removed hooks: `review-timing`, `readiness-status`, `readiness-missing`; timing is rendered within Summary instead.
+
+Selecting an investment starts structure retrieval, then financial/procurement calls using existing identifier rules. Card retry controls retain their historical IDs but are secondary and hidden on success. `load-review-evidence` is now Refresh Evidence, not a required happy-path task. Summary contains the six-signal matrix, grouped management attention, timeline, three evidence rows and a link to the consolidated details; no repeated raw tables. Native form semantics and the store's final validation remain authoritative.
 
 ## Script Contract
 
@@ -100,7 +104,7 @@ Run `python scripts/check_frontend_contract.py`. It checks unique/nonempty IDs, 
 
 ## Review workspace presentation (14 October 2026)
 
-The visual contract is [DESIGN.md](../DESIGN.md). This UI revision retains all 94 original hooks and deferred scripts. Added hooks are `connection-details`, `detail-project-id`, `detail-project-name`, `assessment-save-status` and `decision-incomplete`. They are presentation-only; original services, rule/store functions and record schema remain authoritative.
+The visual contract is [DESIGN.md](../DESIGN.md). Deferred scripts and SAP diagnostic hooks remain; the current required-ID manifest is in the checker. `connection-details`, `detail-project-id`, `detail-project-name` and `assessment-save-status` are supplementary presentation hooks. SAP services, rule/store functions and record schema remain authoritative.
 
 Canonical UI owners:
 
@@ -114,8 +118,8 @@ Canonical UI owners:
 | CRUD | Existing governance.js navigation and controller callbacks | UI_CONTRACT.md / app.js / review-store.js | Local draft / immutable completed record; no delete | Back / resume / summary / persisted decision |
 
 
-Tables retain all columns and the existing bounded API retrieval (5 projects; up to 100 G/L/PO rows). No search/pagination changes or persistence of selection in URLs are introduced. There is no selection/bulk grid. Responsive horizontal table overflow is keyboard focusable; ordinary forms continue to scroll with the document. Native controls, rather than authored popup implementations, are deliberate.
+Technical evidence tables retain all columns and the existing bounded API retrieval (5 projects; up to 100 G/L/PO rows). The primary Investments table is reduced to project, description, dates, review status and action. No search/pagination changes or persistence of selection in URLs are introduced. There is no selection/bulk grid. Responsive horizontal table overflow is keyboard focusable; ordinary forms continue to scroll with the document. Native controls, rather than authored popup implementations, are deliberate.
 
-Zero matched records, unavailable identifiers, request errors, partial pages and unrequested evidence are separate UI states. Pending requests supersede saved success badges; existing readiness still checks attempts, not evidence sufficiency. The right rail presents the same existing missing-items list and UTC targets. No scoring/recommendations are added. Comments/dependencies are optional disclosures whose input persists through local drafts; textareas grow rather than permitting manual resizing. Touched fields show text errors with aria-invalid and aria-describedby using the existing missing-item/decision-error rules. Source/amount qualifications and raw technical tables remain available.
+Zero matches/partial results are Limited evidence; errors, unavailable/unrequested and loading retain truthful states and explanatory copy. Pending requests supersede saved success badges; readiness still checks attempts, not evidence sufficiency. No scoring/recommendations are added. Comments/dependencies are optional disclosures whose input persists through local drafts; textareas grow. A concise submit-time message replaces permanent readiness/touched-field lists. Source/amount qualifications and raw technical tables remain available in the consolidated disclosure.
 
 Local save feedback reflects visible storage errors. Normal navigation already attempts to save drafts and refuses navigation after a failed save; no new modal or unsaved-data workflow is introduced. Completed records remain immutable under the existing store. No app-owned destructive actions or authentication screens are introduced.

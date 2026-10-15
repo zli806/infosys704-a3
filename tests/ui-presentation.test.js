@@ -15,9 +15,9 @@ function presentation() {
 test('a zero-result SAP request is distinct from unrequested or failed evidence', () => {
   const { governanceUI: ui } = presentation();
   assert.equal(typeof ui.evidenceStatus, 'function');
-  assert.equal(ui.evidenceStatus({ status: 'success', linkedRecordCount: 0 }).label, 'No matching records');
-  assert.equal(ui.evidenceStatus({ status: 'not_attempted', linkedRecordCount: null }).label, 'Not loaded');
-  assert.equal(ui.evidenceStatus({ status: 'error', linkedRecordCount: null }).label, 'Request failed');
+  assert.equal(ui.evidenceStatus({ status: 'success', linkedRecordCount: 0 }).label, 'Limited evidence');
+  assert.equal(ui.evidenceStatus({ status: 'not_attempted', linkedRecordCount: null }).label, 'Unavailable');
+  assert.equal(ui.evidenceStatus({ status: 'error', linkedRecordCount: null }).label, 'Error');
 });
 
 test('loading takes precedence over a saved success snapshot', () => {
@@ -29,7 +29,7 @@ test('loading takes precedence over a saved success snapshot', () => {
 test('partial results and unavailable identifiers are not presented as complete evidence', () => {
   const { governanceUI: ui } = presentation();
   assert.equal(typeof ui.evidenceStatus, 'function');
-  assert.equal(ui.evidenceStatus({ status: 'success', hasMore: true, linkedRecordCount: 2 }).label, 'Loaded · partial page');
+  assert.equal(ui.evidenceStatus({ status: 'success', hasMore: true, linkedRecordCount: 2 }).label, 'Limited evidence');
   assert.equal(ui.evidenceStatus({ status: 'unavailable' }).label, 'Unavailable');
 });
 

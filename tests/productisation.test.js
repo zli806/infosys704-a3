@@ -10,12 +10,12 @@ function model(rules, assessment = {}) {
 }
 function choose(element, value) { for (const radio of element.querySelectorAll('input[type="radio"]')) radio.checked = radio.value === value; }
 
-test('synthetic directory loads once with no SAP key and validates owner schema/IDs', async () => {
+test('immutable synthetic directory is available immediately without fetch or SAP key and validates owner schema/IDs', async () => {
   const calls = []; const w = workspace({ fetchImpl: async (url, options) => { calls.push({ url, options }); return { ok: true, json: async () => structuredClone(directory) }; } });
   const service = w.services.governanceDirectory;
   const [first, second] = await Promise.all([service.load(), service.load()]);
-  assert.equal(first, second); assert.equal(calls.length, 1);
-  assert.equal(calls[0].url, 'data/governance-directory.json'); assert.equal(calls[0].options.headers.APIKey, undefined);
+  assert.equal(first, second); assert.equal(calls.length, 0);
+  assert.equal(service.people(), first); assert(Object.isFrozen(first)); assert(Object.isFrozen(first[0]));
   assert.equal(service.resolve('GOV-001').source, 'PROTOTYPE GOVERNANCE DIRECTORY');
   assert.throws(() => service.resolve('UNKNOWN'));
   assert.throws(() => service.validate({ ...directory, schemaVersion: 2 }));
@@ -24,10 +24,10 @@ test('synthetic directory loads once with no SAP key and validates owner schema/
   assert.throws(() => service.validate({ ...directory, people: [{ id: 'GOV-001', name: '', role: 'Role' }] }));
 });
 
-test('directory failure is visible and never replaced with invented eligible owners', async () => {
+test('offline directory needs no network; an invalid/unavailable UI configuration never invents eligible owners', async () => {
   const w = workspace({ fetchImpl: async () => { throw new Error('offline'); } });
-  await assert.rejects(w.services.governanceDirectory.load(), /directory unavailable/);
-  assert.equal(w.services.governanceDirectory.people().length, 0);
+  assert.equal(w.services.governanceDirectory.people().length, 3);
+  assert.equal((await w.services.governanceDirectory.load()).length, 3);
   w.governanceUI.setDirectory([], 'Directory unavailable');
   assert.equal(w.elements.get('assessment-owner').disabled, true);
   assert.match(w.elements.get('governance-directory-status').textContent, /unavailable/);
@@ -61,14 +61,14 @@ test('owner selected in Assessment is authoritative through Summary, Decision an
   const assessment = w.reviewRules.defaultAssessment(); for (const [key, field] of Object.entries(w.reviewRules.ASSESSMENTS)) assessment[key] = field.options.find(value => value !== 'Not assessed'); assessment.costPosition = 'Insufficient information';
   review = store.update(review.id, { ...patch, reviewBasis: w.reviewRules.BASIS[0], assessment, evidence });
   assert(w.reviewRules.readiness(review).ready); assert.equal(review.decisionOwner, 'Morgan Chen'); assert.equal(review.decisionOwnerSnapshot.role, 'Executive Sponsor');
-  w.governanceUI.reviewSummary(review); assert(w.elements.get('review-summary').textContent.includes('Morgan Chen · Executive Sponsor'));
+  w.governanceUI.reviewSummary(review); assert(w.elements.get('review-summary').textContent.includes('Morgan Chen')); assert(w.elements.get('review-summary').textContent.includes('Executive Sponsor'));
   w.governanceUI.decision(review); assert.equal(w.governanceUI.readDecision().outcome, '');
-  assert(w.elements.get('decision-owner').value.includes('Morgan Chen'));
+  assert(w.elements.get('decision-owner').textContent.includes('Morgan Chen'));
   w.elements.get('decision-owner').value = 'Independent override';
   assert.equal(w.governanceUI.readDecision().owner, 'Morgan Chen');
   const saved = store.confirm(review.id, { outcome: 'Modify', rationale: 'Explicit unit choice', owner: 'Spoofed owner', requiredAction: 'Follow up', actionOwner: 'Any action coordinator', nextReviewDate: '2026-11-01' });
   assert.equal(saved.decision.owner, 'Morgan Chen'); assert.equal(saved.decision.ownerId, 'GOV-002'); assert.equal(saved.decision.ownerSnapshot.role, 'Executive Sponsor'); assert.equal(saved.decision.actionOwner, 'Any action coordinator');
-  w.governanceUI.confirmation(saved); assert.equal(w.elements.get('confirmation-outcome').textContent, 'Modify'); assert(w.elements.get('confirmation-record').textContent.includes('Morgan Chen · Executive Sponsor'));
+  w.governanceUI.confirmation(saved); assert.equal(w.elements.get('confirmation-outcome').textContent, 'Modify'); assert(w.elements.get('confirmation-record').textContent.includes('Morgan Chen')); assert(w.elements.get('confirmation-record').textContent.includes('Executive Sponsor'));
   assert.throws(() => store.update(saved.id, { decisionOwnerId: 'GOV-001' }));
 });
 
@@ -117,7 +117,7 @@ test('Needs Attention derives only open explicit signals/timing, never completed
   const list = [mild, gap, overdue, escalated, complete, unassessed]; const before = JSON.stringify(list);
   const items = r.needsAttention(list, now); assert.deepEqual(new Set(Array.from(items, item => item.review.id)), new Set(['mild', 'gap', 'overdue', 'escalated']));
   assert.equal(items[0].timing.status, 'Escalation threshold reached'); assert.equal(JSON.stringify(list), before);
-  w.governanceUI.renderDashboard([model(r, { risk: 'High' })], 0, () => {}); assert(w.elements.get('dashboard-attention').textContent.includes('1 material concern')); assert(w.elements.get('dashboard-attention').textContent.includes('Review Trigger'));
+  w.governanceUI.renderDashboard([model(r, { risk: 'High' })], 0, () => {}); assert(w.elements.get('dashboard-attention').textContent.includes('1 material concern')); assert(w.elements.get('dashboard-attention').textContent.includes(r.BASIS[1]));
   w.governanceUI.renderDashboard([], 0, () => {}); assert(w.elements.get('dashboard-attention').textContent.includes('No open reviews'));
   w.governanceUI.renderDashboard([], 0, () => {}, false); assert(w.elements.get('dashboard-attention').textContent.includes('unavailable'));
 });

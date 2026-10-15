@@ -13,6 +13,10 @@
   function currentReview() { return state.reviews.find(record => record.id === state.currentReviewID) || null; }
   function busy() { return !!(state.elementController || state.glController || state.poController); }
   function evidenceForSelected() {
+    if (state.view === "detail") {
+      if (state.evidence.lifecycle.attempted || state.elementController) return state.evidence;
+      return rules.activeReview(state.reviews, state.selectedProject?.ProjectUUID)?.evidence || state.evidence;
+    }
     const record = currentReview();
     if (record?.project.ProjectUUID === state.selectedProject?.ProjectUUID) return record.status === "decision_recorded" ? record.decision.evidenceSnapshot : record.evidence;
     return rules.activeReview(state.reviews, state.selectedProject?.ProjectUUID)?.evidence || state.evidence;
@@ -54,6 +58,21 @@
     refreshRecords(); state.view = view; governance.showView(view); refreshGovernance();
     if (view === "investments") ui.renderProjects(state.projects, state.selectedProject, loadProjectElements);
   }
+  function refreshProjects() {
+    if (state.projectsRefreshing || !saveDraft()) return;
+    if (!["dashboard", "investments"].includes(state.view)) {
+      state.view = "investments"; governance.showView("investments");
+    }
+    resetElementSelection();
+    return loadProjects();
+  }
+  function validationMissing(record) {
+    const labels = { "SAP project context": "Project context", "Project Elements / lifecycle evidence loaded": "Project Structure",
+      "G/L evidence attempted": "Financial Activity", "PO evidence attempted": "Procurement Activity", "Review basis": "Review Trigger", "Decision owner": "Decision Owner" };
+    const missing = rules.readiness(record).missing.map(item => labels[item] || item);
+    if (busy()) missing.push("Evidence refresh");
+    return missing;
+  }
   function startReview() {
     if (!state.selectedProject) return;
     try {
@@ -78,6 +97,7 @@
   function showReviewStep(view, save = true) {
     if (save && !saveDraft()) return;
     const record = currentReview(); if (!record || record.status !== "in_progress") return;
+    if (view === "summary" && state.view === "assessment" && validationMissing(record).length) { governance.incompleteAssessment(validationMissing(record)); return; }
     if (view === "decision" && (!rules.readiness(record).ready || busy())) { governance.error("Complete the readiness items and finish evidence loading before proceeding to Decision."); return; }
     state.view = view; governance.showView(view);
     if (view === "assessment") governance.assessment(record);
@@ -88,6 +108,8 @@
     if (!saveDraft()) return;
     const record = currentReview(); if (!record) return;
     if (busy()) { governance.error("Finish current SAP evidence requests before recording a decision."); return; }
+    const errors = rules.decisionErrors(record, governance.readDecision());
+    if (errors.length) { governance.incompleteDecision(errors); return; }
     try {
       const saved = store.confirm(record.id, governance.readDecision());
       refreshRecords(); state.view = "confirmation"; governance.showView("confirmation"); governance.confirmation(saved); refreshGovernance();
@@ -98,13 +120,12 @@
     if (!saveDraft()) return;
     const record = currentReview();
     if (!state.selectedProject && record) { state.selectedProject = record.project; state.selectedFromSnapshot = true; ui.selectProject(record.project, state.projects, loadProjectElements); }
-    if (state.selectedProject) navigate("detail"); else navigate("investments");
+    if (state.selectedProject && !state.elementsLoaded) void loadProjectElements(state.selectedProject);
+    else if (state.selectedProject) navigate("detail"); else navigate("investments");
   }
   async function loadReviewEvidence() {
     if (!state.selectedProject || busy()) return;
-    if (!state.elementsLoaded) await loadProjectElements(state.selectedProject, true);
-    if (!state.elementsLoaded) return;
-    await Promise.allSettled([loadFinancialEvidence(), loadPurchaseOrderEvidence()]);
+    await loadProjectElements(state.selectedProject, true);
   }
 
   function resetFinancialEvidence() { state.resetFinancialEvidence(); ui.resetGL(); }
@@ -115,10 +136,12 @@
   }
 
   async function loadProjects() {
+    if (state.projectsRefreshing) return;
     const key = http.apiKey();
     state.projects = [];
     ui.projectStart();
     if (http.keyMissing(key)) { ui.projectKeyMissing(); return; }
+    state.projectsRefreshing = true;
     ui.projectLoading();
     const controller = new AbortController();
     try {
@@ -140,7 +163,7 @@
       console.error("SAP Enterprise Project connection test failed", {
         url: services.projects.projectURL().href, status: context.response?.status ?? "unavailable", diagnostic: detail
       });
-    } finally { ui.projectFinished(); refreshGovernance(); }
+    } finally { state.projectsRefreshing = false; ui.projectFinished(); refreshGovernance(); }
   }
 
   async function loadProjectElements(project, preserveReview = false) {
@@ -151,15 +174,16 @@
     state.elementsLoaded = false;
     const requestID = ++state.elementRequestID;
     state.elementController?.abort();
+    state.elementController = null;
     state.selectedProject = project;
     state.selectedFromSnapshot = !state.projects.some(item => item.ProjectUUID === project.ProjectUUID);
     state.projectElements = [];
     ui.selectProject(project, state.projects, loadProjectElements);
     state.view = "detail"; governance.showView("detail"); refreshGovernance();
     const key = http.apiKey();
-    if (http.keyMissing(key)) { ui.elementsRejected(missingKeyMessage); attemptedFailure("lifecycle", missingKeyMessage, true); return; }
+    if (http.keyMissing(key)) { ui.elementsRejected(missingKeyMessage); attemptedFailure("lifecycle", missingKeyMessage, true); unavailableDependents(); return; }
     if (!services.projects.validUUID(project)) {
-      ui.elementsRejected("The selected SAP project has no valid ProjectUUID. No request was sent."); attemptedFailure("lifecycle", "Invalid SAP project UUID; no lifecycle request sent.", true); return;
+      ui.elementsRejected("The selected SAP project has no valid ProjectUUID. No request was sent."); attemptedFailure("lifecycle", "Invalid SAP project UUID; no lifecycle request sent.", true); unavailableDependents(); return;
     }
     const controller = new AbortController();
     state.elementController = controller;
@@ -189,10 +213,16 @@
       } else { detail = utils.redact(error.message, key); }
       ui.elementsFailure(detail);
       attemptedFailure("lifecycle", detail);
+      unavailableDependents();
       console.error("SAP Project Element request failed", {
         url: services.projects.elementURL(project).href, status: context.response?.status ?? "unavailable", diagnostic: detail
       });
     } finally { if (isCurrent()) { state.elementController = null; refreshGovernance(); } }
+    if (isCurrent() && state.elementsLoaded) await Promise.allSettled([loadFinancialEvidence(), loadPurchaseOrderEvidence()]);
+  }
+
+  function unavailableDependents() {
+    for (const source of ["gl", "po"]) attemptedFailure(source, "Project structure could not be loaded; no dependent request sent.", true);
   }
 
   async function loadFinancialEvidence() {
@@ -287,16 +317,24 @@
 
   ui.configureReviews(project => state.storageError ? "Local review status unavailable" : rules.projectStatus(state.reviews, project.ProjectUUID));
   ui.bindEvents({ loadGL: loadFinancialEvidence, loadPO: loadPurchaseOrderEvidence,
-    loadProjects: () => { if (!saveDraft()) return; resetElementSelection(); navigate("investments"); return loadProjects(); } });
+    loadProjects: refreshProjects });
   governance.bind({ navigate, startReview, saveDraft, summary: () => showReviewStep("summary"), reviewStep: showReviewStep,
     confirm: confirmDecision, returnInvestment, loadEvidence: loadReviewEvidence,
-    reloadLifecycle: () => state.selectedProject && loadProjectElements(state.selectedProject, true),
+    reloadLifecycle: loadReviewEvidence,
+    retryProjects: refreshProjects,
+    technicalDetails: () => {
+      if (!saveDraft()) return;
+      if (state.selectedProject && !state.elementsLoaded) void loadProjectElements(state.selectedProject, true);
+      else { state.view = "detail"; governance.showView("detail"); refreshGovernance(); }
+      governance.openTechnical();
+    },
     lastDecision: () => {
       const record = [...state.reviews].filter(item => item.project.ProjectUUID === state.selectedProject?.ProjectUUID && item.status === "decision_recorded").sort((a, b) => b.decision.timestamp.localeCompare(a.decision.timestamp))[0];
       if (record) openReview(record.id);
     } });
   refreshRecords(); governance.showView("dashboard"); refreshGovernance();
-  services.governanceDirectory.load().then(people => { governance.setDirectory(people); refreshGovernance(); })
-    .catch(error => { governance.setDirectory([], error.message); refreshGovernance(); });
+  governance.setDirectory(services.governanceDirectory.people());
+  if (!http.keyMissing(http.apiKey())) void loadProjects();
+  else ui.projectKeyMissing();
   setInterval(refreshGovernance, 60000);
 })();

@@ -25,116 +25,72 @@
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand"><span class="brand-mark">DPE</span><h1>IT Investment<span>Governance Hub</span></h1></div>
-      <nav aria-label="Main navigation">
-        <button id="nav-dashboard" type="button">Dashboard</button>
-        <button id="nav-investments" type="button">Investments</button>
-        <button id="nav-reviews" type="button">Reviews</button>
-      </nav>
-      <p class="sidebar-note"><strong>INFOSYS 704 · A3</strong>SAP Sandbox evidence<br>Human decisions · local records</p>
+      <nav aria-label="Main navigation"><button id="nav-dashboard" type="button">Dashboard</button><button id="nav-investments" type="button">Investments</button><button id="nav-reviews" type="button">Reviews</button></nav>
+      <p class="sidebar-note">Evidence. Judgement.<br>Accountable decisions.</p>
     </aside>
     <main>
-      <header class="page-header">
-        <div><p class="eyebrow">Portfolio / Continuation review</p><h2 id="page-title" tabindex="-1">Dashboard</h2></div>
-        <button id="load-projects" type="button">Load SAP Projects</button>
-      </header>
-      <div class="source-legend" aria-label="Value sources"><span>Data sources</span><span class="source sap">SAP</span><span class="source reviewer">REVIEWER INPUT</span><span class="source system">SYSTEM CALCULATED</span></div>
+      <header class="page-header"><div><p class="eyebrow">Investment Governance</p><h2 id="page-title" tabindex="-1">Dashboard</h2></div><button id="load-projects" class="ghost" type="button">Refresh SAP Data</button></header>
+      <p id="connection-status" class="refresh-status" role="status" hidden></p>
+      <div id="project-refresh-error" class="customer-error" role="alert" hidden><span>Could not refresh SAP project data.</span><button id="retry-projects" class="secondary" type="button">Retry</button><button id="project-diagnostics" class="ghost" type="button">Technical details</button></div>
       <p id="storage-notice" class="status-message" role="alert" hidden></p>
-      <section class="connection-strip" aria-label="SAP connection">
-        <p id="connection-status" role="status">Not tested</p>
-        <details id="connection-details"><summary>Connection details</summary><p id="message" role="status" aria-live="polite">Load SAP projects to begin. Up to 5 real Sandbox projects are returned.</p><pre id="error-details" hidden></pre></details>
-      </section>
 
       <section id="dashboard-view" aria-label="Dashboard">
-        <div class="section-header"><div><p class="eyebrow">REVIEW WORKSPACE</p><h3>Your continuation reviews</h3></div><button id="dashboard-view-investments" type="button">View investments</button></div>
-        <section class="panel attention-panel"><p class="component-eyebrow">What needs management attention?</p><h3>Needs Attention</h3><p class="hint">Open reviews flagged by reviewer assessments or decision timing. No investment outcome is recommended.</p><div id="dashboard-attention" class="attention-list"></div></section>
         <div id="dashboard-cards" class="cards"></div>
-        <div class="dashboard-columns"><section class="panel"><h3>Open Reviews <span class="source system">SYSTEM CALCULATED</span></h3><div id="dashboard-open-reviews"></div></section>
-        <section class="panel"><h3>Recent Decisions</h3><p class="hint">Project: SAP snapshot · Decision: REVIEWER INPUT · Date: SYSTEM CALCULATED</p><div id="dashboard-decisions"></div></section></div>
+        <div class="dashboard-columns">
+          <section class="panel"><h3>Governance Attention Profile</h3><p class="hint">Counts of current open-review signals. A review may contribute more than one signal.</p><div id="attention-profile"></div></section>
+          <section class="panel attention-panel"><h3>Needs Attention</h3><div id="dashboard-attention" class="attention-list"></div><details class="other-reviews"><summary>Other open reviews</summary><div id="dashboard-open-reviews"></div></details></section>
+        </div>
+        <section class="panel"><div class="section-header"><h3>Recent Decisions</h3><button id="dashboard-view-investments" class="secondary" type="button">View Investments</button></div><div id="dashboard-decisions"></div></section>
       </section>
 
       <section id="investments-view" aria-label="Investments" hidden>
-        <div class="panel">
-          <h3>Investments <span class="source sap">SAP</span></h3>
-          <p class="hint">Real public Sandbox projects, not verified DPE production investments. Review status is calculated from local prototype records.</p>
-          <div class="table-scroll" tabindex="0" role="region" aria-label="Scrollable evidence table"><table>
-            <caption class="sr-only">SAP projects and local governance review status</caption>
-            <thead><tr><th scope="col">Project</th><th scope="col">Description</th><th scope="col">SAP Status</th><th scope="col">Start Date</th><th scope="col">End Date</th><th scope="col">Currency</th><th scope="col">Company Code</th><th scope="col">Review Status<br><span class="source system">SYSTEM CALCULATED</span></th><th scope="col">Action</th></tr></thead>
-            <tbody id="projects-body"><tr><td colspan="9" class="empty">No SAP projects loaded yet.</td></tr></tbody>
-          </table></div>
-          <details><summary>Technical Details – Raw SAP Response</summary><pre id="raw-response">No response received yet.</pre></details>
-        </div>
+        <p class="view-intro">Select an investment to review its evidence and continuation case.</p>
+        <div class="panel"><div class="table-scroll" tabindex="0" role="region" aria-label="Investments"><table><caption class="sr-only">Investments and review status</caption>
+          <thead><tr><th scope="col">Project</th><th scope="col">Investment</th><th scope="col">Start</th><th scope="col">End</th><th scope="col">Review Status</th><th scope="col">Action</th></tr></thead>
+          <tbody id="projects-body"><tr><td colspan="6" class="empty">Investments will appear here when data is available.</td></tr></tbody>
+        </table></div></div>
       </section>
 
       <section id="detail-view" aria-label="Investment Details" hidden>
-        <header class="toolbar detail-heading"><div><p class="eyebrow"><span id="detail-project-id"></span> <span class="source sap">SAP</span></p><h3 id="detail-project-name">Selected investment</h3><p id="detail-review-status" class="hint"></p></div><div class="actions"><button id="start-review" type="button">Start continuation review</button><button id="view-last-decision" class="secondary" type="button" hidden>View last decision</button></div></header>
+        <header class="toolbar detail-heading"><div><p id="detail-project-id" class="eyebrow"></p><h3 id="detail-project-name">Investment Details</h3><p id="detail-review-status" class="hint"></p></div><div class="actions"><button id="start-review" type="button">Start Review</button><button id="view-last-decision" class="secondary" type="button" hidden>View Last Decision</button></div></header>
         <div id="investment-context" class="project-strip"></div>
-        <div class="detail-layout"><section class="panel">
-          <div class="section-header"><div><p class="eyebrow">SAP EVIDENCE</p><h3>Evidence for this investment</h3><p class="hint">Review available evidence before making your assessment.</p></div><button id="load-review-evidence" type="button">Load review evidence</button></div>
-          <div class="evidence-grid">
-          <section class="evidence-section evidence-status-card"><div class="toolbar"><h4>Lifecycle <span class="source sap">SAP</span></h4><button id="reload-lifecycle" class="secondary" type="button">Reload lifecycle</button></div><div id="detail-lifecycle-overview" class="evidence-overview" role="status" aria-live="polite"></div>
-          <section id="elements-panel" hidden>
-            <details><summary>Technical Details – Project Elements / WBS</summary>
-              <p id="selected-project"></p><p id="elements-message" class="status-message" role="status" aria-live="polite"></p><pre id="elements-error" hidden></pre>
-              <p class="hint">SAP milestones are lifecycle evidence, not automatically DPE continuation gates. Main milestones are candidates only.</p>
-              <div class="table-scroll" tabindex="0" role="region" aria-label="Scrollable evidence table"><table><caption class="sr-only">SAP project elements</caption><thead><tr><th scope="col">Element</th><th scope="col">Description</th><th scope="col">Status</th><th scope="col">Planned Start</th><th scope="col">Planned End</th><th scope="col">Forecast End</th><th scope="col">WBS Internal ID</th><th scope="col">Milestone</th><th scope="col">Main Milestone</th><th scope="col">Milestone Approval Status</th></tr></thead><tbody id="elements-body"></tbody></table></div>
-              <details><summary>Raw Project Element Response</summary><pre id="raw-elements-response">No response received yet.</pre></details>
-            </details>
-          </section>
-          </section>
-          <section id="gl-panel" class="evidence-section evidence-status-card" hidden>
-            <div class="toolbar"><h4>Financial evidence <span class="source sap">SAP</span></h4><button id="load-financial-evidence" class="secondary" type="button" disabled>Load Financial Evidence</button></div>
-            <div id="detail-financial-overview" class="evidence-overview" role="status" aria-live="polite"></div>
-            <details><summary>Technical Details – G/L</summary><p id="gl-project" class="hint"></p><p id="gl-message" class="status-message" role="status" aria-live="polite"></p><div id="gl-summary"></div><pre id="gl-error" hidden></pre><div class="table-scroll" tabindex="0" role="region" aria-label="Scrollable evidence table"><table><caption class="sr-only">Linked G/L line items</caption><thead><tr><th scope="col">Posting Date</th><th scope="col">Accounting Document</th><th scope="col">G/L Account</th><th scope="col">WBS ID</th><th scope="col">Amount</th><th scope="col">Currency</th><th scope="col">Debit/Credit</th><th scope="col">Commitment?</th><th scope="col">Reversal?</th><th scope="col">Reversed?</th><th scope="col">Purchase Document</th><th scope="col">Description</th></tr></thead><tbody id="gl-body"></tbody></table></div><details><summary>Raw G/L Response</summary><pre id="raw-gl-response">No linked query sent yet.</pre></details><details id="gl-diagnostic" hidden><summary>Unlinked G/L Connectivity Diagnostic</summary><p class="hint">These records are not linked to the selected project and are not used as project evidence.</p><pre id="raw-gl-diagnostic">No diagnostic request sent.</pre></details></details>
-          </section>
-          <section id="po-panel" class="evidence-section evidence-status-card" hidden>
-            <div class="toolbar"><h4>Procurement evidence <span class="source sap">SAP</span></h4><button id="load-po-evidence" class="secondary" type="button" disabled>Load Purchase Order Evidence</button></div>
-            <div id="detail-procurement-overview" class="evidence-overview" role="status" aria-live="polite"></div>
-            <details><summary>Technical Details – Purchase Orders</summary><p id="po-project" class="hint"></p><p id="po-message" class="status-message" role="status" aria-live="polite"></p><div id="po-summary"></div><pre id="po-error" hidden></pre><div class="table-scroll" tabindex="0" role="region" aria-label="Scrollable evidence table"><table><caption class="sr-only">Exact WBS-linked PO account assignments</caption><thead><tr><th scope="col">Purchase Order</th><th scope="col">Item</th><th scope="col">WBS ID</th><th scope="col">Net Amount</th><th scope="col">Currency</th><th scope="col">Quantity</th><th scope="col">Unit</th><th scope="col">G/L Account</th><th scope="col">Deleted?</th><th scope="col">Finally Invoiced?</th><th scope="col">Creation Date</th></tr></thead><tbody id="po-body"></tbody></table></div><details><summary>Raw Purchase Order Response / Filter Integrity</summary><p class="hint">Unrelated returned rows are debug information only, excluded from procurement evidence.</p><pre id="raw-po-response">No PO query sent yet.</pre></details></details>
-          </section>
-          </div>
-        </section><aside class="review-guide"><p class="eyebrow">HUMAN REVIEW</p><h3>Prepare the next decision</h3><p class="hint">Use the evidence, then record your judgement.</p><ol><li><strong>Assess</strong>Strategy, benefits, delivery, cost, risk and future value.</li><li><strong>Review summary</strong>Check the evidence gaps and accountable owner.</li><li><strong>Decide</strong>Choose an outcome and record the rationale.</li></ol><div class="guide-note"><span class="source reviewer">REVIEWER INPUT</span><p class="hint">A human makes the continuation decision. SAP milestones are lifecycle evidence; a marked milestone is not required to open a review.</p></div></aside></div>
+        <div class="section-header"><h3>Evidence <span class="source sap">SAP</span></h3><button id="load-review-evidence" class="ghost" type="button">Refresh Evidence</button></div>
+        <div class="evidence-grid customer-evidence">
+          <section class="evidence-status-card"><div class="toolbar"><h4>Project Structure</h4><button id="reload-lifecycle" class="ghost" type="button" hidden>Retry</button></div><div id="detail-lifecycle-overview" class="evidence-overview" role="status" aria-live="polite"></div></section>
+          <section class="evidence-status-card"><div class="toolbar"><h4>Financial Activity</h4><button id="load-financial-evidence" class="ghost" type="button" hidden>Retry</button></div><div id="detail-financial-overview" class="evidence-overview" role="status" aria-live="polite"></div></section>
+          <section class="evidence-status-card"><div class="toolbar"><h4>Procurement Activity</h4><button id="load-po-evidence" class="ghost" type="button" hidden>Retry</button></div><div id="detail-procurement-overview" class="evidence-overview" role="status" aria-live="polite"></div></section>
+        </div>
+        <details id="investment-technical-details" class="technical-disclosure">
+          <summary>Technical Details</summary>
+          <div id="technical-evidence-context"></div>
+          <p class="hint">SAP evidence and local review inputs are separate. Counts and grouped amounts are system-calculated from returned records. Snapshots may be partial; financial postings are not complete project cost, and procurement assignments are not validated outstanding liability. No exchange-rate conversion, fabricated joins or SAP write-back is performed.</p>
+          <section id="connection-details"><h4>Project request</h4><p id="message" role="status"></p><pre id="error-details" hidden></pre><pre id="raw-response">No response received yet.</pre></section>
+          <section id="elements-panel" hidden><h4>Project structure / WBS</h4><p id="selected-project"></p><p id="elements-message"></p><pre id="elements-error" hidden></pre><div class="table-scroll" tabindex="0" role="region" aria-label="Project structure records"><table><thead><tr><th>Element</th><th>Description</th><th>Status</th><th>Planned Start</th><th>Planned End</th><th>Forecast End</th><th>WBS Internal ID</th><th>Milestone</th><th>Main Milestone</th><th>Approval Status</th></tr></thead><tbody id="elements-body"></tbody></table></div><pre id="raw-elements-response">No response received yet.</pre></section>
+          <section id="gl-panel" hidden><h4>Accounting entries</h4><p id="gl-project"></p><p id="gl-message"></p><div id="gl-summary"></div><pre id="gl-error" hidden></pre><div class="table-scroll" tabindex="0" role="region" aria-label="Accounting records"><table><thead><tr><th>Posting Date</th><th>Document</th><th>G/L Account</th><th>WBS ID</th><th>Amount</th><th>Currency</th><th>Debit/Credit</th><th>Commitment?</th><th>Reversal?</th><th>Reversed?</th><th>Purchase Document</th><th>Description</th></tr></thead><tbody id="gl-body"></tbody></table></div><pre id="raw-gl-response">No linked query sent yet.</pre><div id="gl-diagnostic" hidden><h4>Unlinked connectivity diagnostic — not project evidence</h4><pre id="raw-gl-diagnostic">No diagnostic request sent.</pre></div></section>
+          <section id="po-panel" hidden><h4>Purchase-order account assignments</h4><p id="po-project"></p><p id="po-message"></p><div id="po-summary"></div><pre id="po-error" hidden></pre><div class="table-scroll" tabindex="0" role="region" aria-label="Purchase-order records"><table><thead><tr><th>Purchase Order</th><th>Item</th><th>WBS ID</th><th>Net Amount</th><th>Currency</th><th>Quantity</th><th>Unit</th><th>G/L Account</th><th>Deleted?</th><th>Finally Invoiced?</th><th>Created</th></tr></thead><tbody id="po-body"></tbody></table></div><pre id="raw-po-response">No query sent yet.</pre></section>
+        </details>
       </section>
 
-      <section id="reviews-view" aria-label="Reviews" hidden><div class="panel"><h3>Prototype Reviews <span class="source system">SYSTEM CALCULATED</span></h3><p class="hint">Local browser records. Project: SAP snapshot · Review Trigger: REVIEWER INPUT · dates/status: SYSTEM CALCULATED.</p><div class="table-scroll" tabindex="0" role="region" aria-label="Scrollable evidence table"><table><thead><tr><th scope="col">Project</th><th scope="col">Review Trigger</th><th scope="col">Opened</th><th scope="col">Decision Target</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead><tbody id="reviews-body"></tbody></table></div></div></section>
-
-      <div class="review-layout">
-      <section id="review-chrome" hidden>
-        <div class="review-header"><p id="current-review-project"></p><div id="review-trigger" class="trigger-callout"></div><ol id="review-steps" class="steps"><li><span>1</span> Assessment</li><li><span>2</span> Summary</li><li><span>3</span> Decision</li></ol><p id="workflow-message" class="status-message" role="alert" hidden></p></div>
-        <aside class="review-controls"><section class="panel readiness-panel"><p class="eyebrow">REVIEW CONTROLS</p><h3>What remains</h3><span class="source system">SYSTEM CALCULATED</span><p id="readiness-status" role="status"></p><ul id="readiness-missing"></ul><p class="hint">Completeness checks do not recommend a decision. Evidence attempts can include clearly reported errors or unavailable data.</p></section><details class="panel" open><summary>Decision timing</summary><div id="review-timing"></div></details><button id="review-back-investment" class="secondary" type="button">Back to investment</button></aside>
-      </section>
-      <section id="assessment-view" aria-label="Review Assessment" hidden>
-        <form id="assessment-form" class="panel" novalidate>
-          <p class="eyebrow">YOUR ASSESSMENT <span class="source reviewer">REVIEWER INPUT</span></p><h3>Investment case &amp; delivery</h3><p class="hint">Make an assessment for all six categories. Select Insufficient information when you have assessed a cost evidence gap.</p>
-          <label>Review Trigger <span class="required-label">Required</span><select id="review-basis"><option value="">Select review trigger</option></select></label>
-          <div class="form-grid">
-            <fieldset id="assessment-alignment" class="choice-group" aria-describedby="alignment-help"><legend>Strategic alignment</legend><small id="alignment-help">Aligned with current enterprise IT strategy?</small></fieldset>
-            <fieldset id="assessment-benefits" class="choice-group" aria-describedby="benefits-help"><legend>Expected benefits</legend><small id="benefits-help">Are the expected benefits still achievable?</small></fieldset>
-            <fieldset id="assessment-delivery" class="choice-group" aria-describedby="delivery-help"><legend>Delivery performance</legend><small id="delivery-help">Performance against the delivery plan.</small></fieldset>
-            <fieldset id="assessment-value" class="choice-group" aria-describedby="value-help"><legend>Future economic value</legend><small id="value-help">Potential to generate positive future economic value.</small></fieldset>
-          </div>
-          <section class="form-section"><h3>Financial position &amp; risk</h3><section class="evidence-card"><h4>Available financial evidence <span class="source sap">SAP</span></h4><div id="assessment-financial-evidence" class="evidence-overview"></div><p class="hint">Cost position is your judgement, not an automatic budget variance.</p></section><div class="form-grid"><fieldset id="assessment-cost" class="choice-group"><legend>Cost position</legend></fieldset><fieldset id="assessment-risk" class="choice-group"><legend>Risk judgement</legend></fieldset></div></section>
-          <details class="form-section"><summary>Reviewer comments &amp; key dependencies</summary><label>Reviewer comments<textarea class="resize-none" id="assessment-comments" rows="4" maxlength="4000" placeholder="Add context for your assessment"></textarea></label><label>Key risks / dependencies<textarea class="resize-none" id="assessment-dependencies" rows="4" maxlength="4000" placeholder="Record the risks or dependencies to consider"></textarea></label></details>
-          <label>Decision owner <span class="required-label">Required</span><select id="assessment-owner" aria-describedby="governance-directory-status" disabled><option value="">Loading eligible owners…</option></select></label><p id="governance-directory-status" class="hint" role="status">PROTOTYPE GOVERNANCE DIRECTORY · Loading configuration.</p>
-          <div class="form-footer"><p id="assessment-save-status" role="status">Changes are saved in this browser only.</p><button id="assessment-save-summary" type="submit">Save &amp; view summary</button></div>
-        </form>
-      </section>
-      <section id="summary-view" aria-label="Review Summary" hidden><div id="review-summary"></div><div class="actions"><button id="back-assessment" class="secondary" type="button">Back to Assessment</button><button id="proceed-decision" type="button" disabled>Proceed to Decision</button></div></section>
-      <section id="decision-view" aria-label="Governance Decision" hidden>
-        <form id="decision-form" class="panel" novalidate>
-          <p class="eyebrow">ACCOUNTABLE HUMAN DECISION <span class="source reviewer">REVIEWER INPUT</span></p><h3>Record your decision</h3><p class="decision-help">Choose the outcome supported by your judgement. No outcome is pre-selected or recommended.</p>
-          <fieldset id="decision-outcome" class="choice-group decision-choices"><legend>Decision <span class="required-label">Required — select one</span></legend></fieldset>
-          <label>Decision rationale (required)<textarea class="resize-none" id="decision-rationale" rows="4" maxlength="4000"></textarea></label>
-          <label>Decision owner<input id="decision-owner" type="text" readonly aria-readonly="true" aria-describedby="decision-owner-help"></label><p id="decision-owner-help" class="hint">Carried from Assessment. Change it there, not independently on this page.</p>
-          <details id="decision-follow-up" class="form-section"><summary id="decision-follow-up-title">Optional follow-up action</summary><p id="decision-requirements" class="hint"></p>
-          <label>Required action<textarea class="resize-none" id="decision-action" rows="3" maxlength="4000"></textarea></label>
-          <label>Action owner<input id="decision-action-owner" type="text" maxlength="200" autocomplete="off"></label>
-          <label>Next review date<input id="decision-next-date" type="date"></label>
-          </details><p id="decision-incomplete" class="hint" role="status"></p>
-          <div class="form-footer"><button id="back-summary" class="secondary" type="button">Back to Summary</button><button id="confirm-decision" type="submit">Confirm &amp; Record Decision</button></div>
-        </form>
-      </section>
+      <section id="reviews-view" aria-label="Reviews" hidden><div class="panel"><h3>Reviews</h3><div class="table-scroll" tabindex="0" role="region" aria-label="Reviews"><table><thead><tr><th>Project</th><th>Review Trigger</th><th>Opened</th><th>Decision Due</th><th>Status</th><th>Action</th></tr></thead><tbody id="reviews-body"></tbody></table></div></div></section>
+      <div class="review-layout customer-review">
+        <section id="review-chrome" hidden><header class="review-header"><p id="current-review-project"></p><ol id="review-steps" class="steps"><li><span>1</span> Assessment</li><li><span>2</span> Summary</li><li><span>3</span> Decision</li></ol><div id="review-trigger" class="compact-context"></div><p id="workflow-message" class="status-message" role="alert" tabindex="-1" hidden></p><button id="review-back-investment" class="ghost" type="button">Back to Investment</button></header></section>
+        <section id="assessment-view" aria-label="Assessment" hidden>
+          <form id="assessment-form" class="panel" novalidate><label>Review Trigger<select id="review-basis"><option value="">Select review trigger</option></select></label>
+            <div class="assessment-columns">
+              <section><h3>Investment Case</h3><fieldset id="assessment-alignment" class="choice-group"><legend>Strategic Alignment</legend></fieldset><fieldset id="assessment-benefits" class="choice-group"><legend>Expected Benefits</legend></fieldset><fieldset id="assessment-value" class="choice-group"><legend>Future Economic Value</legend></fieldset></section>
+              <section><h3>Delivery &amp; Risk</h3><fieldset id="assessment-delivery" class="choice-group"><legend>Delivery Performance</legend></fieldset><fieldset id="assessment-cost" class="choice-group"><legend>Cost Position</legend></fieldset><fieldset id="assessment-risk" class="choice-group"><legend>Risk</legend></fieldset></section>
+            </div>
+            <label>Decision Owner<select id="assessment-owner" aria-describedby="governance-directory-status"><option value="">Select decision owner</option></select></label><p id="governance-directory-status" class="hint" role="status"></p>
+            <details class="optional-context"><summary>Optional Context</summary><label>Reviewer comments<textarea id="assessment-comments" rows="3" maxlength="4000"></textarea></label><label>Key risks / dependencies<textarea id="assessment-dependencies" rows="3" maxlength="4000"></textarea></label><h4>Financial evidence considered</h4><div id="assessment-financial-evidence"></div></details>
+            <div class="form-footer"><p id="assessment-save-status" role="status"></p><button id="assessment-save-summary" type="submit">Review Summary</button></div>
+          </form>
+        </section>
+        <section id="summary-view" aria-label="Review Summary" hidden><div id="review-summary"></div><div class="actions"><button id="back-assessment" class="secondary" type="button">Back to Assessment</button><button id="proceed-decision" type="button">Proceed to Decision</button></div></section>
+        <section id="decision-view" aria-label="Governance Decision" hidden><form id="decision-form" class="panel" novalidate><h3>Governance Decision</h3><p class="hint">Select an outcome and record the judgement behind it.</p><fieldset id="decision-outcome" class="choice-group decision-choices"><legend>Decision</legend></fieldset><label>Decision rationale<textarea id="decision-rationale" rows="4" maxlength="4000"></textarea></label><div id="decision-owner" class="accountability-owner"></div><p id="decision-owner-help" class="hint"></p>
+          <details id="decision-follow-up" class="form-section"><summary id="decision-follow-up-title">Optional follow-up</summary><p id="decision-requirements" class="hint"></p><label>Required Action<textarea id="decision-action" rows="3" maxlength="4000"></textarea></label><label>Action Owner<input id="decision-action-owner" type="text" maxlength="200"></label><label>Next Review<input id="decision-next-date" type="date"></label></details><p id="decision-incomplete" class="hint" role="alert" hidden></p><div class="form-footer"><button id="back-summary" class="secondary" type="button">Back to Summary</button><button id="confirm-decision" type="submit">Record Decision</button></div></form></section>
       </div>
-      <section id="confirmation-view" aria-label="Decision Confirmation" hidden><div class="confirmation-banner decision-record-hero" role="status"><h3>✓ Decision Recorded</h3><p id="confirmation-outcome" class="recorded-outcome"></p><p>Accountable human governance record · saved in this browser.</p></div><div class="panel"><p class="eyebrow">SAVED DECISION</p><p class="hint">SAP project status has not been modified.</p><div id="confirmation-record"></div></div><div class="actions"><button id="return-investment" type="button">Return to Investment</button><button id="back-dashboard" class="secondary" type="button">Back to Dashboard</button></div></section>
+      <section id="confirmation-view" aria-label="Decision Record" hidden><div class="confirmation-banner decision-record-hero" role="status"><h3>✓ Decision Recorded</h3><p id="confirmation-outcome" class="recorded-outcome"></p></div><div id="confirmation-record"></div><div class="actions"><button id="return-investment" type="button">Return to Investment</button><button id="back-dashboard" class="secondary" type="button">Back to Dashboard</button></div></section>
+      <footer class="environment-note">Prototype environment · SAP Sandbox data · Reviews saved in this browser</footer>
     </main>
   </div>
 </body>

@@ -9,7 +9,7 @@ An INFOSYS 704 A3 web prototype combining **real SAP Sandbox evidence**, **human
 1. Copy `config.example.js` to `config.local.js` only if the local file does not already exist.
 2. Add your own SAP Sandbox API key to `config.local.js`.
 3. Open `index.html` through a trusted local static web preview (`http://localhost`). No npm/build/backend is required; do not disable browser security.
-4. Click **Load SAP Projects**, then **View Investment**. Load lifecycle/financial/procurement evidence and start a review.
+4. Projects refresh automatically when a key is configured. Open an investment; its evidence loads automatically, then start a review. Use **Refresh SAP Data** or **Retry** if needed.
 
 Reviews/decisions are browser/origin-local. Owners come from an explicitly fictional prototype governance directory, not SAP/DPE staff. Keep the same preview address to resume records. Empty SAP joins and storage failures remain visible.
 

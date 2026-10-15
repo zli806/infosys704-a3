@@ -40,7 +40,7 @@ The WBS arrows describe logical joins, **not SAP API-to-API calls**. The browser
 - `js/services/sap-http.js` owns fetch headers, timeout, safe response processing and HTTP metadata. API services retain explicit OData V2 versus V4 interpretation, joins and financial/procurement summary semantics; they never render DOM.
 - `js/ui/renderers.js` retains SAP tables/status/error/debug areas. `js/ui/governance.js` owns desktop navigation, dashboard/review projections, assessment/summary/decision forms and confirmation. Neither UI module fetches SAP or makes continuation decisions.
 - `js/services/review-store.js` owns versioned local prototype storage. It whitelists project identity, human inputs, system timestamps and concise evidence summaries, and rejects edits to completed records. It stores no full raw SAP transactions, request headers or credentials. Exact local credential text is redacted if accidentally pasted into input.
-- `js/services/governance-directory.js` loads/validates static `data/governance-directory.json`, without a SAP header. Fictional people/roles are labelled PROTOTYPE GOVERNANCE DIRECTORY, not SAP/DPE personnel or authenticated authority.
+- `js/services/governance-directory.js` owns immutable, validated fictional owner configuration. It is immediately available without fetch or a SAP header, including file-page loads. These are PROTOTYPE GOVERNANCE DIRECTORY roles, not SAP/DPE personnel or authenticated authority.
 - `app.js` is now the orchestration/controller layer: user actions → state/reset/cancellation → service calls/results → UI. Event callbacks are coordinated here and bound through the UI layer.
 - The page first retrieves up to five projects. Selecting one loads its elements and retains WBS IDs. Separate buttons load G/L and PO evidence; they are not automatically loaded on selection.
 - Selecting/reloading a project clears prior financial/procurement evidence. Request cancellation and request IDs prevent stale responses from populating a different project's panels.
@@ -123,8 +123,6 @@ The tree below includes the local-only configuration explicitly; a fresh clone w
 │   └── screenshots/
 │       ├── review-workspace-assessment.jpg
 │       └── review-workspace-investment.jpg
-├── data/
-│   └── governance-directory.json
 ├── js/
 │   ├── core/
 │   │   ├── state.js
@@ -147,7 +145,9 @@ The tree below includes the local-only configuration explicitly; a fresh clone w
 │   ├── helpers/
 │   │   └── workspace.js
 │   ├── productisation.test.js
+│   ├── customer-workflow.test.js
 │   ├── review-feedback.test.js
+│   ├── visual-components.test.js
 │   └── ui-presentation.test.js
 ├── .gitignore
 ├── api-config.js

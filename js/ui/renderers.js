@@ -79,12 +79,12 @@
     return context.data !== undefined ? JSON.stringify(context.data, null, 2) : context.safeBody || "(Empty response body)";
   }
   function renderProjects(projects, selectedProject, onSelect) {
-    if (!projects.length) { empty(dom.tableBody, 9, "SAP returned no projects."); return; }
+    if (!projects.length) { empty(dom.tableBody, 6, "No investments found in the current data."); return; }
     dom.tableBody.replaceChildren();
     for (const project of projects) {
       const row = document.createElement("tr");
-      cells(row, [project.Project, project.ProjectDescription, project.ProcessingStatus,
-        formatDate(project.ProjectStartDate), formatDate(project.ProjectEndDate), project.ProjectCurrency, project.CompanyCode, reviewStatusForProject(project)]);
+      cells(row, [project.Project, project.ProjectDescription,
+        formatDate(project.ProjectStartDate), formatDate(project.ProjectEndDate), reviewStatusForProject(project)]);
       const actionCell = document.createElement("td");
       const action = document.createElement("button");
       action.type = "button";
@@ -120,9 +120,9 @@
   }
   function renderElements(records, context, wbsIDs) {
     dom.glButton.disabled = false;
-    message(dom.glMessage, "Project Elements loaded. Click Load Financial Evidence to test project/WBS links.");
+    message(dom.glMessage, "Project Elements loaded; financial retrieval follows.");
     dom.poButton.disabled = !wbsIDs.length;
-    message(dom.poMessage, dom.poButton.disabled ? "No loaded WBS Internal IDs available; no PO query can be sent." : "WBS IDs loaded. Click Load Purchase Order Evidence to test procurement links.");
+    message(dom.poMessage, dom.poButton.disabled ? "No loaded WBS Internal IDs available; no PO query can be sent." : "WBS IDs loaded; procurement retrieval follows.");
     dom.elementsBody.replaceChildren();
     for (const element of records) {
       const milestone = milestoneFlag(element.IsProjectMilestone);
@@ -147,7 +147,7 @@
   function resetGL() {
     dom.glPanel.hidden = true;
     dom.glButton.disabled = true;
-    dom.glButton.textContent = "Load Financial Evidence";
+    dom.glButton.textContent = "Retry";
     dom.glButton.removeAttribute("aria-busy");
     dom.glSummary.replaceChildren();
     dom.glProject.textContent = "";
@@ -174,7 +174,7 @@
   function resetPO() {
     dom.poPanel.hidden = true;
     dom.poButton.disabled = true;
-    dom.poButton.textContent = "Load Purchase Order Evidence";
+    dom.poButton.textContent = "Retry";
     dom.poButton.removeAttribute("aria-busy");
     dom.poProject.textContent = "";
     dom.poSummary.replaceChildren();
@@ -205,31 +205,32 @@
       dom.button.addEventListener("click", actions.loadProjects);
     },
     projectStart() {
+      document.getElementById("project-refresh-error").hidden = true;
       dom.errorDetails.hidden = true; dom.errorDetails.textContent = "";
-      empty(dom.tableBody, 9, "No projects loaded yet."); dom.rawResponse.textContent = "No response received yet.";
+      empty(dom.tableBody, 6, "Refreshing investments…"); dom.rawResponse.textContent = "No response received yet.";
     },
     projectKeyMissing() {
-      dom.connection.textContent = "API key required · Not connected";
-      dom.connection.dataset.kind = "error"; document.getElementById("connection-details").open = true;
+      empty(dom.tableBody, 6, "Investment data is not configured.");
+      dom.connection.textContent = "SAP data is not configured. Contact your administrator."; dom.connection.hidden = false;
       message(dom.message, "Please add your SAP Sandbox API key to config.local.js first.", "error");
     },
     projectLoading() {
       dom.button.disabled = true; dom.button.textContent = "Loading…";
       dom.button.setAttribute("aria-busy", "true"); dom.connection.dataset.kind = "loading";
-      dom.connection.textContent = "Connecting to SAP Sandbox…";
+      dom.connection.textContent = "Refreshing SAP data…"; dom.connection.hidden = false;
       message(dom.message, "Requesting up to five Enterprise Projects…");
     },
     projectSuccess(records, selected, onSelect, status) {
-      renderProjects(records, selected, onSelect); dom.connection.textContent = "Connected · SAP Sandbox";
+      renderProjects(records, selected, onSelect); dom.connection.textContent = ""; dom.connection.hidden = true;
       dom.connection.dataset.kind = "success";
       message(dom.message, `Successfully loaded ${records.length} project${records.length === 1 ? "" : "s"} from SAP Sandbox (${status}).`, "success");
     },
     projectFailure(detail) {
-      dom.connection.textContent = "Connection test failed";
-      dom.connection.dataset.kind = "error"; document.getElementById("connection-details").open = true;
-      empty(dom.tableBody, 9, "No project data displayed. Resolve the error and try again."); message(dom.message, detail, "error");
+      dom.connection.textContent = ""; dom.connection.hidden = true;
+      document.getElementById("project-refresh-error").hidden = false;
+      empty(dom.tableBody, 6, "Investment data is unavailable. Please retry."); message(dom.message, detail, "error");
     },
-    projectFinished() { dom.button.disabled = false; dom.button.textContent = "Load SAP Projects"; dom.button.removeAttribute("aria-busy"); },
+    projectFinished() { dom.button.disabled = false; dom.button.textContent = "Refresh SAP Data"; dom.button.removeAttribute("aria-busy"); },
     projectRaw(context) { dom.rawResponse.textContent = raw(context); },
     projectHTTPError(text) { errorBody(dom.errorDetails, text); },
     elementsRaw(context) { dom.rawElements.textContent = raw(context); },
@@ -253,7 +254,7 @@
       dom.glSummary.replaceChildren(); empty(dom.glBody, 12, "No linked financial evidence displayed. Inspect the error and raw responses.");
       message(dom.glMessage, `${dom.glDiagnostic.hidden ? "G/L evidence request failed" : "No linked records found; unlinked diagnostic failed"}: ${status ? status + ". " : ""}${detail}`, "error");
     },
-    glFinished() { dom.glButton.disabled = false; dom.glButton.textContent = "Load Financial Evidence"; dom.glButton.removeAttribute("aria-busy"); },
+    glFinished() { dom.glButton.disabled = false; dom.glButton.textContent = "Retry"; dom.glButton.removeAttribute("aria-busy"); },
     poSelected(project) { dom.poPanel.hidden = false; dom.poProject.textContent = `Selected project: ${project.Project || "Unnamed project"}`; },
     poLoading() { dom.poButton.textContent = "Loading…"; dom.poButton.disabled = true; dom.poButton.setAttribute("aria-busy", "true"); message(dom.poMessage, "Requesting exact WBS-linked Purchase Order account assignments…"); },
     setPOMessage(text, kind = "info") { message(dom.poMessage, text, kind); },
@@ -264,6 +265,6 @@
       dom.poSummary.replaceChildren(); empty(dom.poBody, 11, "No procurement evidence displayed. Inspect the error and raw response.");
       message(dom.poMessage, `${status ? status + ". " : ""}${detail}`, "error");
     },
-    poFinished() { dom.poButton.disabled = false; dom.poButton.textContent = "Load Purchase Order Evidence"; dom.poButton.removeAttribute("aria-busy"); }
+    poFinished() { dom.poButton.disabled = false; dom.poButton.textContent = "Retry"; dom.poButton.removeAttribute("aria-busy"); }
   };
 })();

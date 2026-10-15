@@ -17,8 +17,8 @@ REQUIRED_IDS = (
     "dashboard-view", "dashboard-cards", "dashboard-view-investments", "dashboard-open-reviews", "dashboard-decisions",
     "investments-view", "detail-view", "investment-context", "detail-review-status", "start-review", "view-last-decision",
     "detail-lifecycle-overview", "reload-lifecycle", "load-review-evidence", "detail-financial-overview", "detail-procurement-overview",
-    "reviews-view", "reviews-body", "review-chrome", "current-review-project", "review-steps", "review-timing",
-    "readiness-status", "readiness-missing", "workflow-message", "review-back-investment", "assessment-view", "assessment-form",
+    "reviews-view", "reviews-body", "review-chrome", "current-review-project", "review-steps",
+    "workflow-message", "review-back-investment", "assessment-view", "assessment-form",
     "review-basis", "assessment-alignment", "assessment-benefits", "assessment-delivery", "assessment-financial-evidence",
     "assessment-cost", "assessment-risk", "assessment-value", "assessment-comments", "assessment-dependencies", "assessment-owner",
     "assessment-save-summary", "summary-view", "review-summary", "back-assessment", "proceed-decision", "decision-view", "decision-form",
@@ -26,6 +26,7 @@ REQUIRED_IDS = (
     "decision-next-date", "back-summary", "confirm-decision", "confirmation-view", "confirmation-record", "return-investment", "back-dashboard",
     "dashboard-attention", "review-trigger", "governance-directory-status", "decision-owner-help",
     "decision-follow-up", "decision-follow-up-title", "confirmation-outcome",
+    "attention-profile", "project-refresh-error", "retry-projects", "project-diagnostics", "investment-technical-details", "technical-evidence-context", "decision-incomplete",
 )
 REQUIRED_SCRIPTS = (
     "config.local.js", "api-config.js", "js/core/state.js", "js/core/utils.js", "js/core/review-rules.js",
