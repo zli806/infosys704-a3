@@ -1,7 +1,11 @@
 (() => {
   "use strict";
   const app = window.DPEApp = window.DPEApp || {};
-  const BASIS = ["Scheduled governance review", "Material trigger / concern", "Other governance review"];
+  const BASIS = ["Scheduled stage-gate review", "Material trigger", "Other governance review"];
+  function normalizeBasis(value) {
+    const canonical = value === "Material trigger / concern" ? "Material trigger" : value === "Scheduled governance review" ? "Scheduled stage-gate review" : value;
+    return BASIS.includes(canonical) ? canonical : "";
+  }
   const OUTCOMES = ["Continue", "Continue with Conditions", "Modify", "Pause", "Stop"];
   const ASSESSMENTS = {
     strategicAlignment: { label: "Strategic Alignment", question: "Does the investment remain aligned with current enterprise IT strategy?", options: ["High", "Medium", "Low", "Not assessed"], missing: "Not assessed" },
@@ -12,6 +16,19 @@
     futureEconomicValue: { label: "Future Economic Value", question: "Does the investment still appear capable of generating positive future economic value?", options: ["Positive", "Uncertain", "Negative", "Not assessed"], missing: "Not assessed" }
   };
   const PROJECT_FIELDS = ["Project", "ProjectUUID", "ProjectInternalID", "ProjectDescription", "ProcessingStatus", "ProjectStartDate", "ProjectEndDate", "ProjectCurrency", "CompanyCode"];
+  // Prototype convention, NOT DPE policy. Qualitative reviewer input only;
+  // numbers never choose an assessment, trigger or investment outcome.
+  const SIGNAL_RULES = {
+    strategicAlignment: { High: ["normal"], Medium: ["emerging", "Strategic alignment is medium"], Low: ["material", "Strategic alignment is low"] },
+    expectedBenefits: { Yes: ["normal"], Partially: ["emerging", "Expected benefits are only partially achievable"], No: ["material", "Expected benefits are assessed as not achievable"] },
+    deliveryPerformance: { "On track": ["normal"], "At risk": ["emerging", "Delivery is at risk"], "Off track": ["material", "Delivery is off track"] },
+    costPosition: { "Within expectations": ["normal"], "Minor variance": ["emerging", "Cost position assessed as Minor variance"], "Material variance": ["material", "Cost position assessed as Material variance"], "Insufficient information": ["gap", "Cost position cannot yet be fully assessed"] },
+    risk: { Low: ["normal"], Medium: ["emerging", "Project risk is medium"], High: ["material", "High project risk"] },
+    futureEconomicValue: { Positive: ["normal"], Uncertain: ["emerging", "Future economic value is uncertain"], Negative: ["material", "Future economic value is negative"] }
+  };
+  for (const entries of Object.values(SIGNAL_RULES)) { for (const rule of Object.values(entries)) Object.freeze(rule); Object.freeze(entries); }
+  Object.freeze(SIGNAL_RULES);
+  function classifyAssessment(key, value) { return Object.hasOwn(SIGNAL_RULES[key] || {}, value) ? SIGNAL_RULES[key][value][0] : "unassessed"; }
   function projectSnapshot(project) {
     return Object.fromEntries(PROJECT_FIELDS.map(field => [field, typeof project[field] === "string" ? project[field] : ""]));
   }
@@ -50,7 +67,7 @@
     if (!review?.evidence?.lifecycle?.loaded) missing.push("Project Elements / lifecycle evidence loaded");
     if (!review?.evidence?.gl?.attempted) missing.push("G/L evidence attempted");
     if (!review?.evidence?.po?.attempted) missing.push("PO evidence attempted");
-    if (!BASIS.includes(review?.reviewBasis)) missing.push("Review basis");
+    if (!normalizeBasis(review?.reviewBasis)) missing.push("Review basis");
     for (const [key, field] of Object.entries(ASSESSMENTS)) {
       const value = review?.assessment?.[key];
       if (!field.options.includes(value) || value === field.missing) missing.push(field.label);
@@ -75,16 +92,11 @@
     const materialConcerns = [];
     const attentionItems = [];
     const evidenceGaps = [];
-    if (assessment.strategicAlignment === "Low") materialConcerns.push("Strategic alignment is low");
-    if (assessment.expectedBenefits === "No") materialConcerns.push("Expected benefits are assessed as not achievable");
-    if (assessment.deliveryPerformance === "Off track") materialConcerns.push("Delivery is off track");
-    if (assessment.costPosition === "Material variance") materialConcerns.push("Cost position assessed as Material variance");
-    if (assessment.risk === "High") materialConcerns.push("High project risk");
-    if (assessment.futureEconomicValue === "Negative") materialConcerns.push("Future economic value is negative");
-    if (assessment.expectedBenefits === "Partially") attentionItems.push("Expected benefits are only partially achievable");
-    if (assessment.deliveryPerformance === "At risk") attentionItems.push("Delivery is at risk");
-    if (assessment.futureEconomicValue === "Uncertain") attentionItems.push("Future economic value is uncertain");
-    if (assessment.costPosition === "Insufficient information") evidenceGaps.push("Cost position cannot be fully assessed");
+    const buckets = { material: materialConcerns, emerging: attentionItems, gap: evidenceGaps };
+    for (const key of Object.keys(ASSESSMENTS)) {
+      const category = classifyAssessment(key, assessment[key]);
+      if (buckets[category]) buckets[category].push(SIGNAL_RULES[key][assessment[key]][1]);
+    }
     return { materialConcerns, attentionItems, evidenceGaps };
   }
   function validDate(value) {
@@ -117,6 +129,6 @@
     const decisions = records.filter(record => record.status === "decision_recorded").sort((a, b) => b.decision.timestamp.localeCompare(a.decision.timestamp));
     return { projectCount, open, decisions, overdue: open.filter(record => timing(record, now).status !== "Within decision window").length };
   }
-  app.reviewRules = { BASIS, OUTCOMES, ASSESSMENTS, PROJECT_FIELDS, projectSnapshot, emptyEvidence, defaultAssessment,
+  app.reviewRules = { BASIS, normalizeBasis, SIGNAL_RULES, classifyAssessment, OUTCOMES, ASSESSMENTS, PROJECT_FIELDS, projectSnapshot, emptyEvidence, defaultAssessment,
     calendarTarget, timing, readiness, ownerAssigned, needsAttention, reviewSignals, validDate, needsActions, decisionErrors, activeReview, latestReview, projectStatus, dashboard };
 })();

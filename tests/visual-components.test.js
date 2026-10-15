@@ -37,7 +37,7 @@ test('six-dimension matrix uses explicit input and existing categorical signals,
   const matrix = byClass(w.elements.get('review-summary'), 'signal-matrix')[0];
   const cards = byClass(matrix, 'assessment-signal'); assert.equal(cards.length, 6);
   assert.deepEqual(cards.map(card => card.dataset.dimension), Object.keys(w.reviewRules.ASSESSMENTS));
-  assert.deepEqual(cards.map(card => card.dataset.tone), ['assessed', 'attention', 'attention', 'material', 'material', 'material']);
+  assert.deepEqual(cards.map(card => card.dataset.tone), ['normal', 'emerging', 'emerging', 'material', 'material', 'material']);
   for (const card of cards) { assert(card.textContent.includes(review.assessment[card.dataset.dimension])); assert.equal(byClass(card, 'semantic-label').length, 1); }
   assert.equal(JSON.stringify(review), before);
   w.governanceUI.reviewSummary(record(w.reviewRules));

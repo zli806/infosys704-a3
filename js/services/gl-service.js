@@ -90,7 +90,7 @@
     const diagnostic = await request(null, 5, true);
     return { records: [], linkMethod: "", message: `No linked G/L records found in current SAP Sandbox sample · G/L API responded ${lastHTTP}; diagnostic returned ${diagnostic.d.results.length} unlinked records. These are debug-only, not project evidence.` };
   }
-  function summarize(glRecords) {
+  function aggregate(glRecords) {
     const nonCommitments = glRecords.filter(record => record.IsCommitment === false);
     const commitments = glRecords.filter(record => record.IsCommitment === true);
     const unknown = glRecords.length - nonCommitments.length - commitments.length;
@@ -105,6 +105,10 @@
       }
       totals.set(currency, (totals.get(currency) ?? 0n) + units);
     }
+    return { nonCommitments, commitments, unknown, totals, excluded };
+  }
+  function summarize(glRecords) {
+    const { nonCommitments, commitments, unknown, totals, excluded } = aggregate(glRecords);
     const lines = [
       `Linked G/L records: ${glRecords.length} · Non-commitment line items: ${nonCommitments.length} · Commitment-flagged line items: ${commitments.length} · Unknown commitment flags: ${unknown}`,
       "Net amount from returned non-commitment postings, grouped by Company Code Currency:"
@@ -115,5 +119,5 @@
     lines.push("Returned records only (maximum 100); no automatic pagination, currency conversion, ledger deduplication or complete-project-cost claim.");
     return lines;
   }
-  app.services.gl = { projectID, queryURL, load, summarize };
+  app.services.gl = { projectID, queryURL, load, aggregate, summarize };
 })();

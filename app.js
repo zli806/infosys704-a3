@@ -3,12 +3,32 @@
   const { state, utils, http, services, ui } = window.DPEApp;
   const { reviewRules: rules, governanceUI: governance } = window.DPEApp;
   const store = services.reviewStore;
+  const showcase = services.showcase;
   const missingKeyMessage = "Please add your SAP Sandbox API key to config.local.js first.";
   state.evidence = rules.emptyEvidence();
 
   function refreshRecords() {
     try { state.reviews = store.list(); state.storageError = ""; governance.storageNotice(""); return true; }
     catch (error) { state.storageError = error.message; governance.storageNotice(error.message); return false; }
+  }
+  function mergeProjects(sandboxProjects) {
+    const result = [...showcase.projects()], seen = new Set(result.map(project => project.ProjectUUID.toLowerCase()));
+    for (const project of sandboxProjects) {
+      const id = project.ProjectUUID?.toLowerCase();
+      if (id && !seen.has(id)) { seen.add(id); result.push(project); }
+    }
+    return result;
+  }
+  function seedShowcase(reset = false) {
+    try { store.seedShowcase({ reset }); refreshRecords(); return true; }
+    catch (error) { state.storageError = error.message; governance.storageNotice(error.message); return false; }
+  }
+  function resetShowcase() {
+    if (!window.confirm("Reset showcase reviews and decisions to the synthetic presentation baseline? All showcase edits and decisions will be removed. Other local reviews and SAP configuration are kept.")) return;
+    if (!saveDraft() || !seedShowcase(true)) return;
+    if (showcase.isShowcase(state.selectedProject)) resetElementSelection();
+    state.view = "dashboard"; governance.showView("dashboard"); refreshGovernance();
+    ui.renderProjects(state.projects, state.selectedProject, loadProjectElements);
   }
   function currentReview() { return state.reviews.find(record => record.id === state.currentReviewID) || null; }
   function busy() { return !!(state.elementController || state.glController || state.poController); }
@@ -137,18 +157,20 @@
 
   async function loadProjects() {
     if (state.projectsRefreshing) return;
+    state.sandboxRefreshError = false;
     const key = http.apiKey();
-    state.projects = [];
+    state.projects = mergeProjects([]);
     ui.projectStart();
-    if (http.keyMissing(key)) { ui.projectKeyMissing(); return; }
+    ui.renderProjects(state.projects, state.selectedProject, loadProjectElements);
+    if (http.keyMissing(key)) { ui.projectKeyMissing(); ui.renderProjects(state.projects, state.selectedProject, loadProjectElements); return; }
     state.projectsRefreshing = true;
     ui.projectLoading();
     const controller = new AbortController();
     try {
       const result = await services.projects.loadProjects({ key, controller,
         onResponse: ui.projectRaw, onHTTPError: ui.projectHTTPError });
-      state.projects = result.records;
-      ui.projectSuccess(state.projects, state.selectedProject, loadProjectElements, result.httpStatus);
+      state.projects = mergeProjects(result.records);
+      ui.projectSuccess(state.projects, state.selectedProject, loadProjectElements, result.httpStatus, result.records.length);
       refreshGovernance();
     } catch (error) {
       const context = error.sap || {};
@@ -159,11 +181,12 @@
         detail = "No HTTP response is available. A network, browser/CORS, or local-file restriction may have blocked the SAP request. Inspect the browser console and Network tab. Do not disable browser security.";
         if (window.location.protocol === "file:") detail += " This page is running from file://; try a local static web preview as described in README.md.";
       } else { detail = utils.redact(error.message, key); }
+      state.sandboxRefreshError = true;
       ui.projectFailure(detail);
       console.error("SAP Enterprise Project connection test failed", {
         url: services.projects.projectURL().href, status: context.response?.status ?? "unavailable", diagnostic: detail
       });
-    } finally { state.projectsRefreshing = false; ui.projectFinished(); refreshGovernance(); }
+    } finally { state.projectsRefreshing = false; ui.projectFinished(); ui.renderProjects(state.projects, state.selectedProject, loadProjectElements); refreshGovernance(); }
   }
 
   async function loadProjectElements(project, preserveReview = false) {
@@ -181,7 +204,8 @@
     ui.selectProject(project, state.projects, loadProjectElements);
     state.view = "detail"; governance.showView("detail"); refreshGovernance();
     const key = http.apiKey();
-    if (http.keyMissing(key)) { ui.elementsRejected(missingKeyMessage); attemptedFailure("lifecycle", missingKeyMessage, true); unavailableDependents(); return; }
+    const local = showcase.isShowcase(project);
+    if (!local && http.keyMissing(key)) { ui.elementsRejected(missingKeyMessage); attemptedFailure("lifecycle", missingKeyMessage, true); unavailableDependents(); return; }
     if (!services.projects.validUUID(project)) {
       ui.elementsRejected("The selected SAP project has no valid ProjectUUID. No request was sent."); attemptedFailure("lifecycle", "Invalid SAP project UUID; no lifecycle request sent.", true); unavailableDependents(); return;
     }
@@ -190,8 +214,9 @@
     refreshGovernance();
     const isCurrent = () => requestID === state.elementRequestID;
     try {
-      const result = await services.projects.loadElements(project, { key, controller, isCurrent,
+      const result = local ? showcase.elements(project) : await services.projects.loadElements(project, { key, controller, isCurrent,
         onResponse: ui.elementsRaw, onHTTPError: ui.elementsHTTPError });
+      if (local) ui.elementsRaw(result);
       if (!isCurrent()) return;
       state.projectElements = result.records;
       state.elementsLoaded = true;
@@ -199,7 +224,8 @@
       persistEvidence("lifecycle", { attempted: true, loaded: true, status: "success", elementCount: result.records.length,
         wbsIDs: utils.loadedWBSIDs(result.records), milestoneCount: result.records.filter(item => utils.milestoneFlag(item.IsProjectMilestone).marked).length,
         mainMilestoneCount: result.records.filter(item => item.IsMainMilestone === true).length,
-        capturedAt: new Date().toISOString(), hasMore: !!result.data.d.__next, note: result.httpStatus + ". SAP lifecycle evidence loaded; absence of marked milestones does not prevent a governance review." });
+        capturedAt: local ? showcase.governanceContext(project).evidenceAsOf : new Date().toISOString(), hasMore: !!result.data.d.__next,
+        note: local ? "Synthetic SAP-schema-compatible showcase structure." : result.httpStatus + ". SAP lifecycle evidence loaded; absence of marked milestones does not prevent a governance review." });
     } catch (error) {
       if (!isCurrent()) return;
       state.projectElements = [];
@@ -214,7 +240,8 @@
       ui.elementsFailure(detail);
       attemptedFailure("lifecycle", detail);
       unavailableDependents();
-      console.error("SAP Project Element request failed", {
+      if (local) console.error("Showcase structure provider failed", { diagnostic: detail });
+      else console.error("SAP Project Element request failed", {
         url: services.projects.elementURL(project).href, status: context.response?.status ?? "unavailable", diagnostic: detail
       });
     } finally { if (isCurrent()) { state.elementController = null; refreshGovernance(); } }
@@ -236,7 +263,8 @@
     ui.glSelected(project);
     const requestID = state.glRequestID;
     const key = http.apiKey();
-    if (http.keyMissing(key)) { ui.setGLMessage(missingKeyMessage, "error"); ui.glFinished(); attemptedFailure("gl", missingKeyMessage, true); return; }
+    const local = showcase.isShowcase(project);
+    if (!local && http.keyMissing(key)) { ui.setGLMessage(missingKeyMessage, "error"); ui.glFinished(); attemptedFailure("gl", missingKeyMessage, true); return; }
     if (!services.gl.projectID(project) && !wbsIDs.length) {
       ui.setGLMessage("No ProjectInternalID or loaded WBS Internal IDs available. No linked query can be sent.", "error");
       ui.glFinished(); attemptedFailure("gl", "No project/WBS identifier available; no linked G/L request sent.", true); return;
@@ -248,9 +276,10 @@
     let lastHTTP = "";
     const isCurrent = () => requestID === state.glRequestID;
     try {
-      const result = await services.gl.load(project, wbsIDs, { key, controller, isCurrent,
+      const result = local ? showcase.gl(project) : await services.gl.load(project, wbsIDs, { key, controller, isCurrent,
         onRaw: ui.glRaw, onDiagnosticRaw: ui.glDiagnosticRaw, onProgress: ui.setGLMessage,
         onDiagnosticStart: ui.glDiagnosticStart, onHTTP: status => { lastHTTP = status; }, onHTTPError: ui.glHTTPError });
+      if (local) ui.glRaw(JSON.stringify(result.data, null, 2));
       if (!isCurrent()) return;
       if (result.linkMethod) {
         state.glRecords = result.records;
@@ -258,7 +287,7 @@
       }
       ui.setGLMessage(result.message, result.linkMethod ? "success" : "info");
       persistEvidence("gl", { attempted: true, status: "success", linkedRecordCount: result.records.length, linkMethod: result.linkMethod,
-        summaryLines: result.linkMethod ? services.gl.summarize(result.records) : [], capturedAt: new Date().toISOString(),
+        summaryLines: result.linkMethod ? services.gl.summarize(result.records) : [], capturedAt: local ? showcase.governanceContext(project).evidenceAsOf : new Date().toISOString(),
         hasMore: result.message.includes("additional pages"), note: result.message });
     } catch (error) {
       if (!isCurrent()) return;
@@ -266,7 +295,7 @@
       const detail = error.name === "AbortError" ? "G/L request timed out after 30 seconds." : utils.redact(error.message, key);
       ui.glFailure(detail, lastHTTP);
       attemptedFailure("gl", `${lastHTTP ? lastHTTP + ". " : ""}${detail}`);
-      console.error("SAP G/L evidence request failed", { status: lastHTTP || "unavailable", diagnostic: detail });
+      console.error(local ? "Showcase financial provider failed" : "SAP G/L evidence request failed", { status: lastHTTP || "unavailable", diagnostic: detail });
     } finally {
       if (isCurrent()) { state.glController = null; ui.glFinished(); refreshGovernance(); }
     }
@@ -283,7 +312,8 @@
     ui.poSelected(project);
     const requestID = state.poRequestID;
     const key = http.apiKey();
-    if (http.keyMissing(key)) { ui.setPOMessage(missingKeyMessage, "error"); ui.poFinished(); attemptedFailure("po", missingKeyMessage, true); return; }
+    const local = showcase.isShowcase(project);
+    if (!local && http.keyMissing(key)) { ui.setPOMessage(missingKeyMessage, "error"); ui.poFinished(); attemptedFailure("po", missingKeyMessage, true); return; }
     const controller = new AbortController();
     state.poController = controller;
     refreshGovernance();
@@ -291,8 +321,9 @@
     let context = {};
     const isCurrent = () => requestID === state.poRequestID;
     try {
-      const result = await services.po.load(wbsIDs, { key, controller, isCurrent,
+      const result = local ? showcase.po(project) : await services.po.load(wbsIDs, { key, controller, isCurrent,
         onRaw: ui.poRaw, onHTTP: headers => { context = headers; }, onHTTPError: ui.poHTTPError });
+      if (local) ui.poRaw(JSON.stringify(result.data, null, 2));
       if (!isCurrent()) return;
       state.poRecords = result.records;
       if (state.poRecords.length) ui.renderPO(state.poRecords, services.po.summarize(state.poRecords));
@@ -300,7 +331,7 @@
       ui.setPOMessage(result.message, state.poRecords.length ? "success" : "info");
       services.po.logIntegrity(result.integrity);
       persistEvidence("po", { attempted: true, status: "success", linkedRecordCount: result.records.length,
-        summaryLines: result.records.length ? services.po.summarize(result.records) : [], capturedAt: new Date().toISOString(),
+        summaryLines: result.records.length ? services.po.summarize(result.records) : [], capturedAt: local ? showcase.governanceContext(project).evidenceAsOf : new Date().toISOString(),
         hasMore: !!result.data["@odata.nextLink"], note: result.message });
     } catch (error) {
       if (!isCurrent()) return;
@@ -311,20 +342,23 @@
         : utils.redact(error.message, key);
       ui.poFailure(detail, context.httpStatus || "");
       attemptedFailure("po", `${context.httpStatus ? context.httpStatus + ". " : ""}${detail}`);
-      console.error("SAP Purchase Order evidence request failed", { url: services.po.queryURL(wbsIDs).href, status: context.httpStatus || "unavailable", diagnostic: detail });
+      if (local) console.error("Showcase procurement provider failed", { diagnostic: detail });
+      else console.error("SAP Purchase Order evidence request failed", { url: services.po.queryURL(wbsIDs).href, status: context.httpStatus || "unavailable", diagnostic: detail });
     } finally { if (isCurrent()) { state.poController = null; ui.poFinished(); refreshGovernance(); } }
   }
 
-  ui.configureReviews(project => state.storageError ? "Local review status unavailable" : rules.projectStatus(state.reviews, project.ProjectUUID));
+  ui.configureReviews(project => state.storageError ? "Review status unavailable" : showcase.isShowcase(project) && rules.needsAttention(state.reviews).some(item => item.review.project.ProjectUUID === project.ProjectUUID) ? "Needs attention" : rules.projectStatus(state.reviews, project.ProjectUUID));
   ui.bindEvents({ loadGL: loadFinancialEvidence, loadPO: loadPurchaseOrderEvidence,
     loadProjects: refreshProjects });
   governance.bind({ navigate, startReview, saveDraft, summary: () => showReviewStep("summary"), reviewStep: showReviewStep,
     confirm: confirmDecision, returnInvestment, loadEvidence: loadReviewEvidence,
     reloadLifecycle: loadReviewEvidence,
     retryProjects: refreshProjects,
+    resetShowcase,
     technicalDetails: () => {
       if (!saveDraft()) return;
-      if (state.selectedProject && !state.elementsLoaded) void loadProjectElements(state.selectedProject, true);
+      const project = state.selectedProject || state.projects[0];
+      if (project && (!state.selectedProject || !state.elementsLoaded)) void loadProjectElements(project, true);
       else { state.view = "detail"; governance.showView("detail"); refreshGovernance(); }
       governance.openTechnical();
     },
@@ -332,9 +366,11 @@
       const record = [...state.reviews].filter(item => item.project.ProjectUUID === state.selectedProject?.ProjectUUID && item.status === "decision_recorded").sort((a, b) => b.decision.timestamp.localeCompare(a.decision.timestamp))[0];
       if (record) openReview(record.id);
     } });
-  refreshRecords(); governance.showView("dashboard"); refreshGovernance();
+  state.projects = mergeProjects([]);
+  seedShowcase(); governance.showView("dashboard"); refreshGovernance();
+  ui.renderProjects(state.projects, state.selectedProject, loadProjectElements);
   governance.setDirectory(services.governanceDirectory.people());
   if (!http.keyMissing(http.apiKey())) void loadProjects();
-  else ui.projectKeyMissing();
+  else { ui.projectKeyMissing(); ui.renderProjects(state.projects, state.selectedProject, loadProjectElements); }
   setInterval(refreshGovernance, 60000);
 })();

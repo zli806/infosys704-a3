@@ -37,7 +37,7 @@
   function logIntegrity(integrity) {
     if (integrity.discarded) console.warn("SAP Purchase Order filter-integrity warning", { discarded: integrity.discarded, unexpectedIdentifiers: integrity.unexpectedIdentifiers });
   }
-  function summarize(poRecords) {
+  function aggregate(poRecords) {
     const active = poRecords.filter(record => record.IsDeleted === false);
     const final = active.filter(record => record.IsFinallyInvoiced === true).length;
     const notFinal = active.filter(record => record.IsFinallyInvoiced === false).length;
@@ -53,6 +53,10 @@
       if (record.IsFinallyInvoiced === false) group.notFinal = addPODecimals(group.notFinal, amount);
       totals.set(currency, group);
     }
+    return { active, final, notFinal, deleted, totals, invalidAmounts };
+  }
+  function summarize(poRecords) {
+    const { active, final, notFinal, deleted, totals, invalidAmounts } = aggregate(poRecords);
     const lines = [
       `Linked PO account assignments: ${poRecords.length} · Active / non-deleted assignments: ${active.length} · Deleted: ${deleted} · Unknown deletion flags: ${poRecords.length - active.length - deleted}`,
       `Active assignments — Finally invoiced: ${final} · Not-finally-invoiced: ${notFinal} · Unknown final-invoice flags: ${active.length - final - notFinal}`,
@@ -66,5 +70,5 @@
     lines.push("Returned account assignments only; amounts are not multiplied by quantity or distribution percentage, and no exchange rates or invoiced amounts are invented.");
     return lines;
   }
-  app.services.po = { queryURL, load, summarize, logIntegrity };
+  app.services.po = { queryURL, load, aggregate, summarize, logIntegrity };
 })();

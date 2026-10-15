@@ -21,6 +21,34 @@
   function action(text, callback) { const button = node("button", text, "secondary"); button.type = "button"; button.addEventListener("click", callback); return button; }
   function options(select, values) { for (const value of values) { const option = node("option", value); option.value = value; select.append(option); } }
   function countLabel(count, singular) { return `${count} ${singular}${count === 1 ? "" : "s"}`; }
+  function sourceBadge(project) {
+    const synthetic = app.services.showcase?.isShowcase(project);
+    return node("span", synthetic ? "SHOWCASE" : "SAP SANDBOX", `source ${synthetic ? "showcase" : "sap"}`);
+  }
+  function compactAmount(value, signed = false) {
+    if (value === null) return "Not validated";
+    const amount = Number(value);
+    return `${amount < 0 ? "−" : signed && amount > 0 ? "+" : ""}A$${(Math.abs(amount) / 1000000).toFixed(2)}m`;
+  }
+  function investmentContext(project) {
+    const container = el("showcase-investment-context"), synthetic = app.services.showcase?.isShowcase(project);
+    container.hidden = !synthetic; container.replaceChildren(); if (!synthetic) return;
+    const context = app.services.showcase.financialContext(project);
+    container.append(node("p", "SHOWCASE CONTEXT", "component-eyebrow"), node("h3", "Investment Context"), node("p", context.stageLabel, "hint"));
+    const grid = node("div", undefined, "investment-metrics");
+    const variance = context.forecastVariance === null ? "Not validated" : `${compactAmount(context.forecastVariance, true)} (${Number(context.variancePercent) > 0 ? "+" : ""}${context.variancePercent}%)`;
+    for (const [label, amount, display] of [["Approved Investment", context.approvedInvestment], ["Posted Financial Activity", context.postedFinancialActivity],
+      [context.historical ? "Forecast before Stop" : "Forecast at Completion", context.forecastAtCompletion], ["Forecast Variance", context.forecastVariance, variance],
+      [context.historical ? "Remaining Forecast Investment before Stop" : "Remaining Forecast Investment", context.remainingForecastInvestment],
+      ["PO-linked Procurement Activity", context.procurementActivity], ["Not-finally-invoiced PO-linked amount", context.notFinallyInvoiced]]) {
+      const metric = node("div"); const value = node("strong", display || compactAmount(amount));
+      value.title = amount === null ? "Not validated; no numeric forecast inferred" : `AUD ${amount}`;
+      metric.append(node("p", label), value); grid.append(metric);
+    }
+    const dates = node("p", `Planned completion ${shortDate(context.plannedCompletion)} · Forecast completion ${context.forecastCompletion ? shortDate(context.forecastCompletion) : "Not validated"}`, "hint");
+    container.append(grid, dates, node("p", context.reviewReason, "context-reason"));
+    if (context.historical) container.append(node("small", "Synthetic pre-Stop position, not a current continuation plan."));
+  }
   const decisionDescriptions = {
     Continue: "Proceed under the current approved direction.",
     "Continue with Conditions": "Proceed subject to specified conditions or corrective actions.",
@@ -92,18 +120,18 @@
   }
   function evidenceLines(key, evidence) {
     const item = evidence[key];
-    const lines = [`Status: ${item.status.replace(/_/g, " ")} · ${item.note}`, `Captured: ${dateTime(item.capturedAt)} (SYSTEM CALCULATED)`];
-    if (key === "lifecycle" && item.loaded) lines.push(`Returned elements: ${item.elementCount}; marked milestones: ${item.milestoneCount}; main milestones: ${item.mainMilestoneCount}.`, `WBS IDs (SAP): ${item.wbsIDs.join(", ") || "None returned"}`);
-    if (key !== "lifecycle" && item.linkedRecordCount !== null) lines.push(`Validated linked records: ${item.linkedRecordCount} (SYSTEM CALCULATED from SAP)`);
+    const lines = [`Status: ${item.status.replace(/_/g, " ")} · ${item.note}`, `Evidence as of: ${dateTime(item.capturedAt)}`];
+    if (key === "lifecycle" && item.loaded) lines.push(`Returned elements: ${item.elementCount}; marked milestones: ${item.milestoneCount}; main milestones: ${item.mainMilestoneCount}.`, `WBS Internal IDs: ${item.wbsIDs.join(", ") || "None returned"}`);
+    if (key !== "lifecycle" && item.linkedRecordCount !== null) lines.push(`Validated linked records: ${item.linkedRecordCount} (SYSTEM CALCULATED from returned records)`);
     if (key === "gl" && item.linkMethod) lines.push(`Link method: ${item.linkMethod} (SYSTEM CALCULATED)`);
     if (key !== "lifecycle") lines.push(...item.summaryLines);
     if (item.hasMore) lines.push("Additional SAP pages indicated; this snapshot covers returned records only.");
     return lines;
   }
-  function renderEvidence(container, evidence) {
+  function renderEvidence(container, evidence, project) {
     for (const [key, title] of [["lifecycle", "Lifecycle / WBS"], ["gl", "G/L Financial Evidence"], ["po", "Purchase Order Evidence"]]) {
-      const part = section(container, title, "SAP");
-      part.append(node("p", "Counts and grouped amounts: SYSTEM CALCULATED from SAP. Captured snapshots are not a claim of current production data.", "hint"));
+      const part = section(container, title);
+      part.append(node("p", app.services.showcase?.isShowcase(project) ? "Counts and grouped amounts calculated from synthetic showcase records, not SAP Sandbox or production data." : "Counts and grouped amounts calculated from returned SAP Sandbox records, not complete production data.", "hint"));
       overview(part.appendChild(node("div", undefined, "evidence-overview")), key, evidence, false, true);
     }
   }
@@ -129,21 +157,22 @@
   function renderDashboard(records, count, onOpen, storageAvailable = true) {
     const result = rules.dashboard(records, count);
     const attention = el("dashboard-attention"); attention.replaceChildren();
-    if (!storageAvailable) attention.append(node("p", "Review storage unavailable; attention items cannot be refreshed."));
+    if (!storageAvailable) attention.append(node("p", "Review storage unavailable; review signals cannot be refreshed."));
     else {
       const items = rules.needsAttention(records);
       if (!items.length) attention.append(node("p", "No open reviews currently flagged. Unfinished assessments may still need your input."));
       for (const { review, signals, timing } of items) {
         const row = node("article", undefined, "attention-item"); row.dataset.timing = timing.status;
         const context = node("div", undefined, "attention-item-context");
-        context.append(node("h4", review.project.Project), node("p", review.reviewBasis || "Review Trigger not selected", "attention-trigger"));
+        const identity = node("p", review.project.Project, "hint"); identity.append(sourceBadge(review.project));
+        context.append(node("h4", review.project.ProjectDescription || review.project.Project), identity, node("p", rules.normalizeBasis(review.reviewBasis) || "Review Trigger not selected", "attention-trigger"));
         const counts = node("div", undefined, "attention-counts");
-        for (const [count, label, tone] of [[signals.materialConcerns.length, "material concern", "material"], [signals.attentionItems.length, "attention item", "attention"], [signals.evidenceGaps.length, "evidence gap", "gap"]]) {
+        for (const [count, label, tone] of [[signals.materialConcerns.length, "material concern", "material"], [signals.attentionItems.length, "emerging concern", "attention"], [signals.evidenceGaps.length, "evidence gap", "gap"]]) {
           if (!count) continue;
           const indicator = node("span", countLabel(count, label), "attention-count"); indicator.dataset.tone = tone; counts.append(indicator);
         }
         if (!counts.children.length) counts.append(node("span", "Decision timing requires attention", "hint"));
-        const timingText = node("p", timing.status === "Within decision window" ? `Decision due in ${timing.daysRemaining} days · ${dateTime(timing.decisionTarget)}` : `${timing.status} · ${timing.daysOverdue} days overdue`, "attention-timing");
+        const timingText = node("p", timing.status === "Within decision window" ? `Decision due in ${timing.daysRemaining} days · ${shortDate(timing.decisionTarget)}` : `${timing.status} · ${timing.daysOverdue} days overdue`, "attention-timing");
         const button = action("Continue Review", () => onOpen(review.id)); button.className = "attention-action";
         row.append(context, counts, timingText, button); attention.append(row);
       }
@@ -157,7 +186,7 @@
     }
     cards.append(node("p", `${result.projectCount} investments available`, "session-context"));
     const profile = el("attention-profile"); profile.replaceChildren();
-    const values = [["Material concerns", materialCount], ["Attention items", openSignals.reduce((sum, signals) => sum + signals.attentionItems.length, 0)], ["Evidence gaps", gapCount], ["Overdue reviews", result.overdue]];
+    const values = [["Material concerns", materialCount], ["Emerging concerns", openSignals.reduce((sum, signals) => sum + signals.attentionItems.length, 0)], ["Evidence gaps", gapCount], ["Overdue reviews", result.overdue]];
     if (!storageAvailable) profile.append(node("p", "Review storage unavailable."));
     else if (!values.some(([, value]) => value)) profile.append(node("p", "No active review signals yet."));
     else {
@@ -181,7 +210,9 @@
     }
     if (!result.decisions.length) recent.append(node("p", "No decisions recorded yet."));
     for (const record of result.decisions.slice(0, 5)) {
-      const row = node("div", undefined, "review-item"); row.append(node("p", `${record.project.Project} · ${record.decision.outcome} · ${dateTime(record.decision.timestamp)}`), action("View Decision", () => onOpen(record.id))); recent.append(row);
+      const row = node("div", undefined, "review-item"); const identity = node("div");
+      identity.append(node("strong", record.project.ProjectDescription || record.project.Project), sourceBadge(record.project), node("p", `${record.project.Project} · ${record.decision.outcome} · ${shortDate(record.decision.timestamp)}`));
+      row.append(identity, action("View Decision", () => onOpen(record.id))); recent.append(row);
     }
   }
   function renderReviews(records, onOpen, storageAvailable = true) {
@@ -190,19 +221,32 @@
     if (!storageAvailable) return;
     for (const record of [...records].sort((a, b) => b.reviewOpenedAt.localeCompare(a.reviewOpenedAt))) {
       const control = rules.timing(record); const row = node("tr");
-      for (const value of [record.project.Project, record.reviewBasis || "Not selected", dateTime(record.reviewOpenedAt), dateTime(control.decisionTarget), record.status === "decision_recorded" ? "Decision recorded" : control.status === "Within decision window" ? "In progress" : control.status]) row.append(node("td", value));
+      for (const value of [record.project.Project, rules.normalizeBasis(record.reviewBasis) || "Not selected", dateTime(record.reviewOpenedAt), dateTime(control.decisionTarget), record.status === "decision_recorded" ? "Decision recorded" : control.status === "Within decision window" ? "In progress" : control.status]) row.append(node("td", value));
+      row.children[0].append(sourceBadge(record.project));
       const cell = node("td"); cell.append(action(record.status === "decision_recorded" ? "View Decision" : "Continue Review", () => onOpen(record.id))); row.append(cell); body.append(row);
     }
   }
   function details(project, evidence, records, capturedContext = false, storageAvailable = true) {
     el("detail-project-id").textContent = project.Project;
     el("detail-project-name").textContent = project.ProjectDescription || "Unnamed investment";
+    const synthetic = app.services.showcase?.isShowcase(project);
+    el("detail-source").textContent = synthetic ? "SHOWCASE" : "SAP SANDBOX"; el("detail-source").className = `source ${synthetic ? "showcase" : "sap"}`;
+    investmentContext(project);
+    el("technical-source").textContent = synthetic
+      ? "Synthetic SAP-schema-compatible showcase payload. Governance context and seeded scenario assessments are separate from the SAP-shaped records. Not live SAP Sandbox or real DPE data."
+      : "Real SAP Business Accelerator Hub Sandbox responses, not DPE production data. No showcase figures are added to this project.";
+    el("connection-details").hidden = !!synthetic && !app.state?.sandboxRefreshError; el("showcase-project-payload").hidden = !synthetic;
+    if (synthetic) el("raw-showcase-project").textContent = JSON.stringify(app.services.showcase.projectResponse(), null, 2);
     const context = el("investment-context"); context.replaceChildren();
+    context.hidden = !!synthetic;
     pairs(context, [["Project dates", `${app.ui.formatDate(project.ProjectStartDate)} – ${app.ui.formatDate(project.ProjectEndDate)}`], ["Company", project.CompanyCode], ["Currency", project.ProjectCurrency]]);
     if (capturedContext) context.append(node("p", "Saved project context. Refresh evidence for current activity.", "hint"));
-    el("detail-review-status").textContent = storageAvailable ? rules.projectStatus(records, project.ProjectUUID) : "Review storage unavailable";
+    const active = rules.activeReview(records, project.ProjectUUID), timing = active ? rules.timing(active) : null;
+    el("detail-review-status").textContent = !storageAvailable ? "Review storage unavailable" : timing
+      ? `${timing.status === "Within decision window" ? "Review in progress" : timing.status} · Decision due ${shortDate(timing.decisionTarget)}` : rules.projectStatus(records, project.ProjectUUID);
     el("start-review").disabled = !storageAvailable;
     el("start-review").textContent = rules.activeReview(records, project.ProjectUUID) ? "Continue Review" : "Start Review";
+    el("start-review").hidden = !!synthetic && !rules.activeReview(records, project.ProjectUUID) && records.some(record => record.project.ProjectUUID === project.ProjectUUID && record.status === "decision_recorded");
     el("view-last-decision").hidden = !storageAvailable || !records.some(record => record.project.ProjectUUID === project.ProjectUUID && record.status === "decision_recorded");
     overview(el("detail-lifecycle-overview"), "lifecycle", evidence, !!app.state?.elementController, false);
     overview(el("detail-financial-overview"), "gl", evidence, !!(app.state?.glController || app.state?.elementController), false);
@@ -219,7 +263,7 @@
   }
   function assessment(record) {
     ownerRecord = record; populateOwners();
-    el("review-basis").value = record.reviewBasis;
+    el("review-basis").value = rules.normalizeBasis(record.reviewBasis);
     for (const [key, id] of Object.entries(assessmentIDs)) setChoice(id, record.assessment[key]);
     el("assessment-comments").value = record.assessment.comments; el("assessment-dependencies").value = record.assessment.keyRisks;
     overview(el("assessment-financial-evidence"), "gl", record.evidence, !!app.state?.glController, false);
@@ -258,8 +302,11 @@
   function chrome(record, busy) {
     ownerRecord = record;
     el("current-review-project").textContent = `${record.project.Project} · ${record.project.ProjectDescription || "Continuation review"}`;
-    const trigger = el("review-trigger"); trigger.dataset.trigger = record.reviewBasis === "Material trigger / concern" ? "material" : record.reviewBasis === "Scheduled governance review" ? "scheduled" : "other";
-    trigger.replaceChildren(node("strong", record.reviewBasis || "Select a Review Trigger"), node("span", `Decision due ${shortDate(rules.timing(record).decisionTarget)}`));
+    el("current-review-project").append(sourceBadge(record.project));
+    const basis = rules.normalizeBasis(record.reviewBasis);
+    const trigger = el("review-trigger"); trigger.dataset.trigger = basis === "Material trigger" ? "material" : basis === "Scheduled stage-gate review" ? "scheduled" : "other";
+    trigger.replaceChildren(node("strong", basis || "Select a Review Trigger"), node("span", `Decision due ${shortDate(rules.timing(record).decisionTarget)}`));
+    if (app.services.showcase?.isShowcase(record.project)) trigger.append(node("p", app.services.showcase.governanceContext(record.project).reviewReason, "review-reason"));
     const readiness = rules.readiness(record);
     const eligible = app.services?.governanceDirectory?.eligible(record) ?? rules.ownerAssigned(record);
     if (eligible) el("governance-directory-status").textContent = "Prototype Governance Directory · Fictional roles, not SAP or real DPE employees.";
@@ -275,10 +322,8 @@
     container.append(node("h3", "Assessment at a Glance"));
     const matrix = node("div", undefined, "signal-matrix"); matrix.setAttribute("aria-label", "Six categorical reviewer assessments; no quantitative score");
     for (const [key, field] of Object.entries(rules.ASSESSMENTS)) {
-      const value = record.assessment[key]; const signals = rules.reviewSignals({ assessment: { [key]: value } });
-      const missing = !field.options.includes(value) || value === field.missing;
-      const tone = missing ? "unassessed" : signals.materialConcerns.length ? "material" : signals.evidenceGaps.length ? "gap" : signals.attentionItems.length ? "attention" : "assessed";
-      const labels = { unassessed: "Not assessed", material: "Material concern", gap: "Evidence gap", attention: "Attention item", assessed: "Reviewer assessment" };
+      const value = record.assessment[key]; const tone = rules.classifyAssessment(key, value);
+      const labels = { unassessed: "Not assessed", material: "Material Concern", gap: "Evidence Gap", emerging: "Emerging Concern", normal: "Normal / no concern identified" };
       const card = node("article", undefined, "assessment-signal"); card.dataset.dimension = key; card.dataset.tone = tone;
       card.append(node("h4", field.label), node("p", value || field.missing, "signal-value"), node("span", labels[tone], "semantic-label")); matrix.append(card);
     }
@@ -292,8 +337,8 @@
     const hasSignals = signals.materialConcerns.length || signals.attentionItems.length || signals.evidenceGaps.length;
     const attention = node("section", undefined, hasSignals ? "management-attention" : ""); snapshot.append(attention);
     attention.append(node("h4", hasSignals ? "Management Attention Required" : "Management Attention"));
-    attention.append(node("p", [countLabel(signals.materialConcerns.length, "material concern"), countLabel(signals.attentionItems.length, "attention item"), countLabel(signals.evidenceGaps.length, "evidence gap")].join(" · ")));
-    for (const [title, items] of [["Material concerns", signals.materialConcerns], ["Attention items", signals.attentionItems], ["Evidence gaps", signals.evidenceGaps]]) {
+    attention.append(node("p", [countLabel(signals.materialConcerns.length, "material concern"), countLabel(signals.attentionItems.length, "emerging concern"), countLabel(signals.evidenceGaps.length, "evidence gap")].join(" · ")));
+    for (const [title, items] of [["Material Concerns", signals.materialConcerns], ["Emerging Concerns", signals.attentionItems], ["Evidence Gaps", signals.evidenceGaps]]) {
       if (!items.length) continue;
       const group = node("section", undefined, "attention-group"); group.dataset.category = title.toLowerCase().replace(/ /g, "-"); const heading = node("h4", title);
       const list = node("ul"); for (const item of items) list.append(node("li", item)); group.append(heading, list); attention.append(group);
@@ -315,13 +360,15 @@
     const owner = node("div"); ownerContext(owner, record.decisionOwnerSnapshot, record.decisionOwner); context.append(node("h4", "Decision Owner"), owner);
     if (record.assessment.comments || record.assessment.keyRisks) pairs(context, [["Reviewer comments", record.assessment.comments], ["Key risks / dependencies", record.assessment.keyRisks]]);
     evidence.append(context);
-    evidence.append(action("View SAP Technical Details", () => technicalAction()));
+    evidence.append(action(app.services.showcase?.isShowcase(record.project) ? "View Technical Details" : "View SAP Technical Details", () => technicalAction()));
   }
   function confirmation(record) {
     const target = el("confirmation-record"); target.replaceChildren(); const decision = record.decision;
     el("confirmation-outcome").textContent = decision.outcome;
     const hero = node("header", undefined, "decision-record-context");
     hero.append(node("h3", record.project.Project), node("p", record.project.ProjectDescription || "", "record-description"));
+    hero.append(sourceBadge(record.project));
+    if (app.services.showcase?.isHistorical(record)) hero.append(node("p", "Synthetic historical showcase decision", "hint"));
     const accountability = node("div"); ownerContext(accountability, decision.ownerSnapshot, decision.owner);
     hero.append(accountability, node("p", dateTime(decision.timestamp), "record-date")); target.append(hero);
     section(target, "Rationale").append(node("p", decision.rationale));
@@ -335,13 +382,13 @@
     }
     const metadata = node("details"); metadata.append(node("summary", "Record context & timing")); target.append(metadata);
     if (!decision.ownerId) metadata.append(node("p", "Previously saved text owner — not verified against the prototype directory."));
-    pairs(metadata, [["Record ID (SYSTEM CALCULATED)", record.id], ["SAP Project", record.project.Project], ["ProjectUUID (SAP)", record.project.ProjectUUID], ["Review Trigger (REVIEWER INPUT)", record.reviewBasis || "Not selected"],
+    pairs(metadata, [["Record ID (SYSTEM CALCULATED)", record.id], ["Project", record.project.Project], ["ProjectUUID", record.project.ProjectUUID], ["Review Trigger (REVIEWER INPUT)", rules.normalizeBasis(record.reviewBasis) || "Not selected"],
       ["Decision (REVIEWER INPUT)", decision.outcome], ["Rationale (REVIEWER INPUT)", decision.rationale], ["Decision owner (REVIEWER INPUT)", decision.owner], ["Decision timestamp (SYSTEM CALCULATED)", dateTime(decision.timestamp)],
       ["Required action (REVIEWER INPUT)", decision.requiredAction], ["Action owner (REVIEWER INPUT)", decision.actionOwner], ["Next review date (REVIEWER INPUT)", decision.nextReviewDate || "Not specified"],
       ["Review opened (SYSTEM CALCULATED)", dateTime(record.reviewOpenedAt)], ["14-day target (SYSTEM CALCULATED)", dateTime(decision.decisionTarget)], ["30-day threshold (SYSTEM CALCULATED)", dateTime(decision.escalationThreshold)]]);
-    const snapshot = node("details"); snapshot.append(node("summary", "Saved Assessment / SAP Evidence Summary Snapshot")); target.append(snapshot);
-    const assessment = section(snapshot, "Assessment Snapshot", "REVIEWER INPUT"); pairs(assessment, [...Object.entries(rules.ASSESSMENTS).map(([key, field]) => [field.label, decision.assessmentSnapshot[key]]), ["Reviewer comments", decision.assessmentSnapshot.comments], ["Key risks / dependencies", decision.assessmentSnapshot.keyRisks]]);
-    renderEvidence(snapshot, decision.evidenceSnapshot);
+    const snapshot = node("details"); snapshot.append(node("summary", app.services.showcase?.isShowcase(record.project) ? "Saved assessment / synthetic showcase evidence" : "Saved assessment / SAP Sandbox evidence")); target.append(snapshot);
+    const assessment = section(snapshot, "Assessment Snapshot"); pairs(assessment, [...Object.entries(rules.ASSESSMENTS).map(([key, field]) => [field.label, decision.assessmentSnapshot[key]]), ["Reviewer comments", decision.assessmentSnapshot.comments], ["Key risks / dependencies", decision.assessmentSnapshot.keyRisks]]);
+    renderEvidence(snapshot, decision.evidenceSnapshot, record.project);
   }
   function showView(view) {
     for (const name of views) el(`${name}-view`).hidden = name !== view;
@@ -366,6 +413,7 @@
     technicalAction = actions.technicalDetails || (() => {});
     el("retry-projects").addEventListener("click", actions.retryProjects);
     el("project-diagnostics").addEventListener("click", technicalAction);
+    el("reset-showcase").addEventListener("click", actions.resetShowcase);
     for (const [key, id] of Object.entries(assessmentIDs)) buildChoices(id, rules.ASSESSMENTS[key].options);
     buildChoices("decision-outcome", rules.OUTCOMES);
     for (const view of ["dashboard", "investments", "reviews"]) el(`nav-${view}`).addEventListener("click", () => actions.navigate(view));

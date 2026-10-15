@@ -9,7 +9,7 @@ function record(rules, assessment = {}) {
   return {
     id: 'unit-review', status: 'in_progress',
     project: { Project: 'Unit view-model context', ProjectDescription: 'Rendering test, not SAP sample data' },
-    reviewBasis: 'Material trigger / concern', reviewOpenedAt: '2026-10-15T00:00:00Z', projectContextCapturedAt: '2026-10-15T00:00:00Z',
+    reviewBasis: 'Material trigger', reviewOpenedAt: '2026-10-15T00:00:00Z', projectContextCapturedAt: '2026-10-15T00:00:00Z',
     assessment: { ...rules.defaultAssessment(), ...assessment }, evidence: rules.emptyEvidence(), decisionOwner: directory.people[0].name,
     decisionOwnerId: directory.people[0].id, decisionOwnerSnapshot: directory.people[0],
     decisionDraft: { outcome: '', rationale: '', requiredAction: '', actionOwner: '', nextReviewDate: '' }
@@ -36,7 +36,7 @@ test('softer attention and explicit evidence gaps stay separate from material co
   const result = rules.reviewSignals({ assessment: { expectedBenefits: 'Partially', deliveryPerformance: 'At risk', futureEconomicValue: 'Uncertain', costPosition: 'Insufficient information' } });
   assert.equal(result.materialConcerns.length, 0);
   assert.deepEqual(Array.from(result.attentionItems), ['Expected benefits are only partially achievable', 'Delivery is at risk', 'Future economic value is uncertain']);
-  assert.deepEqual(Array.from(result.evidenceGaps), ['Cost position cannot be fully assessed']);
+  assert.deepEqual(Array.from(result.evidenceGaps), ['Cost position cannot yet be fully assessed']);
   assert.deepEqual(plain(rules.reviewSignals({ assessment: rules.defaultAssessment() })), { materialConcerns: [], attentionItems: [], evidenceGaps: [] });
 });
 
@@ -59,8 +59,8 @@ test('categorical assessment leads the shorter Summary, with management attentio
   ui.reviewSummary(review);
   const target = elements.get('review-summary');
   assert.match(target.children[0].textContent, /^Assessment at a Glance/);
-  assert.match(target.children[0].textContent, /3 material concerns · 1 attention item · 1 evidence gap/);
-  for (const value of ['Strategic Alignment', 'Expected Benefits', 'Delivery Performance', 'Risk', 'Future Economic Value', 'Management Attention', 'High project risk', 'Delivery is off track', 'Future economic value is negative', 'Cost position cannot be fully assessed']) assert(target.children[0].textContent.includes(value), value);
+  assert.match(target.children[0].textContent, /3 material concerns · 2 emerging concerns · 1 evidence gap/);
+  for (const value of ['Strategic Alignment', 'Expected Benefits', 'Delivery Performance', 'Risk', 'Future Economic Value', 'Management Attention', 'High project risk', 'Delivery is off track', 'Future economic value is negative', 'Cost position cannot yet be fully assessed']) assert(target.children[0].textContent.includes(value), value);
   for (const title of ['Governance Timeline', 'Evidence Reviewed']) assert(target.children.some(child => child.textContent.startsWith(title)), title);
   assert.equal(target.children.length, 3); assert(target.textContent.includes('View SAP Technical Details'));
   assert.equal(review.assessment.costPosition, 'Insufficient information');

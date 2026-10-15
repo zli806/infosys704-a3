@@ -42,15 +42,16 @@
       ? { id: text(value.id, 100), name: text(value.name, 200), role: text(value.role, 200), source: "PROTOTYPE GOVERNANCE DIRECTORY" } : null;
   }
   function sanitize(record) {
+    const showcase = app.services.showcase?.isShowcase(record.project) || false;
     const result = {
       id: text(record.id, 100), project: rules.projectSnapshot(record.project || {}),
       projectContextCapturedAt: text(record.projectContextCapturedAt, 40), status: record.status,
-      reviewBasis: rules.BASIS.includes(record.reviewBasis) ? record.reviewBasis : "",
+      reviewBasis: rules.normalizeBasis(record.reviewBasis),
       reviewOpenedAt: record.reviewOpenedAt, assessment: cleanAssessment(record.assessment),
       decisionOwner: text(record.decisionOwner, 200), decisionOwnerId: text(record.decisionOwnerId, 100),
       decisionOwnerSnapshot: cleanOwner(record.decisionOwnerSnapshot), evidence: cleanEvidence(record.evidence),
       decisionDraft: cleanDraft(record.decisionDraft), decision: null,
-      sources: { project: "SAP", assessment: "REVIEWER INPUT", controls: "SYSTEM CALCULATED" }
+      sources: { project: showcase ? "SHOWCASE" : "SAP SANDBOX", assessment: showcase ? "SHOWCASE SCENARIO / REVIEWER INPUT" : "REVIEWER INPUT", controls: "SYSTEM CALCULATED" }
     };
     if (record.decision) result.decision = {
       ...cleanDraft(record.decision), timestamp: text(record.decision.timestamp, 40),
@@ -137,5 +138,15 @@
     record.decisionDraft = decision;
     return write(records).find(item => item.id === id);
   }
-  app.services.reviewStore = { STORAGE_KEY, list, get, start, update, confirm };
+  function seedShowcase({ reset = false } = {}) {
+    const showcase = app.services.showcase;
+    const seeds = showcase.seededReviews();
+    const existing = list(); // Malformed/unavailable storage must never be erased.
+    const records = reset ? existing.filter(record => !showcase.isShowcase(record.project)) : existing;
+    const additions = seeds.filter(seed => !records.some(record => record.id === seed.id)
+      && !(seed.status === "in_progress" && rules.activeReview(records, seed.project.ProjectUUID)));
+    if (!reset && !additions.length) return records;
+    return write([...records, ...additions]);
+  }
+  app.services.reviewStore = { STORAGE_KEY, list, get, start, update, confirm, seedShowcase };
 })();

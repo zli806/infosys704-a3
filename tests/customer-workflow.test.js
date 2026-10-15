@@ -19,7 +19,7 @@ function services({ failProjects = false, elements } = {}) {
     po: { load: async ids => { calls.push(['procurement', ...ids]); return { records: [], data: {}, message: 'Unit empty result', integrity: {} }; }, logIntegrity() {} }
   } };
 }
-function selectFirst(w) { w.elements.get('projects-body').children[0].children[5].children[0].events.click[0](); }
+function selectFirst(w) { const index = w.state.projects.findIndex(p => p.ProjectUUID === project.ProjectUUID); w.elements.get('projects-body').children[index].children[5].children[0].events.click[0](); }
 
 test('startup auto-loads projects without leaving Dashboard; owner options are immediately present with no fetch', async () => {
   const s = services(); let fetches = 0;
@@ -27,7 +27,8 @@ test('startup auto-loads projects without leaving Dashboard; owner options are i
   assert.equal(w.state.view, 'dashboard'); assert.deepEqual(s.calls, ['projects']);
   assert.equal(w.elements.get('assessment-owner').children.length, 4);
   assert.equal(w.elements.get('connection-status').textContent, 'Refreshing SAP data…');
-  await tick(); assert.equal(w.state.projects.length, 1); assert.equal(w.elements.get('connection-status').hidden, true);
+  assert.equal(w.state.projects.length, 5); // Showcase is available before the live response.
+  await tick(); assert.equal(w.state.projects.length, 6); assert.equal(w.elements.get('connection-status').hidden, true);
   assert.equal(fetches, 0); assert.equal(w.state.view, 'dashboard');
 });
 
@@ -65,7 +66,7 @@ test('switching projects ignores late structure responses and starts dependent r
   const other = { ...project, Project: 'Second unit context', ProjectUUID: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' };
   s.overrides.projects.loadProjects = async () => ({ records: [project, other], httpStatus: 'HTTP 200 OK' });
   const w = workspace({ controller: true, key: 'unit-only-key', serviceOverrides: s.overrides }); await tick();
-  selectFirst(w); w.elements.get('projects-body').children[1].children[5].children[0].events.click[0]();
+  selectFirst(w); w.elements.get('projects-body').children[6].children[5].children[0].events.click[0]();
   assert.equal(pending.length, 2); assert.equal(pending[0].options.controller.signal.aborted, true);
   pending[1].resolve({ records: [{ WBSElementInternalID: 'CURRENT-EXACT-ID' }], httpStatus: 'HTTP 200 OK', data: { d: {} } }); await tick();
   pending[0].resolve({ records: [{ WBSElementInternalID: 'STALE-ID' }], httpStatus: 'HTTP 200 OK', data: { d: {} } }); await tick();

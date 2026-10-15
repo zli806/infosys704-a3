@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="styles.css">
   <script src="config.local.js" defer></script>
   <script src="api-config.js" defer></script>
+  <script src="js/data/showcase-portfolio.js" defer></script>
   <script src="js/core/state.js" defer></script>
   <script src="js/core/utils.js" defer></script>
   <script src="js/core/review-rules.js" defer></script>
@@ -15,6 +16,7 @@
   <script src="js/services/gl-service.js" defer></script>
   <script src="js/services/po-service.js" defer></script>
   <script src="js/services/governance-directory.js" defer></script>
+  <script src="js/services/showcase-service.js" defer></script>
   <script src="js/services/review-store.js" defer></script>
   <script src="js/ui/renderers.js" defer></script>
   <script src="js/ui/governance.js" defer></script>
@@ -52,9 +54,10 @@
       </section>
 
       <section id="detail-view" aria-label="Investment Details" hidden>
-        <header class="toolbar detail-heading"><div><p id="detail-project-id" class="eyebrow"></p><h3 id="detail-project-name">Investment Details</h3><p id="detail-review-status" class="hint"></p></div><div class="actions"><button id="start-review" type="button">Start Review</button><button id="view-last-decision" class="secondary" type="button" hidden>View Last Decision</button></div></header>
+        <header class="toolbar detail-heading"><div><p id="detail-project-id" class="eyebrow"></p><h3 id="detail-project-name">Investment Details</h3><span id="detail-source" class="source"></span><p id="detail-review-status" class="hint"></p></div><div class="actions"><button id="start-review" type="button">Start Review</button><button id="view-last-decision" class="secondary" type="button" hidden>View Decision</button></div></header>
         <div id="investment-context" class="project-strip"></div>
-        <div class="section-header"><h3>Evidence <span class="source sap">SAP</span></h3><button id="load-review-evidence" class="ghost" type="button">Refresh Evidence</button></div>
+        <section id="showcase-investment-context" class="panel" hidden></section>
+        <div class="section-header"><h3>Evidence</h3><button id="load-review-evidence" class="ghost" type="button">Refresh Evidence</button></div>
         <div class="evidence-grid customer-evidence">
           <section class="evidence-status-card"><div class="toolbar"><h4>Project Structure</h4><button id="reload-lifecycle" class="ghost" type="button" hidden>Retry</button></div><div id="detail-lifecycle-overview" class="evidence-overview" role="status" aria-live="polite"></div></section>
           <section class="evidence-status-card"><div class="toolbar"><h4>Financial Activity</h4><button id="load-financial-evidence" class="ghost" type="button" hidden>Retry</button></div><div id="detail-financial-overview" class="evidence-overview" role="status" aria-live="polite"></div></section>
@@ -62,9 +65,11 @@
         </div>
         <details id="investment-technical-details" class="technical-disclosure">
           <summary>Technical Details</summary>
+          <p id="technical-source" class="hint"></p>
+          <section id="showcase-project-payload" hidden><h4>Synthetic SAP-schema-compatible showcase payload</h4><pre id="raw-showcase-project"></pre></section>
           <div id="technical-evidence-context"></div>
-          <p class="hint">SAP evidence and local review inputs are separate. Counts and grouped amounts are system-calculated from returned records. Snapshots may be partial; financial postings are not complete project cost, and procurement assignments are not validated outstanding liability. No exchange-rate conversion, fabricated joins or SAP write-back is performed.</p>
-          <section id="connection-details"><h4>Project request</h4><p id="message" role="status"></p><pre id="error-details" hidden></pre><pre id="raw-response">No response received yet.</pre></section>
+          <p class="hint">Transactional evidence and governance inputs are separate. Counts and grouped amounts are system-calculated from returned records. Snapshots may be partial; financial postings are not complete project cost, and procurement assignments are not validated outstanding liability. No exchange-rate conversion, fabricated joins or SAP write-back is performed.</p>
+          <section id="connection-details"><h4>SAP Sandbox project request — separate live connection</h4><p id="message" role="status"></p><pre id="error-details" hidden></pre><pre id="raw-response">No response received yet.</pre></section>
           <section id="elements-panel" hidden><h4>Project structure / WBS</h4><p id="selected-project"></p><p id="elements-message"></p><pre id="elements-error" hidden></pre><div class="table-scroll" tabindex="0" role="region" aria-label="Project structure records"><table><thead><tr><th>Element</th><th>Description</th><th>Status</th><th>Planned Start</th><th>Planned End</th><th>Forecast End</th><th>WBS Internal ID</th><th>Milestone</th><th>Main Milestone</th><th>Approval Status</th></tr></thead><tbody id="elements-body"></tbody></table></div><pre id="raw-elements-response">No response received yet.</pre></section>
           <section id="gl-panel" hidden><h4>Accounting entries</h4><p id="gl-project"></p><p id="gl-message"></p><div id="gl-summary"></div><pre id="gl-error" hidden></pre><div class="table-scroll" tabindex="0" role="region" aria-label="Accounting records"><table><thead><tr><th>Posting Date</th><th>Document</th><th>G/L Account</th><th>WBS ID</th><th>Amount</th><th>Currency</th><th>Debit/Credit</th><th>Commitment?</th><th>Reversal?</th><th>Reversed?</th><th>Purchase Document</th><th>Description</th></tr></thead><tbody id="gl-body"></tbody></table></div><pre id="raw-gl-response">No linked query sent yet.</pre><div id="gl-diagnostic" hidden><h4>Unlinked connectivity diagnostic — not project evidence</h4><pre id="raw-gl-diagnostic">No diagnostic request sent.</pre></div></section>
           <section id="po-panel" hidden><h4>Purchase-order account assignments</h4><p id="po-project"></p><p id="po-message"></p><div id="po-summary"></div><pre id="po-error" hidden></pre><div class="table-scroll" tabindex="0" role="region" aria-label="Purchase-order records"><table><thead><tr><th>Purchase Order</th><th>Item</th><th>WBS ID</th><th>Net Amount</th><th>Currency</th><th>Quantity</th><th>Unit</th><th>G/L Account</th><th>Deleted?</th><th>Finally Invoiced?</th><th>Created</th></tr></thead><tbody id="po-body"></tbody></table></div><pre id="raw-po-response">No query sent yet.</pre></section>
@@ -90,7 +95,7 @@
           <details id="decision-follow-up" class="form-section"><summary id="decision-follow-up-title">Optional follow-up</summary><p id="decision-requirements" class="hint"></p><label>Required Action<textarea id="decision-action" rows="3" maxlength="4000"></textarea></label><label>Action Owner<input id="decision-action-owner" type="text" maxlength="200"></label><label>Next Review<input id="decision-next-date" type="date"></label></details><p id="decision-incomplete" class="hint" role="alert" hidden></p><div class="form-footer"><button id="back-summary" class="secondary" type="button">Back to Summary</button><button id="confirm-decision" type="submit">Record Decision</button></div></form></section>
       </div>
       <section id="confirmation-view" aria-label="Decision Record" hidden><div class="confirmation-banner decision-record-hero" role="status"><h3>✓ Decision Recorded</h3><p id="confirmation-outcome" class="recorded-outcome"></p></div><div id="confirmation-record"></div><div class="actions"><button id="return-investment" type="button">Return to Investment</button><button id="back-dashboard" class="secondary" type="button">Back to Dashboard</button></div></section>
-      <footer class="environment-note">Prototype environment · SAP Sandbox data · Reviews saved in this browser</footer>
+      <footer class="environment-note">Prototype environment · Synthetic showcase data + separate SAP Sandbox connection · Reviews saved in this browser <button id="reset-showcase" class="ghost" type="button">Reset Showcase</button></footer>
     </main>
   </div>
 </body>

@@ -2,7 +2,7 @@
 
 ## Business Objective
 
-Demonstrate the A2 Stage-Gated Portfolio Continuation Review solution for INFOSYS 704 A3: real SAP Sandbox evidence + explicit human governance input + deterministic system controls, ending in an accountable human decision and retained prototype record. There is one web product, no Demo/Live mode, fabricated SAP data, AI recommendation or SAP write-back.
+Demonstrate the A2 Stage-Gated Portfolio Continuation Review solution for INFOSYS 704 A3: a transparently synthetic five-investment showcase portfolio alongside real SAP Sandbox evidence, explicit human governance judgement and deterministic controls. One product, no Demo/Live mode, falsely represented SAP data, automated recommendation or SAP write-back.
 
 [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md) remains the business source of truth, with the first playable baseline decisions appended in [DECISIONS.md](../DECISIONS.md). AI Review Brief/MCP/Purchase Requisition are deliberately deferred from this baseline.
 
@@ -17,7 +17,7 @@ Live browser smoke test for this baseline: 5 SAP projects; TEMP003 with 4 elemen
 | Capability | Status | Scope / remaining gap |
 | --- | --- | --- |
 | Select an in-scope IT investment | **PARTIAL** | All returned real Sandbox projects can be selected/reviewed; no verified DPE production IT-investment classification/scope filter. |
-| Retrieve lifecycle/WBS evidence | **DONE** | Real UUID navigation, elements/WBS/milestone flags and honest empty/error states. No fake marked milestone or automatic gate assignment. |
+| Retrieve lifecycle/WBS evidence | **DONE** | Real UUID navigation and honest empty/error states; separately qualified synthetic showcase milestones. No invented live milestone or automatic governance-gate assignment. |
 | Retrieve available financial evidence | **DONE** | Live G/L joins and cautious returned non-commitment amounts by currency; not complete project cost. |
 | Retrieve available procurement evidence | **PARTIAL** | Live PO connectivity, exact matching and zero/error handling work. Current tested samples have no project PO joins, so populated procurement amounts remain data-limited. |
 | Assemble continuation-review evidence pack | **DONE** | Project context, lifecycle/G/L/PO snapshot summaries, reviewer assessment and timing/readiness are presented together, with raw/debug information secondary. |
@@ -30,18 +30,34 @@ Readiness is a deterministic completeness list, not a weighted score: context ex
 
 Review-open time is set once from the actual browser clock. The 14-day decision target and 30-day escalation threshold use UTC calendar days. Dashboard/Reviews show calculated open/overdue/escalated/recorded states; completed records are excluded from open counts. Thresholds are displayed controls, not external notifications. Decisions never modify SAP processing status.
 
-The Executive Review Snapshot prioritises project, Review Trigger (stored reviewBasis unchanged), key assessments, target and Management Attention. Existing reviewSignals semantics are unchanged. Needs Attention lists open reviews with explicit signals or overdue/escalated timing, in deadline order, without priority scores or outcome recommendations. Open Reviews and Recent Decisions remain below. Session counts do not auto-reload SAP or clear saved reviews; zero linked PO records never establish zero procurement exposure.
+The short Summary prioritises the six-dimension matrix, Management Attention, timeline and three evidence rows. The central prototype convention classifies explicit normal/emerging/material/gap findings; Not assessed is unclassified. Review Trigger (why opened) is separate from Material Concern (review finding). Legacy trigger text is normalised without losing records. Needs Attention includes only open explicit signals or overdue/escalated timing, in deadline order, without scores/recommendations. The horizontal chart counts Material Concerns, Emerging Concerns, Evidence Gaps and Overdue Reviews. Other open reviews are secondary/nonduplicated. Zero linked PO records never establish zero exposure.
+
+## Showcase scope and presentation baseline
+
+Five SHOWCASE investments appear first, with SAP SANDBOX projects appended automatically when a key exists. Local provider errors are not live SAP results; Sandbox outages do not remove showcase availability. Raw payloads are immutable, use only selected SAP-schema fields, and remain distinct from governance context and seed state. No data/config fetch is needed for showcase or owner choices. A static HTTP preview remains recommended for live CORS and consistent browser storage.
+
+| Investment | Synthetic scenario / initial review state |
+| --- | --- |
+| Digital Ordering Platform Modernisation | Open Material trigger review; 3 material / 2 emerging; overdue on 15 Oct 2026 |
+| Customer Loyalty & CRM Enhancement | Open scheduled stage-gate review; 4 emerging |
+| Data & Analytics Platform Upgrade | Open scheduled stage-gate review; 1 emerging / 1 explicit cost evidence gap; forecast unvalidated |
+| Store Technology Infrastructure Refresh | No review or seeded assessment; manual Start Review retains normal defaults |
+| Legacy Reporting Consolidation | Synthetic historical Stop, 2 Sep 2026; 6 historical material findings; excluded from current attention |
+
+Initial metrics derive 3 open / 3 material / 1 gap / 1 recorded decision; chart adds 7 emerging and 1 overdue **at the 15 October reference date**. Do not freeze the clock: more reviews may become overdue later. Explicit fixed seed dates are not actual user-created timestamps. Seeds preserve edits/completed decisions; confirmed Reset Showcase restores only showcase records. Reviewer judgements are editable while open; no current final decision is seeded or recommended.
+
+Showcase-only Investment Context displays approved investment/explicit forecast and derived posted activity, forecast variance/remaining forecast investment, PO-linked activity and not-finally-invoiced amounts. These are not live SAP budgets/forecasts, total project costs or outstanding liabilities. Numerical facts never choose an assessment; this qualitative convention requires DPE governance/pilot calibration before production. See [API Integration](API_INTEGRATION.md) for exact totals and schema checks.
 
 Decision Owner is selected once from immutable configuration in `js/services/governance-directory.js`, explicitly fictional PROTOTYPE GOVERNANCE DIRECTORY roles, not SAP/DPE personnel. Store ID/name/role and carry it forward read-only on Decision. Legacy completed text owners remain readable; open legacy reviews keep the text until explicitly selecting an eligible owner for a new decision. Action Owner stays free text. Visible native radio choices preserve every stored enum and Not assessed default; new decision cards start unselected. Required follow-up expands for conditional/Modify/Pause; other outcomes keep optional fields secondary. Confirmation emphasises the human outcome, owner/date/rationale/action/next review.
 
 ## Remaining MVP Limitations
 
 - Public Sandbox data is not DPE production data. No marked milestones were present in the 26 tested elements; review basis is chosen by the human rather than inferred from SAP gates.
-- No PO joins in current tested projects. No fabricated procurement records or unrelated diagnostics may fill the gap.
+- No PO joins in current tested live projects. Synthetic showcase procurement is separate and never fills a live-project gap; unrelated diagnostics remain excluded.
 - Limited returned pages (5 projects / up to 100 G/L or PO rows); no automatic pagination or complete-cost/remaining-liability assurance.
 - LocalStorage is browser/origin-local, editable/clearable and not production-grade, multi-user, tamper-proof or backed up. The fictional controlled directory is not authenticated authority. Legacy records are preserved; storage failure never counts as a successful save.
 - Saved SAP evidence summaries are explicitly snapshots; fresh API evidence is reloaded on demand. Raw payloads are not persisted.
-- Product hierarchy builds on Jerry's UI; final visual refinement remains with UI/UX. No automatic material-trigger detection, outcome recommendations, external notifications/escalation or gate configuration. Attention projections are local decision support, not a new analytics/notification service.
+- Product hierarchy builds on Jerry's UI; final visual refinement remains with UI/UX. No automatic material-trigger detection, outcome recommendations, external notifications/escalation or production gate/materiality policy. Attention projections are local decision support, not a new analytics/notification service.
 - Responsibility Management has high semantic fit, but its public Sandbox/APIKey probe returned HTTP 500/unavailable. It is not an MVP dependency; the non-gating remote probe emits no member values.
 
 ## Stretch / Later
@@ -50,4 +66,4 @@ Purchase Requisition, MCP, AI Review Brief, richer shared persistence/audit, aut
 
 ## Acceptance Principles
 
-Functional end-to-end flow; traceability to A2; no fake SAP evidence; clear SAP/REVIEWER INPUT/SYSTEM CALCULATED labels; an accountable human decision; defensive joins/currencies/empty states; unchanged API interpretation; focused teammate PR/review work. See [CONTRIBUTING.md](../CONTRIBUTING.md) and [UI Contract](UI_CONTRACT.md).
+Functional end-to-end flow; traceability to A2; transparent SHOWCASE / SAP SANDBOX distinction and technical provenance; no fake live evidence; accountable human decision; defensive joins/currencies/empty states; unchanged live API interpretation; focused teammate PR/review work. See [CONTRIBUTING.md](../CONTRIBUTING.md) and [UI Contract](UI_CONTRACT.md).

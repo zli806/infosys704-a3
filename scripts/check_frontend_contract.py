@@ -27,11 +27,12 @@ REQUIRED_IDS = (
     "dashboard-attention", "review-trigger", "governance-directory-status", "decision-owner-help",
     "decision-follow-up", "decision-follow-up-title", "confirmation-outcome",
     "attention-profile", "project-refresh-error", "retry-projects", "project-diagnostics", "investment-technical-details", "technical-evidence-context", "decision-incomplete",
+    "detail-source", "showcase-investment-context", "technical-source", "showcase-project-payload", "raw-showcase-project", "reset-showcase",
 )
 REQUIRED_SCRIPTS = (
-    "config.local.js", "api-config.js", "js/core/state.js", "js/core/utils.js", "js/core/review-rules.js",
+    "config.local.js", "api-config.js", "js/data/showcase-portfolio.js", "js/core/state.js", "js/core/utils.js", "js/core/review-rules.js",
     "js/services/sap-http.js", "js/services/project-service.js", "js/services/gl-service.js",
-    "js/services/po-service.js", "js/services/governance-directory.js", "js/services/review-store.js", "js/ui/renderers.js", "js/ui/governance.js", "app.js",
+    "js/services/po-service.js", "js/services/governance-directory.js", "js/services/showcase-service.js", "js/services/review-store.js", "js/ui/renderers.js", "js/ui/governance.js", "app.js",
 )
 
 

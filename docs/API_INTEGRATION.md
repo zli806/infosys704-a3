@@ -2,7 +2,7 @@
 
 ## Capability Versus Sandbox Availability
 
-The app supports three live, read-only SAP integrations. **Integration capability is not a guarantee that the current public Sandbox samples join or contain every business field.** Samples are real SAP Sandbox data, not DPE production data. Empty milestones/PO joins are legitimate findings, not permission to invent evidence.
+The app supports three live, read-only SAP integrations alongside a separately identified local SHOWCASE provider. **Integration capability is not a guarantee that public Sandbox samples join or contain every business field.** Sandbox responses are real public samples, not DPE production data. Empty live milestones/PO joins are legitimate findings, never filled with showcase records.
 
 Business context remains in [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md); implementation findings are in [DECISIONS.md](../DECISIONS.md). Endpoint/field configuration is in [api-config.js](../api-config.js), checked against the downloaded [api/](../api/) specifications. No API specification is edited to accommodate code.
 
@@ -14,10 +14,39 @@ Business context remains in [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md); impleme
 - OData string apostrophes are doubled; URLSearchParams (browser) or urlencode (Python) encodes queries. Identifiers come from the selected project and its real returned elements, not hard-coded samples.
 - WBS linking uses exact raw string equality. ProjectInternalID is secondary and only numeric-only strings may use leading-zero equivalence. Raw identifiers are not destructively rewritten.
 - Each linked G/L/PO query retrieves at most 100 rows; no automatic pagination is implemented. Counts/summaries cover only validated matches from the returned page. Continuation links are surfaced; only loaded element/WBS IDs can be tested.
-- Selecting/reloading a project clears old evidence and cancels/ignores stale responses. Evidence loads are separate button actions, not automatic on selection.
+- Selecting/reloading clears old evidence and cancels/ignores stale responses. Structure loads automatically, followed by dependent G/L/PO requests; no endpoint/filter/limit semantics change. Refresh/retry are secondary explicit actions.
 - Raw/debug responses can contain unrelated returned rows, but those rows never enter project evidence, summaries or totals. No mocked fallback exists.
 
-## Enterprise Project
+## Separate Synthetic Showcase Provider
+
+Showcase cases are synthetic records shaped to the downloaded SAP API specifications. Live SAP Sandbox projects remain connected separately. There is one app with per-project SHOWCASE / SAP SANDBOX badges, not a mode switch or a mocked live fallback. Both providers use the same evidence interpretation and existing financial/procurement summarisation; `aggregate()` exposes the same decimal-safe calculations for the showcase context UI, without parsing display strings or introducing second formulas.
+
+| Payload | Downloaded schema / representation checked |
+| --- | --- |
+| Project | `A_EnterpriseProjectType`; 9 configured fields; UUID, internal ID ≤8, project ≤24, description ≤60, currency ≤5, company ≤4 |
+| Elements | `A_EnterpriseProjectElementType`; 17 configured fields; UUID references, WBS ≤8, description ≤60; milestone string `X`/blank and Boolean main flag |
+| G/L | `GLAccountLineItemType`; 21 selected fields; exact project/WBS, decimal-string precision 23 / scale 3, Boolean commitment/reversal flags, item text ≤50 |
+| PO | `PurchaseOrderAccountAssignment_Type`; 17 selected fields; exact WBS, currency ≤3, decimal strings, Boolean deletion/final flags and V4 calendar dates |
+
+V2 payloads use `{d:{results:[...]}}` and `/Date(milliseconds)/`; PO V4 uses `{value:[...]}` and `YYYY-MM-DD`. No governance/source/forecast fields are inserted into raw records. All company/supplier/accounting/purchasing identities are fictional. In particular, single-assignment fixtures use `MultipleAcctAssgmtDistrPercent = "0.0"`, within the downloaded range −99.9…99.9; it is not multiplied into amounts. No assumed 100% value is forced against the specification.
+
+Immutable deferred JS supplies fixtures; the local provider validates the used subset before returning records, with no fetch/API key. Tests additionally compare **every generated field** with the actual downloaded read schemas, including anyOf decimal types, precision/scale/ranges, lengths, nullability and date representation, plus exact per-parent referential integrity. This is not a general OpenAPI validator. Technical Details explicitly identifies synthetic SAP-schema-compatible payloads; real project requests are normally hidden for showcase selection, except clearly labelled separate-live-connection failure diagnostics remain inspectable.
+
+Approved investment/explicit forecast, planned/forecast completion, stage and reason are separate SHOWCASE CONTEXT. Posted activity is derived from strict non-commitment G/L rows, grouped by currency; procurement uses active/non-deleted assignments and exact final-invoice flags. Forecast variance = explicit forecast − approved; remaining forecast investment = explicit forecast − posted activity. Forecast percentages are display facts, not materiality policy. Data Platform's unvalidated forecast produces no numeric forecast, variance or remaining-forecast figure. Legacy Reporting's figures are the synthetic pre-Stop position. No such approved/forecast figures are added to live projects.
+
+Exact derived fixture totals (AUD, no conversion):
+
+| Showcase project | Posted financial activity | PO-linked activity | Not-finally-invoiced PO-linked |
+| --- | ---: | ---: | ---: |
+| DPE-IT-ODP-01 | 6,150,000.000 | 1,480,000.000 | 1,070,000.000 |
+| DPE-IT-CRM-01 | 2,400,000.000 | 920,000.000 | 520,000.000 |
+| DPE-IT-DAT-01 | 3,100,000.000 | 650,000.000 | 350,000.000 |
+| DPE-IT-INF-01 | 3,600,000.000 | 720,000.000 | 220,000.000 |
+| DPE-IT-LRP-01 | 2,850,000.000 | 350,000.000 | 150,000.000 |
+
+These are synthetic activity/context amounts, not real DPE costs or exact outstanding liabilities. Seeded qualitative assessments remain editable; numeric variance never automatically selects an assessment, trigger or final decision. Production trigger/materiality criteria require DPE design/pilot calibration.
+
+## Live Enterprise Project
 
 Specification: [API_ENTERPRISE_PROJECT_SRV_0002.json](../api/API_ENTERPRISE_PROJECT_SRV_0002.json).
 
@@ -67,7 +96,7 @@ Full collection endpoint (OData V2):
 https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata/sap/API_GLACCOUNTLINEITEM/GLAccountLineItem
 ```
 
-Click **Load Financial Evidence** after selecting a project and successfully loading its elements (zero elements is a valid response). Every query uses the 21 configured fields, `$format=json`, and `d.results`.
+After successfully loading a live project's elements (zero elements is a valid response), the controller automatically requests financial evidence. Every query uses the 21 configured fields, `$format=json`, and `d.results`.
 
 ### Join Strategy
 
@@ -95,7 +124,7 @@ G/L line items are **financial evidence, not automatically Total Project Cost**.
 
 Net amounts use only confirmed non-commitments, grouped by CompanyCodeCurrency, with exact three-decimal arithmetic and SAP's supplied signs. Do not combine currencies, invent exchange rates or reverse the signs based on DebitCreditCode. Unknown commitment flags and missing/invalid amount/currency values are reported and excluded from amounts.
 
-IsReversal and IsReversed remain visible; reversing/reversed records are not silently removed. No ledger deduplication or complete accounting-scope interpretation is assumed. The table also exposes accounting document, G/L account, WBS, purchasing document and description; full records retain secondary IDs and other selected data. Re-query after selection changes; the current app does not persist evidence.
+IsReversal and IsReversed remain visible; reversing/reversed records are not silently removed. No ledger deduplication or complete accounting-scope interpretation is assumed. The table also exposes accounting document, G/L account, WBS, purchasing document and description; full records retain secondary IDs and other selected data. Re-query after selection changes; only concise evidence summaries, not raw payloads, persist with reviews.
 
 ## Purchase Order
 
@@ -107,7 +136,7 @@ Full account-assignment endpoint (**OData V4**):
 https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001/PurchaseOrderAccountAssignment
 ```
 
-Click **Load Purchase Order Evidence** after real WBS IDs are loaded; a successful G/L join is not required. Query `$top=100`, the 17 configured `$select` fields, and OR-combined `WBSElementInternalID eq '<actual loaded ID>'` filters. Parse **`data.value`**, never V2 `d.results`.
+Live PO retrieval starts automatically after real WBS IDs load; a successful G/L join is not required. Query `$top=100`, the 17 configured `$select` fields, and OR-combined `WBSElementInternalID eq '<actual loaded ID>'` filters. Parse **`data.value`**, never V2 `d.results`.
 
 Every row is checked against exact loaded WBS strings. Only matching account assignments become procurement evidence. Unrelated rows are discarded without failing the whole app when safe matches remain, and reported under **Raw Purchase Order Response / Filter Integrity**. The detail table shows PO, item, WBS, amount/currency, quantity/unit, G/L account, deletion/final-invoice flags and creation date; full accepted records retain the remaining selected fields.
 
@@ -153,7 +182,7 @@ The remote gzip/deflate, UTF-8 BOM decoding, size limits, exact-key redaction an
 
 ## Errors and Browser Troubleshooting
 
-Requests time out after 30 seconds. Inspect visible HTTP status/code, safe response body, collapsible debug areas, browser console and Network tab. Some HTTP responses have no status text. Network/CORS/local-file failures may hide the entire HTTP response; the app reports that limitation rather than inventing success.
+Requests time out after 30 seconds. Normal customer success is quiet; failures show a concise error and explicit Retry. HTTP status/body/filter diagnostics remain in the single collapsed Investment Technical Details area and developer tools. Some HTTP responses have no status text. Network/CORS/local-file failures may hide the entire HTTP response; the app reports that limitation rather than inventing success. Showcase remains available; it never claims that a failed live request succeeded.
 
 If `file://` blocks the request, use a trusted local static web preview at `http://localhost`. It serves files only and cannot fix SAP-side CORS restrictions. Do not disable browser security or use an untrusted proxy. Responses are rendered as text, not executable HTML; exact echoed key text is redacted. Developer tools still show your actual request key, so do not share them unredacted.
 

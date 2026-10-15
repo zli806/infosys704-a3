@@ -44,6 +44,9 @@ jobs:
             node --check "$file"
           done < <(find js -type f -name '*.js' -print0)
 
+      - name: Run credential-free regression and showcase tests
+        run: node --test tests/*.test.js
+
       - name: Syntax-parse Python without executing validators
         run: |
           python -c "import ast; from pathlib import Path; [ast.parse(Path(p).read_text(encoding='utf-8'), filename=p) for p in ('scripts/sap_live_validate.py', 'scripts/check_frontend_contract.py')]"

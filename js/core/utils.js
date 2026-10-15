@@ -4,7 +4,7 @@
 
   function redact(text, apiKey) {
     // Guard against a gateway echoing the credential in a response body.
-    return String(text).split(apiKey).join("[REDACTED]");
+    return apiKey ? String(text).split(apiKey).join("[REDACTED]") : String(text);
   }
   function formatDate(value) {
     if (value === null || value === undefined || value === "") return "—";

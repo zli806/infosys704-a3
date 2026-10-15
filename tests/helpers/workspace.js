@@ -36,15 +36,17 @@ function workspace({ fetchImpl, storage, controller = false, key = '', serviceOv
     querySelector() { return this.getElementById('main'); }
   };
   const map = storage || new Map();
-  const context = { window: { APP_CONFIG: { SAP_API_KEY: key }, location: { protocol: 'http:' }, scrollTo() {}, crypto: require('node:crypto').webcrypto, localStorage: { getItem: key => map.get(key) ?? null, setItem: (key, value) => map.set(key, value) } }, document, Intl, Date, URL, AbortController, setTimeout, clearTimeout, setInterval() {}, console: { error() {}, info() {}, warn() {} },
+  let confirmResult = false;
+  const context = { window: { confirm: () => confirmResult, APP_CONFIG: { SAP_API_KEY: key }, location: { protocol: 'http:' }, scrollTo() {}, crypto: require('node:crypto').webcrypto, localStorage: { getItem: key => map.get(key) ?? null, setItem: (key, value) => map.set(key, value) } }, document, Intl, Date, URL, AbortController, setTimeout, clearTimeout, setInterval() {}, console: { error() {}, info() {}, warn() {} },
      fetch: fetchImpl || (async () => { throw new Error('Tests never call SAP'); }) };
-  for (const file of ['js/core/state.js', 'js/core/utils.js', 'js/core/review-rules.js', 'js/services/sap-http.js', 'js/services/project-service.js', 'js/services/gl-service.js', 'js/services/po-service.js', 'js/services/governance-directory.js', 'js/services/review-store.js', 'js/ui/renderers.js', 'js/ui/governance.js']) {
+  for (const file of ['api-config.js', 'js/data/showcase-portfolio.js', 'js/core/state.js', 'js/core/utils.js', 'js/core/review-rules.js', 'js/services/sap-http.js', 'js/services/project-service.js', 'js/services/gl-service.js', 'js/services/po-service.js', 'js/services/governance-directory.js', 'js/services/showcase-service.js', 'js/services/review-store.js', 'js/ui/renderers.js', 'js/ui/governance.js']) {
     runInNewContext(readFileSync(join(__dirname, '../..', file), 'utf8'), context, { filename: file });
   }
   if (controller) {
-    Object.assign(context.window.DPEApp.services, serviceOverrides);
+    for (const [name, methods] of Object.entries(serviceOverrides)) Object.assign(context.window.DPEApp.services[name], methods);
     runInNewContext(readFileSync(join(__dirname, '../../app.js'), 'utf8'), context, { filename: 'app.js' });
   } else context.window.DPEApp.governanceUI.bind({ saveDraft() {} });
-  return { ...context.window.DPEApp, elements, runtime: context.window.DPEApp, map, directory };
+  return { ...context.window.DPEApp, elements, runtime: context.window.DPEApp, map, directory, fixtures: context.window.DPE_SHOWCASE_PORTFOLIO,
+    confirmReset(value) { confirmResult = value; } };
 }
 module.exports = { workspace, directory };

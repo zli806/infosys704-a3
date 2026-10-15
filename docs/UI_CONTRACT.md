@@ -1,12 +1,12 @@
 # Frontend UI Contract
 
-This contract covers the customer workflow and retained SAP diagnostics. `js/ui/renderers.js` owns SAP tables/status; `js/ui/governance.js` owns navigation/forms/summaries. The checker requires 105 IDs. Implementation, contract and checks must change together.
+This contract covers the customer workflow and retained SAP diagnostics. `js/ui/renderers.js` owns evidence tables/status; `js/ui/governance.js` owns navigation/forms/summaries. The checker requires 111 IDs. Implementation, contract and checks must change together.
 
 ## Functional Hooks
 
 | Area | ID | Role / expected element behaviour |
 | --- | --- | --- |
-| Projects | `load-projects` | Secondary Refresh SAP Data button; startup loads automatically with a configured key without leaving Dashboard. |
+| Projects | `load-projects` | Secondary live Refresh SAP Data; showcase renders/seeds immediately, then live projects auto-load with a key without leaving Dashboard. Failures keep showcase available. |
 | Projects | `connection-status` | Connection status text. |
 | Projects | `message` | Status text and `data-kind` styling. |
 | Projects | `error-details` | Safe error body text; supports `hidden`. |
@@ -63,6 +63,10 @@ Added required IDs: `dashboard-attention` (open-review signals/timing), `review-
 
 Customer simplification hooks: `attention-profile` renders labelled horizontal bars from open-review signals/timing only, or a truthful empty/unavailable message. `project-refresh-error`, `retry-projects`, `project-diagnostics` provide one concise refresh failure and explicit retry/details. `investment-technical-details` is the single, initially collapsed Investment Details disclosure; all raw/error/table/filter diagnostics and `technical-evidence-context` provenance live inside. `decision-incomplete` shows validation errors only on a recording attempt. Removed hooks: `review-timing`, `readiness-status`, `readiness-missing`; timing is rendered within Summary instead.
 
+Showcase hooks: `detail-source` displays SHOWCASE / SAP SANDBOX; each investment/review also has a small source badge without extending raw records. `showcase-investment-context` is visible only for registered showcase projects and renders computed activity/variance plus explicit scenario context; no forecast/budget metrics are invented for live projects. `technical-source` qualifies the provider; `showcase-project-payload` / `raw-showcase-project` expose the synthetic V2 project payload. The live `connection-details` section is normally hidden for that selection, except a failed live refresh remains inspectable under its explicit separate-live-connection heading. Element/G/L/PO raw hooks contain the selected provider's correctly wrapped payloads. `reset-showcase` is a footer-only prototype action, requiring native confirmation and preserving unrelated local records/configuration/live project list.
+
+Review basis displays canonical Material trigger / Scheduled stage-gate review, read-through-normalising legacy wording. Trigger is not an assessment concern. Matrix labels are Normal / no concern identified, Emerging Concern, Material Concern, Evidence Gap and Not assessed; the central qualitative map owns semantics. Internal `attentionItems` remains compatible but no customer text says Attention Items. Not assessed is never a gap. The historical synthetic Stop uses normal stored-record confirmation and is labelled as history; no current decision is preselected. Dates are real clock based; fixed showcase seeds are explicitly synthetic historical dates.
+
 Selecting an investment starts structure retrieval, then financial/procurement calls using existing identifier rules. Card retry controls retain their historical IDs but are secondary and hidden on success. `load-review-evidence` is now Refresh Evidence, not a required happy-path task. Summary contains the six-signal matrix, grouped management attention, timeline, three evidence rows and a link to the consolidated details; no repeated raw tables. Native form semantics and the store's final validation remain authoritative.
 
 ## Script Contract
@@ -72,6 +76,7 @@ All runtime scripts are **normal deferred scripts**, not ES modules and not asyn
 ```text
 config.local.js
 api-config.js
+js/data/showcase-portfolio.js
 js/core/state.js
 js/core/utils.js
 js/core/review-rules.js
@@ -80,6 +85,7 @@ js/services/project-service.js
 js/services/gl-service.js
 js/services/po-service.js
 js/services/governance-directory.js
+js/services/showcase-service.js
 js/services/review-store.js
 js/ui/renderers.js
 js/ui/governance.js
@@ -100,7 +106,7 @@ The local credential script is referenced first but is ignored/untracked and nee
 
 Run `python scripts/check_frontend_contract.py`. It checks unique/nonempty IDs, the required hooks, referenced file existence (except the local credential), the exact deferred script list/order, config before runtime logic, and app.js last. Duplicate ID/script attributes and self-closing script tags are rejected to avoid ambiguity between the checker and browser. It reads HTML, not credentials, and does not semantically parse JavaScript.
 
-**Frontend Static Checks** runs on PRs and master pushes plus manual dispatch, without SAP credentials or API calls. Structural checks cannot prove visual accessibility, browser CORS, event behaviour or API correctness; manual/core regression checks remain necessary. Test the complete assessment → summary → decision → persisted confirmation, missing readiness, each outcome's requirements, storage failures, switching and empty SAP joins. Future UI changes may intentionally revise the contract, but implementation/docs/checks must move together.
+**Frontend Static Checks** runs on PRs and master pushes plus manual dispatch, without SAP credentials or API calls, including all Node regression/fixture tests. Static and in-memory checks cannot prove visual accessibility, browser CORS or real API correctness; browser/live checks remain necessary. Test assessment → summary → decision → persisted confirmation, missing readiness, each outcome's requirements, storage failures, switching, empty SAP joins, non-overwriting seeds and confirmed showcase-only reset. Future UI changes may intentionally revise the contract, but implementation/docs/checks must move together.
 
 ## Review workspace presentation (14 October 2026)
 
@@ -115,11 +121,11 @@ Canonical UI owners:
 | Form | Rule/store validation and governance.js binding | review-rules.js / review-store.js | Assessment / decision | Missing readiness / conditional decision / retained input |
 | Scrollbar | Global styles.css baseline | DESIGN.md / styles.css | Table horizontal overflow; raw-data bounded scroller | Narrow layout / keyboard scroll |
 | Status | renderers.js / governance.js | Evidence snapshots and storage error state | Loading / zero / error / unavailable / success | Live evidence flow / presentation tests |
-| CRUD | Existing governance.js navigation and controller callbacks | UI_CONTRACT.md / app.js / review-store.js | Local draft / immutable completed record; no delete | Back / resume / summary / persisted decision |
+| CRUD | Existing governance.js navigation and controller callbacks | UI_CONTRACT.md / app.js / review-store.js | Local draft / immutable completed record; confirmed showcase-only reset | Back / resume / summary / persisted decision / unrelated-record preservation |
 
 
 Technical evidence tables retain all columns and the existing bounded API retrieval (5 projects; up to 100 G/L/PO rows). The primary Investments table is reduced to project, description, dates, review status and action. No search/pagination changes or persistence of selection in URLs are introduced. There is no selection/bulk grid. Responsive horizontal table overflow is keyboard focusable; ordinary forms continue to scroll with the document. Native controls, rather than authored popup implementations, are deliberate.
 
 Zero matches/partial results are Limited evidence; errors, unavailable/unrequested and loading retain truthful states and explanatory copy. Pending requests supersede saved success badges; readiness still checks attempts, not evidence sufficiency. No scoring/recommendations are added. Comments/dependencies are optional disclosures whose input persists through local drafts; textareas grow. A concise submit-time message replaces permanent readiness/touched-field lists. Source/amount qualifications and raw technical tables remain available in the consolidated disclosure.
 
-Local save feedback reflects visible storage errors. Normal navigation already attempts to save drafts and refuses navigation after a failed save; no new modal or unsaved-data workflow is introduced. Completed records remain immutable under the existing store. No app-owned destructive actions or authentication screens are introduced.
+Local save feedback reflects visible storage errors. Normal navigation attempts to save drafts and refuses navigation after a failed save. Completed records remain immutable under normal store APIs. The only reset is the explicitly confirmed showcase-scoped prototype action; malformed storage is never silently repaired/erased. No authentication or unsaved-data modal workflow is introduced.

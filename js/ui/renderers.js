@@ -85,6 +85,8 @@
       const row = document.createElement("tr");
       cells(row, [project.Project, project.ProjectDescription,
         formatDate(project.ProjectStartDate), formatDate(project.ProjectEndDate), reviewStatusForProject(project)]);
+      const source = document.createElement("span"), synthetic = app.services.showcase?.isShowcase(project);
+      source.className = `source ${synthetic ? "showcase" : "sap"}`; source.textContent = synthetic ? "SHOWCASE" : "SAP SANDBOX"; row.children[0].append(source);
       const actionCell = document.createElement("td");
       const action = document.createElement("button");
       action.type = "button";
@@ -211,7 +213,7 @@
     },
     projectKeyMissing() {
       empty(dom.tableBody, 6, "Investment data is not configured.");
-      dom.connection.textContent = "SAP data is not configured. Contact your administrator."; dom.connection.hidden = false;
+      dom.connection.textContent = "Showcase available. SAP Sandbox connection is not configured."; dom.connection.hidden = false;
       message(dom.message, "Please add your SAP Sandbox API key to config.local.js first.", "error");
     },
     projectLoading() {
@@ -220,10 +222,10 @@
       dom.connection.textContent = "Refreshing SAP data…"; dom.connection.hidden = false;
       message(dom.message, "Requesting up to five Enterprise Projects…");
     },
-    projectSuccess(records, selected, onSelect, status) {
+    projectSuccess(records, selected, onSelect, status, sandboxCount = records.length) {
       renderProjects(records, selected, onSelect); dom.connection.textContent = ""; dom.connection.hidden = true;
       dom.connection.dataset.kind = "success";
-      message(dom.message, `Successfully loaded ${records.length} project${records.length === 1 ? "" : "s"} from SAP Sandbox (${status}).`, "success");
+      message(dom.message, `Loaded ${sandboxCount} SAP Sandbox projects (${status}); showcase records remain separate.`, "success");
     },
     projectFailure(detail) {
       dom.connection.textContent = ""; dom.connection.hidden = true;
