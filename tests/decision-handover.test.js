@@ -13,6 +13,49 @@ function choose(w, group, value) { for (const radio of w.elements.get(group).que
 async function openInvestment(w, index) { click(w, 'nav-investments'); w.elements.get('projects-body').children[index].children[5].children[0].events.click[0](); await tick(); }
 function reset(w) { w.confirmReset(true); click(w, 'reset-showcase'); }
 
+test('follow-up guidance is neutral before selection and follows every outcome without clearing a draft', async () => {
+  const w = workspace({ controller: true }); await openInvestment(w, 0); click(w, 'start-review'); click(w, 'proceed-decision');
+  assert.equal(w.elements.get('decision-follow-up-title').textContent, 'Follow-up action');
+  assert.match(w.elements.get('decision-requirements').textContent, /Select a decision/);
+  w.elements.get('decision-action').value = 'Preserve this draft';
+  for (const outcome of ['Modify', 'Continue', 'Pause', 'Stop', 'Continue with Conditions']) {
+    choose(w, 'decision-outcome', outcome); change(w, 'decision-form');
+    const required = w.reviewRules.needsActions(outcome);
+    assert.equal(w.elements.get('decision-follow-up').open, required);
+    assert.equal(w.elements.get('decision-follow-up-title').textContent, required ? 'Required follow-up action' : 'Optional follow-up action');
+    for (const id of ['decision-action', 'decision-action-owner', 'decision-next-date']) assert.equal(w.elements.get(id).required, required);
+    assert.equal(w.elements.get('decision-action').value, 'Preserve this draft');
+  }
+  w.elements.get('decision-next-date').value = '2026-11-05'; change(w, 'decision-form');
+  assert.match(w.elements.get('decision-next-date-help').textContent, /05 Nov 2026/);
+  w.elements.get('decision-next-date').value = ''; change(w, 'decision-form');
+  assert(!w.elements.get('decision-next-date-help').textContent.includes('05 Nov 2026'));
+});
+
+test('record dates match the shared investment formatter while saved date-only data stays unchanged', async () => {
+  const w = workspace({ controller: true }); await openInvestment(w, 0); click(w, 'start-review'); click(w, 'proceed-decision');
+  choose(w, 'decision-outcome', 'Modify');
+  for (const [id, value] of [['decision-rationale', 'Unit date check'], ['decision-action', 'Review plan'], ['decision-action-owner', 'Unit coordinator'], ['decision-next-date', '2026-11-05']]) w.elements.get(id).value = value;
+  change(w, 'decision-form'); submit(w, 'decision-form');
+  assert.equal(w.state.view, 'confirmation');
+  const field = byClass(w.elements.get('confirmation-record'), 'record-actions')[0].children.find(child => child.children[0].textContent === 'Next Review');
+  assert.equal(field.children[1].textContent, w.ui.formatDate('2026-11-05'));
+  assert.equal(field.children[1].textContent, '05 Nov 2026');
+  assert.equal(w.services.reviewStore.get(w.state.currentReviewID).decision.nextReviewDate, '2026-11-05');
+  assert(byClass(w.elements.get('confirmation-record'), 'record-date')[0].textContent.includes('UTC'));
+});
+
+test('SAP refresh is available on Investments but absent throughout the showcase presentation path', async () => {
+  const w = workspace({ controller: true });
+  assert.equal(w.elements.get('load-projects').hidden, true);
+  click(w, 'nav-investments'); assert.equal(w.elements.get('load-projects').hidden, false);
+  await openInvestment(w, 0); assert.equal(w.elements.get('load-projects').hidden, true);
+  assert.match(w.elements.get('detail-financial-overview').textContent, /not complete project cost/);
+  assert.match(w.elements.get('detail-financial-overview').textContent, /Reviewers assess separately/);
+  click(w, 'start-review'); assert.equal(w.elements.get('load-projects').hidden, true);
+  click(w, 'proceed-decision'); assert.equal(w.elements.get('load-projects').hidden, true);
+});
+
 test('ready hero CTA resumes Summary, exposes five unselected choices, records Modify, persists and resets through controller/DOM events', async () => {
   const w = workspace({ controller: true }); reset(w); await openInvestment(w, 0);
   assert.equal(w.elements.get('start-review').textContent, 'Review Summary & Decide');

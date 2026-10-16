@@ -52,7 +52,7 @@ Text accompanies semantic colour. Available, Limited evidence, Unavailable, Load
 
 ## Typography
 
-`typography.body` maps to `--font-body`; `typography.heading` maps to `--font-heading`. Use local font fallbacks to avoid downloads and font swaps. Short labels use explanatory help below the field. English display dates use en-NZ and preserve UTC interpretation; native date-picker chrome follows the user's browser/OS locale.
+`typography.body` maps to `--font-body`; `typography.heading` maps to `--font-heading`. Use local font fallbacks to avoid downloads and font swaps. Short labels use explanatory help below the field. English display dates reuse `app.ui.formatDate()` with en-NZ and preserve UTC interpretation; date-only records display the same way as investment dates while event timestamps retain explicit UTC time; native date-picker chrome follows the user's browser/OS locale.
 
 ## Layout
 
@@ -111,3 +111,5 @@ Pre-handover verification (15 October 2026): 54 credential-free tests include bo
 - Preserve all existing enums, readiness/decision rules, UTC target calculation and storage boundaries.
 - Respect reduced motion and visible keyboard focus; never use color as the only indicator.
 - Preserve safe textContent rendering and Git-ignored local credentials.
+
+Final team-feedback refinement (16 October 2026): the follow-up disclosure stays neutral until a human selects an outcome; the next-review input has a formatted-date hint while retaining the native picker. The saved record formats that date without mutating ISO storage. SAP project refresh is secondary and appears only on Investments, keeping the showcase presentation route focused. Financial record availability and reviewer-assessed Evidence Gaps remain explicitly distinct.

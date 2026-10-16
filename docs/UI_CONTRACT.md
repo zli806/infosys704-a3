@@ -1,12 +1,12 @@
 # Frontend UI Contract
 
-This contract covers the customer workflow and retained SAP diagnostics. `js/ui/renderers.js` owns evidence tables/status; `js/ui/governance.js` owns navigation/forms/summaries. The checker requires 117 IDs. Implementation, contract and checks must change together.
+This contract covers the customer workflow and retained SAP diagnostics. `js/ui/renderers.js` owns evidence tables/status; `js/ui/governance.js` owns navigation/forms/summaries. The checker requires 118 IDs. Implementation, contract and checks must change together.
 
 ## Functional Hooks
 
 | Area | ID | Role / expected element behaviour |
 | --- | --- | --- |
-| Projects | `load-projects` | Secondary live Refresh SAP Data; showcase renders/seeds immediately, then live projects auto-load with a key without leaving Dashboard. Failures keep showcase available. |
+| Projects | `load-projects` | Secondary live Refresh SAP Projects on Investments only; showcase renders/seeds immediately, then live projects auto-load with a key without leaving Dashboard. Failures keep showcase available. |
 | Projects | `connection-status` | Connection status text. |
 | Projects | `message` | Status text and `data-kind` styling. |
 | Projects | `error-details` | Safe error body text; supports `hidden`. |
@@ -147,3 +147,19 @@ Decision Record uses a small green saved acknowledgement with a neutral outcome 
 Validation for this refinement: 55 credential-free Node tests, the 117-ID script/HTML contract and application JavaScript syntax pass. Official DESIGN.md lint reports zero errors/warnings. Browser checks on an exact credential-free source copy covered the initial portfolio, a complete keyboard-selected Modify with required follow-up and persistence after reload, rejected empty decision submission, incomplete new review, owner changes carried into Summary, and the Data & Analytics evidence-gap case. At 1280×800 the single Summary action was visible at y357–401; 800px and 390px detail/Summary layouts had no page overflow. A browser-only UI fixture confirmed red overdue-gap / grey current-gap / red current-material borders after a specificity fix. No real SAP requests were run for these presentation changes; this is not a formal cross-browser or WCAG certification. Reset Showcase retains its existing native confirmation and is covered by the controller/store tests, not newly certified through this preview tool.
 
 The supplemental premium strict scanner is not green: 20 literal-button findings do not resolve the existing external event bindings, and four textarea findings do not resolve the shared `textarea { resize:none; }` rule. These remain explicitly reported static limitations; the workflow checks above do not claim every control or accessibility case was independently exercised. The canonical-map naming mismatch was corrected in documentation without changing native control ownership.
+
+
+## Team feedback refinement — 16 October 2026
+
+Harneet’s BA/PO and Dhruv’s first-time-user feedback is addressed without changing the workflow or decision rules:
+
+- Before a decision is selected, Follow-up action explains the conditional requirements without calling them optional. Selecting Continue with Conditions, Modify or Pause expands the existing fields and marks all three required; Continue/Stop remain optional. Switching outcomes preserves the draft.
+- `decision-next-date-help` is an associated calendar/input hint that displays the selected date in the shared English format. The native date picker remains browser/OS-owned; no custom calendar, default date or new date restriction is introduced.
+- The confirmation’s Next Review uses `app.ui.formatDate()`, as do governance date-only displays. Saved and exported ISO values are unchanged, and event timestamps retain explicit UTC times.
+- Refresh SAP Projects is available only on Investments, with its existing request/busy/error behavior. It refreshes live SAP projects; the showcase presentation path has no global refresh action. Automatic configured-key loading and retry remain unchanged.
+- Financial activity still does not imply complete project expenditure. Evidence Reviewed distinguishes retrieved-record availability from the reviewer-assessed Evidence Gap category. No new assessment or financial rules are introduced.
+
+Recommended demonstration path: Dashboard → Investments → View Investment → Review Summary → Governance Decision → Decision Confirmation → Dashboard. Existing direct Summary shortcuts remain available.
+
+
+Validation for this follow-up: 58 credential-free Node tests and the 118-ID frontend contract pass; application JavaScript syntax, Python parse, diff whitespace and official DESIGN.md lint pass (zero lint errors/warnings). New regression tests were observed failing before the fixes and passing afterward. Real-browser checks covered neutral/no-selection guidance, all five outcome labels, rejected empty Modify submission, retained drafts, calendar-date entry and the formatted preview, saved/reloaded Next Review, the Data & Analytics gap case, Investments-only SAP refresh visibility, and 390px form/record layouts without page overflow. Desktop evidence is captured at 1280px. Screenshots under `docs/ui-review/` use synthetic showcase data; the mobile saved record is explicitly UI QA only. The native calendar popup itself and other browser engines were not certified. No live SAP requests were made. The same 24 supplemental strict-scanner findings described above remain; they are not reported as a passing audit.
