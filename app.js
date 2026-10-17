@@ -45,14 +45,15 @@
   function refreshGovernance() {
     if (state.view === "investments") ui.renderProjects(state.projects, state.selectedProject, loadProjectElements);
     governance.renderDashboard(state.reviews, state.projects.length, openReview, !state.storageError);
-    if (state.selectedProject) governance.details(state.selectedProject, evidenceForSelected(), state.reviews, !!state.selectedFromSnapshot, !state.storageError, openReview);
+    if (state.selectedProject) governance.details(state.selectedProject, evidenceForSelected(), state.reviews, !!state.selectedFromSnapshot, !state.storageError, selectHistoryRecord,
+      state.view === "confirmation" ? state.currentReviewID : null, state.view === "confirmation" && freshlyRecordedDecisionID === state.currentReviewID);
     const record = currentReview();
     if (record && ["assessment", "summary", "decision"].includes(state.view)) {
       governance.chrome(record, busy());
       governance.financialSnapshot(record);
       if (state.view === "summary") governance.reviewSummary(record);
     }
-    governance.evidenceButton(!!state.selectedProject && !busy());
+    governance.evidenceButton(!!state.selectedProject && !state.selectedFromSnapshot && !busy());
   }
   function persistEvidence(source, value) {
     state.evidence[source] = value;
@@ -80,6 +81,24 @@
     refreshRecords(); state.view = view; governance.showView(view, dashboardFilter); refreshGovernance();
     if (view === "investments") ui.renderProjects(state.projects, state.selectedProject, loadProjectElements);
   }
+  function workspaceTab(tab) {
+    if (!state.selectedProject || !saveDraft()) return false;
+    freshlyRecordedDecisionID = null;
+    refreshRecords();
+    if (tab === "overview") { openOverview(); return true; }
+    if (tab === "current" && !state.storageError) {
+      const active = rules.activeReview(state.reviews, state.selectedProject.ProjectUUID);
+      if (active) { state.currentReviewID = active.id; resumeReview(active); return true; }
+    }
+    state.currentReviewID = null;
+    state.view = tab === "history" ? "history" : "current";
+    governance.showView(state.view); refreshGovernance();
+    return true;
+  }
+  function selectHistoryRecord(id) {
+    if (state.view === "confirmation" && state.currentReviewID === id) { workspaceTab("history"); return; }
+    openReview(id);
+  }
   function refreshProjects() {
     if (state.projectsRefreshing || !saveDraft()) return;
     if (!["dashboard", "investments"].includes(state.view)) {
@@ -99,6 +118,7 @@
     if (!state.selectedProject) return;
     try {
       if (!refreshRecords()) return;
+      if (state.selectedFromSnapshot && !rules.activeReview(state.reviews, state.selectedProject.ProjectUUID)) return;
       const context = governance.portfolioState(state.selectedProject, state.reviews);
       if (!context.active && context.latest?.decision.outcome === "Stop") { openReview(context.latest.id); return; }
       const record = store.start(state.selectedProject, state.evidence);
@@ -114,15 +134,17 @@
       state.selectedProject = state.projects.find(project => project.ProjectUUID === record.project.ProjectUUID) || record.project;
       state.selectedFromSnapshot = !state.projects.some(project => project.ProjectUUID === record.project.ProjectUUID);
       ui.selectProject(state.selectedProject, state.projects, loadProjectElements);
+      if (state.selectedFromSnapshot) state.evidence = record.status === "decision_recorded" ? record.decision.evidenceSnapshot : record.evidence;
     }
     state.currentReviewID = id;
-    if (record.status === "decision_recorded") { state.view = "confirmation"; governance.showView("confirmation"); governance.confirmation(record); refreshGovernance(); }
+    if (record.status === "decision_recorded") { state.view = "confirmation"; governance.showView("confirmation"); governance.confirmation(record); refreshGovernance(); document.getElementById("confirmation-view").focus(); }
     else resumeReview(record);
   }
   function resumeReview(record) { showReviewStep(rules.readiness(record).ready ? "summary" : "assessment", false); }
   function showReviewStep(view, save = true) {
     if (save && !saveDraft()) return;
     const record = currentReview(); if (!record || record.status !== "in_progress") return;
+    if (save && ["assessment", "summary", "decision"].indexOf(view) > ["assessment", "summary", "decision"].indexOf(state.view) + 1) return;
     if (view === "summary" && state.view === "assessment" && validationMissing(record).length) { governance.incompleteAssessment(validationMissing(record)); return; }
     if (view === "decision" && (!rules.readiness(record).ready || busy())) { governance.error("Complete the readiness items and finish evidence loading before proceeding to Decision."); return; }
     state.view = view; governance.showView(view);
@@ -139,20 +161,17 @@
     try {
       const saved = store.confirm(record.id, governance.readDecision());
       freshlyRecordedDecisionID = saved.id;
-      refreshRecords(); state.view = "confirmation"; governance.showView("confirmation"); governance.confirmation(saved); refreshGovernance();
+      refreshRecords(); state.view = "confirmation"; governance.showView("confirmation"); governance.confirmation(saved); refreshGovernance(); document.getElementById("workspace-recorded-notice").focus();
       ui.renderProjects(state.projects, state.selectedProject, loadProjectElements);
     } catch (error) { governance.error(error.message); }
   }
-  function returnInvestment() {
-    if (!saveDraft()) return;
+  function openOverview() {
     freshlyRecordedDecisionID = null;
-    const record = currentReview();
-    if (!state.selectedProject && record) { state.selectedProject = record.project; state.selectedFromSnapshot = true; ui.selectProject(record.project, state.projects, loadProjectElements); }
-    if (state.selectedProject && !state.elementsLoaded) void loadProjectElements(state.selectedProject);
-    else if (state.selectedProject) navigate("detail"); else navigate("investments");
+    if (!state.selectedFromSnapshot && !state.elementsLoaded) { void loadProjectElements(state.selectedProject, true); return; }
+    state.view = "detail"; governance.showView("detail"); refreshGovernance();
   }
   async function loadReviewEvidence() {
-    if (!state.selectedProject || busy()) return;
+    if (!state.selectedProject || state.selectedFromSnapshot || busy()) return;
     await loadProjectElements(state.selectedProject, true);
   }
 
@@ -358,21 +377,21 @@
   ui.configureReviews(project => governance.portfolioState(project, state.reviews, !state.storageError), openReview);
   ui.bindEvents({ loadGL: loadFinancialEvidence, loadPO: loadPurchaseOrderEvidence,
     loadProjects: refreshProjects });
-  governance.bind({ navigate, startReview, saveDraft, summary: () => showReviewStep("summary"), reviewStep: showReviewStep,
+  governance.bind({ navigate, workspaceTab, startReview, saveDraft, summary: () => showReviewStep("summary"), reviewStep: showReviewStep,
     backDashboard: () => navigate("dashboard", state.view === "confirmation" && freshlyRecordedDecisionID === state.currentReviewID ? "recorded" : "active"),
-    confirm: confirmDecision, returnInvestment, loadEvidence: loadReviewEvidence,
+    confirm: confirmDecision, loadEvidence: loadReviewEvidence,
     reloadLifecycle: loadReviewEvidence,
     retryProjects: refreshProjects,
     resetShowcase,
     technicalDetails: () => {
       if (!saveDraft()) return;
       const project = state.selectedProject || state.projects[0];
-      if (project && (!state.selectedProject || !state.elementsLoaded)) void loadProjectElements(project, true);
+      if (project && !state.selectedFromSnapshot && (!state.selectedProject || !state.elementsLoaded)) void loadProjectElements(project, true);
       else { state.view = "detail"; governance.showView("detail"); refreshGovernance(); }
       governance.openTechnical();
     },
     lastDecision: () => {
-      const record = [...state.reviews].filter(item => item.project.ProjectUUID === state.selectedProject?.ProjectUUID && item.status === "decision_recorded").sort((a, b) => b.decision.timestamp.localeCompare(a.decision.timestamp))[0];
+      const record = governance.completedReviews(state.reviews, state.selectedProject?.ProjectUUID)[0];
       if (record) openReview(record.id);
     } });
   state.projects = mergeProjects([]);

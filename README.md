@@ -19,17 +19,17 @@ Reviews/decisions are browser/origin-local. Owners come from an explicitly ficti
 
 ## MVP Flow
 
-**Dashboard / Portfolio → Investment → Review → Assessment → Summary → Decision → immutable Decision Record**
+**Dashboard | Portfolio → Investment Governance Workspace**
 
 Top navigation is **Dashboard | Portfolio**. Dashboard combines current governance attention with portfolio-wide **Recorded Decisions** in one shared list. The first four lenses may overlap; Recorded Decisions counts completed review records, not distinct investments. Portfolio retains all loaded investments, including those with no reviews or decisions.
 
-An investment has **0..N reviews**, but only one active review at a time. Investment Detail provides evidence/current state and investment-specific Review History. Review is a workflow, not a navigation destination. Ready reviews use **Review & Decide** to resume Summary; incomplete ones use **Continue Assessment**. After recording, **Back to Dashboard** opens Recorded Decisions once; ordinary Dashboard navigation defaults to Active Reviews.
+Each investment has one workspace: **Overview | Current Review | History**. Overview owns context/evidence and review initiation. **Open Review** enters Assessment when incomplete or Review Summary when ready—never straight to Governance Decision. Current Review contains **Assessment → Review Summary → Governance Decision** as stages, not separate pages.
 
-Inspect an investment before **Start Review**. After a non-Stop decision, a future stage gate or material trigger may warrant **Start New Review**: a new cycle, never an edit or reopening of the old decision. Investment **Review History** preserves completed cycles. Stop has no normal restart path. A recorded Next Review is a human checkpoint, not an automatic review-creation timer.
+**Record Decision → History**, with a small save acknowledgement and the exact immutable record expanded. **View Record** opens any completed cycle inline in History. Investments have **0..N completed cycles and at most one active review**; after a non-Stop outcome, Overview may Start New Review at a future human stage gate/trigger. Stop has no normal restart path. Next Review is a checkpoint, not an automatic review timer.
 
 An active review supersedes the previous cycle’s Next Review date in current governance views (shown as — in Portfolio). Stop does not schedule a next review; the store also rejects starting a normal review after the latest Stop. Historical decision records remain unchanged.
 
-Within a review, use **Continue to Summary → Continue to Decision → Record Decision**. Decision offers five human choices: Continue, Continue with Conditions, Modify, Pause or Stop—never a system recommendation. Rationale is always required; existing conditional follow-up requirements and 14/30-day controls remain. Assessment/evidence snapshots are historical, not fresh SAP calls or complete-cost/liability claims.
+Decision offers five human outcomes, never a recommendation. Rationale, owner, conditional follow-up and 14/30-day controls remain. Switching workspace tabs saves drafts; re-entry derives the safe stage. Historical-only snapshots are labelled and read-only, not fresh live context. The optional fresh-record Back to Dashboard action selects Recorded Decisions once.
 
 ## Team Working Rule
 

@@ -67,24 +67,23 @@ test('row indexes re-sequence every selected subset while count stays accessible
 
 test('workflow markup has exactly one primary forward action per step and Summary overview is information only', () => {
   const html = readFileSync('index.html', 'utf8'), css = readFileSync('styles.css', 'utf8');
-  assert.match(html, /id="assessment-save-summary"[^>]*>Continue to Summary →/);
+  assert.match(html, /id="assessment-save-summary"[^>]*>Continue to Review Summary →/);
   const summary = html.slice(html.indexOf('<section id="summary-view"'), html.indexOf('<section id="decision-view"'));
   const strip = summary.match(/<section class="summary-decision-strip"[\s\S]*?<\/section>/)[0]; assert(!strip.includes('<button'));
-  assert.match(summary, /class="form-footer workflow-actions"[\s\S]*id="back-assessment" class="secondary"[^>]*>← Back to Assessment[\s\S]*id="proceed-decision"[^>]*>Continue to Decision →/);
-  assert.match(html, /id="review-back-investment"[^>]*>← Back to Investment/);
-  assert.match(css, /\.review-header > button\s*\{[^}]*border:1px solid/);
+  assert.match(summary, /class="form-footer workflow-actions"[\s\S]*id="back-assessment" class="secondary"[^>]*>← Back to Assessment[\s\S]*id="proceed-decision"[^>]*>Continue to Governance Decision →/);
+  assert(!html.includes('id="review-back-investment"')); assert(html.includes('id="workspace-tab-overview"'));
   assert(!html.includes('Make Governance Decision')); assert(!html.includes('Return to Investment'));
   const confirmation = html.slice(html.indexOf('<section id="confirmation-view"'));
-  assert.match(confirmation, /id="return-investment" class="secondary"[^>]*>View Investment/); assert.match(confirmation, /id="back-dashboard" type="button">Back to Dashboard/);
+  assert(!confirmation.includes('id="return-investment"')); assert.match(html, /id="back-dashboard" type="button">Back to Dashboard/);
 });
 
-test('stepper distinguishes completed/current/future without adding navigation, and back/continue handlers preserve workflow', () => {
+test('workspace stepper only permits completed-step navigation and preserves back/continue handlers', () => {
   const w = workspace({ controller: true }), steps = w.document.getElementById('review-steps');
-  for (let i = 0; i < 3; i++) { const step = w.document.createElement('li'); step.append(w.document.createElement('span')); steps.append(step); }
+  for (const name of ['assessment', 'summary', 'decision']) { const step = w.document.createElement('li'), button = w.document.getElementById(`review-step-${name}`); button.append(w.document.createElement('span')); step.append(button); steps.append(step); }
   w.governanceUI.showView('summary'); assert.deepEqual(steps.children.map(step => step.dataset.state), ['complete', 'current', 'future']);
-  assert.equal(steps.children[0].children[0].textContent, '✓'); assert.equal(steps.children[1].getAttribute('aria-current'), 'step'); assert(steps.children.every(step => !step.events.click));
+  assert.equal(steps.children[0].children[0].children[0].textContent, '✓'); assert.equal(steps.children[1].getAttribute('aria-current'), 'step'); assert.equal(w.elements.get('review-step-decision').disabled, true);
   w.governanceUI.showView('decision'); assert.deepEqual(steps.children.map(step => step.dataset.state), ['complete', 'complete', 'current']);
-  assert.match(readFileSync('index.html', 'utf8'), /id="back-summary"[^>]*>← Back to Summary/);
+  assert.match(readFileSync('index.html', 'utf8'), /id="back-summary"[^>]*>← Back to Review Summary/);
   click(w, 'nav-dashboard'); const ready = rows(w).find(row => row.dataset.reviewId === 'SHOWCASE-ODP-REVIEW'); byClass(ready, 'queue-action-button')[0].events.click[0]();
   assert.equal(w.state.view, 'summary'); click(w, 'proceed-decision'); assert.equal(w.state.view, 'decision'); click(w, 'back-summary'); assert.equal(w.state.view, 'summary'); click(w, 'back-assessment'); assert.equal(w.state.view, 'assessment');
 });

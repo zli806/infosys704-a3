@@ -29,10 +29,10 @@ test('navigation and Dashboard orientation use customer terminology without chan
 test('Portfolio derives all eight governance cases and uses only stored decision dates without persisting a status', () => {
   const w = workspace(), seeds = w.services.showcase.seededReviews(), ready = seeds[0], project = ready.project;
   const incomplete = { ...ready, assessment: w.reviewRules.defaultAssessment() };
-  for (const [records, expected, step] of [[[], 'Monitoring', 'View Investment'], [[incomplete], 'Assessment in progress', 'Continue Assessment'], [[ready], 'Ready for decision', 'Review & Decide']]) {
+  for (const [records, expected, step] of [[[], 'Monitoring', 'Open Investment'], [[incomplete], 'Assessment in progress', 'Open Review'], [[ready], 'Ready for decision', 'Open Review']]) {
     const view = w.governanceUI.portfolioState(project, records); assert.equal(view.label, expected); assert.equal(view.nextStep, step); assert.equal(view.nextReview, null);
   }
-  for (const [outcome, label, step] of [['Continue', 'Monitoring', 'View Investment'], ['Continue with Conditions', 'Follow-up', 'View Investment'], ['Modify', 'Follow-up', 'View Investment'], ['Pause', 'Paused', 'View Investment'], ['Stop', 'Stopped', 'View Decision']]) {
+  for (const [outcome, label, step] of [['Continue', 'Monitoring', 'Open Investment'], ['Continue with Conditions', 'Follow-up', 'Open Investment'], ['Modify', 'Follow-up', 'Open Investment'], ['Pause', 'Paused', 'Open Investment'], ['Stop', 'Stopped', 'View Record']]) {
     const completed = { ...ready, status: 'decision_recorded', decision: { ...draft(outcome), timestamp: '2026-10-17T10:00:00Z' } }, before = JSON.stringify(completed);
     const view = w.governanceUI.portfolioState(project, [completed]); assert.equal(view.label, label); assert.equal(view.nextStep, step);
     assert.equal(view.nextReview, outcome === 'Stop' ? null : '2026-11-17'); assert.equal(JSON.stringify(completed), before);
@@ -40,7 +40,7 @@ test('Portfolio derives all eight governance cases and uses only stored decision
     const row = w.elements.get('projects-body').children[0]; assert.equal(row.children[1].textContent, label);
     assert.equal(row.children[2].children[0].textContent, outcome); assert.equal(row.children[2].children[1].textContent, w.ui.formatDate(completed.decision.timestamp));
     assert.equal(row.children[3].textContent, outcome === 'Stop' ? '—' : w.ui.formatDate('2026-11-17')); assert.equal(buttonIn(row).textContent, step);
-    const active = w.governanceUI.portfolioState(project, [completed, incomplete]); assert.equal(active.label, 'Assessment in progress'); assert.equal(active.nextStep, 'Continue Assessment'); assert.equal(active.latest.id, completed.id);
+    const active = w.governanceUI.portfolioState(project, [completed, incomplete]); assert.equal(active.label, 'Assessment in progress'); assert.equal(active.nextStep, 'Open Review'); assert.equal(active.latest.id, completed.id);
     completed.decision.nextReviewDate = ''; assert.equal(w.governanceUI.portfolioState(project, [completed]).nextReview, null);
   }
 });
@@ -48,12 +48,12 @@ test('Portfolio derives all eight governance cases and uses only stored decision
 test('Portfolio retains every investment and follows contextual next steps rather than starting reviews from rows', async () => {
   const w = workspace({ controller: true }); click(w, 'nav-investments');
   assert.equal(w.elements.get('projects-body').children.length, w.state.projects.length);
-  const body = w.elements.get('projects-body'); assert.equal(buttonIn(body.children[0]).textContent, 'Review & Decide');
+  const body = w.elements.get('projects-body'); assert.equal(buttonIn(body.children[0]).textContent, 'Open Review');
   assert(body.children[0].textContent.includes('Ready for decision')); assert(body.children[0].textContent.includes('SHOWCASE')); assert(body.children[0].textContent.includes('DPE-IT-ODP-01'));
-  assert.equal(buttonIn(body.children[3]).textContent, 'View Investment'); assert.equal(buttonIn(body.children[4]).textContent, 'View Decision'); assert(body.children[4].textContent.includes('Stopped'));
+  assert.equal(buttonIn(body.children[3]).textContent, 'Open Investment'); assert.equal(buttonIn(body.children[4]).textContent, 'View Record'); assert(body.children[4].textContent.includes('Stopped'));
   assert(!body.textContent.includes('Start Review')); buttonIn(body.children[3]).events.click[0](); await tick(); assert.equal(w.state.view, 'detail'); assert.equal(w.elements.get('start-review').textContent, 'Start Review');
   click(w, 'start-review'); assert.equal(w.state.view, 'assessment'); click(w, 'nav-investments');
-  assert.equal(buttonIn(w.elements.get('projects-body').children[3]).textContent, 'Continue Assessment');
+  assert.equal(buttonIn(w.elements.get('projects-body').children[3]).textContent, 'Open Review');
   buttonIn(w.elements.get('projects-body').children[3]).events.click[0](); assert.equal(w.state.view, 'assessment');
 });
 
@@ -63,24 +63,24 @@ test('non-Stop decision stays immutable while Start New Review creates a fresh s
   recordDecision(w); const oldID = w.state.currentReviewID, old = JSON.stringify(store.get(oldID));
   assert.throws(() => store.update(oldID, { assessment: w.reviewRules.defaultAssessment() }), /cannot be edited/);
   assert.throws(() => store.confirm(oldID, draft('Continue')), /already recorded/);
-  click(w, 'return-investment'); await tick(); assert.equal(w.state.view, 'detail');
+  click(w, 'workspace-tab-overview'); await tick(); assert.equal(w.state.view, 'detail');
   assert.equal(w.elements.get('start-review').textContent, 'Start New Review'); assert.equal(w.elements.get('start-review').hidden, false);
-  assert.equal(w.elements.get('view-last-decision').textContent, 'View Latest Decision'); assert.equal(w.elements.get('view-last-decision').className, 'secondary');
-  assert.equal(w.elements.get('detail-review-status').children[0].textContent, 'Follow-up'); assert.match(w.elements.get('detail-review-status').children[1].textContent, /Latest decision Modify/);
+  assert.equal(w.elements.get('view-last-decision').textContent, 'View Latest Record'); assert.equal(w.elements.get('view-last-decision').className, 'secondary');
+  assert.equal(w.elements.get('detail-review-status').children[0].textContent, 'Follow-up'); assert.match(w.elements.get('detail-review-status').children[1].textContent, /Latest decision: Modify/);
   assert.equal(rows(w, 'investment-history-body').length, 1); assert.equal(rows(w, 'investment-history-body')[0].dataset.reviewId, oldID);
   click(w, 'start-review'); const id = w.state.currentReviewID; assert.notEqual(id, oldID); assert.equal(w.state.view, 'assessment');
   const fresh = store.get(id); assert.equal(fresh.status, 'in_progress'); assert.notEqual(fresh.reviewOpenedAt, store.get(oldID).reviewOpenedAt);
   assert.deepEqual(fresh.assessment, w.reviewRules.defaultAssessment()); assert.equal(fresh.reviewBasis, ''); assert.equal(fresh.decisionOwner, ''); assert.equal(fresh.decisionDraft.outcome, '');
   assert.equal(store.start(fresh.project, fresh.evidence).id, id); assert.equal(store.list().filter(r => r.project.ProjectUUID === fresh.project.ProjectUUID && r.status === 'in_progress').length, 1);
-  assert.equal(JSON.stringify(store.get(oldID)), old); click(w, 'review-back-investment'); await tick();
-  assert.equal(w.elements.get('start-review').textContent, 'Continue Assessment'); assert.deepEqual(rows(w, 'investment-history-body').map(row => row.dataset.reviewId), [oldID]);
-  click(w, 'nav-investments'); const portfolio = w.elements.get('projects-body').children[0]; assert(portfolio.textContent.includes('Assessment in progress')); assert(portfolio.textContent.includes('Modify')); assert.equal(buttonIn(portfolio).textContent, 'Continue Assessment');
+  assert.equal(JSON.stringify(store.get(oldID)), old); click(w, 'workspace-tab-overview'); await tick();
+  assert.equal(w.elements.get('start-review').textContent, 'Open Review'); assert.deepEqual(rows(w, 'investment-history-body').map(row => row.dataset.reviewId), [oldID]);
+  click(w, 'nav-investments'); const portfolio = w.elements.get('projects-body').children[0]; assert(portfolio.textContent.includes('Assessment in progress')); assert(portfolio.textContent.includes('Modify')); assert.equal(buttonIn(portfolio).textContent, 'Open Review');
   click(w, 'nav-dashboard'); click(w, 'dashboard-filter-recorded'); assert(rows(w, 'dashboard-attention').some(row => row.dataset.reviewId === oldID)); assert(!rows(w, 'dashboard-attention').some(row => row.dataset.reviewId === id));
   click(w, 'nav-dashboard'); const metric = w.document.getElementById('dashboard-filter-active'); assert.equal(metric.children[1].textContent, '3'); assert(w.elements.get('dashboard-attention').textContent.includes(fresh.project.ProjectDescription));
   const reloaded = workspace({ controller: true, storage: w.map }); assert.equal(reloaded.services.reviewStore.list().filter(r => r.project.ProjectUUID === fresh.project.ProjectUUID).length, 2); assert.equal(JSON.stringify(reloaded.services.reviewStore.get(oldID)), old);
 });
 
-test('every completed non-Stop outcome allows a new cycle, whereas latest Stop exposes only View Decision', () => {
+test('every completed non-Stop outcome allows a new cycle, whereas latest Stop exposes only View Latest Record', () => {
   for (const outcome of ['Continue', 'Continue with Conditions', 'Modify', 'Pause', 'Stop']) {
     const w = workspace(), store = w.services.reviewStore; store.seedShowcase(); const completed = store.confirm('SHOWCASE-ODP-REVIEW', draft(outcome));
     const before = JSON.stringify(completed); w.governanceUI.details(completed.project, completed.evidence, store.list());
@@ -92,8 +92,8 @@ test('every completed non-Stop outcome allows a new cycle, whereas latest Stop e
 
 test('Stop controller guard prevents accidental restart even if the hidden start handler is invoked', async () => {
   const w = workspace({ controller: true }); click(w, 'nav-investments'); buttonIn(w.elements.get('projects-body').children[4]).events.click[0]();
-  assert.equal(w.state.view, 'confirmation'); click(w, 'return-investment'); await tick();
-  assert.equal(w.elements.get('start-review').hidden, true); assert.equal(w.elements.get('view-last-decision').textContent, 'View Decision'); assert.match(w.elements.get('detail-review-status').textContent, /^Stopped/);
+  assert.equal(w.state.view, 'confirmation'); click(w, 'workspace-tab-overview'); await tick();
+  assert.equal(w.elements.get('start-review').hidden, true); assert.equal(w.elements.get('view-last-decision').textContent, 'View Latest Record'); assert.match(w.elements.get('detail-review-status').textContent, /^Stopped/);
   const before = w.map.get(w.services.reviewStore.STORAGE_KEY); click(w, 'start-review'); assert.equal(w.state.view, 'confirmation'); assert.equal(w.map.get(w.services.reviewStore.STORAGE_KEY), before);
 });
 
@@ -112,7 +112,7 @@ test('Dashboard recorded decisions and investment history sort by decision times
   const differentOffset = make('offset', '2026-10-17T23:30:00-10:00', '2026-08-01T10:00:00Z');
   assert.equal(w.governanceUI.completedReviews([latest, differentOffset])[0].id, 'offset');
   w.governanceUI.renderDashboard([ready], 1, () => {}); assert.match(w.elements.get('dashboard-attention').textContent, /No decisions recorded yet/);
-  w.governanceUI.details(other.project, other.evidence, [ready]); assert.match(w.elements.get('investment-history-body').textContent, /No completed reviews/);
+  w.governanceUI.details(other.project, other.evidence, [ready]); assert.match(w.elements.get('investment-history-body').textContent, /No recorded decisions/);
 });
 
 test('historical investment missing from live portfolio remains readable through Dashboard and history callbacks', async () => {
@@ -122,16 +122,16 @@ test('historical investment missing from live portfolio remains readable through
   const raw = JSON.parse(source.map.get(store.STORAGE_KEY)); raw.reviews.push(missing); source.map.set(store.STORAGE_KEY, JSON.stringify(raw));
   const w = workspace({ controller: true, storage: source.map }); click(w, 'dashboard-filter-recorded'); buttonIn(rows(w, 'dashboard-attention').find(row => row.dataset.reviewId === missing.id)).events.click[0]();
   assert.equal(w.state.view, 'confirmation'); assert.equal(w.state.currentReviewID, missing.id); assert.equal(w.state.selectedFromSnapshot, true); assert(w.elements.get('confirmation-record').textContent.includes('HISTORICAL-ONLY'));
-  click(w, 'return-investment'); await tick(); assert.equal(w.state.view, 'detail'); assert.deepEqual(rows(w, 'investment-history-body').map(row => row.dataset.reviewId), [missing.id]);
+  click(w, 'workspace-tab-overview'); await tick(); assert.equal(w.state.view, 'detail'); assert.deepEqual(rows(w, 'investment-history-body').map(row => row.dataset.reviewId), [missing.id]);
   buttonIn(rows(w, 'investment-history-body')[0]).events.click[0](); assert.equal(w.state.currentReviewID, missing.id); assert.equal(w.state.view, 'confirmation');
 });
 
 test('unavailable storage never claims Monitoring or empty history and cannot create a review', async () => {
   const storage = { get() { throw new Error('Storage unavailable'); }, set() { throw new Error('Storage unavailable'); } };
   const w = workspace({ controller: true, storage }); click(w, 'nav-investments');
-  assert.equal(w.elements.get('projects-body').children.length, 5); assert(w.elements.get('projects-body').textContent.includes('Governance unavailable'));
+  assert.equal(w.elements.get('projects-body').children.length, 5); assert(w.elements.get('projects-body').textContent.includes('Governance status unavailable'));
   buttonIn(w.elements.get('projects-body').children[3]).events.click[0](); await tick(); assert.equal(w.state.view, 'detail');
-  assert.equal(w.elements.get('start-review').disabled, true); assert.equal(w.elements.get('view-last-decision').hidden, true); assert.match(w.elements.get('investment-history-body').textContent, /storage unavailable/);
+  assert.equal(w.elements.get('start-review').disabled, true); assert.equal(w.elements.get('view-last-decision').hidden, true); assert.match(w.elements.get('investment-history-body').textContent, /Decision history unavailable/);
   click(w, 'start-review'); assert.equal(w.state.view, 'detail'); click(w, 'nav-dashboard'); w.governanceUI.showView('dashboard', 'recorded'); assert.match(w.elements.get('dashboard-attention').textContent, /storage unavailable/);
 });
 
@@ -140,6 +140,6 @@ test('a past recorded Next Review checkpoint does not automatically create anoth
   const completed = store.confirm('SHOWCASE-ODP-REVIEW', { ...draft('Modify'), nextReviewDate: '2020-01-01' });
   const reloaded = workspace({ controller: true, storage: w.map });
   assert.equal(reloaded.reviewRules.activeReview(reloaded.state.reviews, completed.project.ProjectUUID), null);
-  click(reloaded, 'nav-investments'); assert.equal(buttonIn(reloaded.elements.get('projects-body').children[0]).textContent, 'View Investment');
+  click(reloaded, 'nav-investments'); assert.equal(buttonIn(reloaded.elements.get('projects-body').children[0]).textContent, 'Open Investment');
   assert.equal(reloaded.services.reviewStore.list().filter(r => r.project.ProjectUUID === completed.project.ProjectUUID).length, 1);
 });

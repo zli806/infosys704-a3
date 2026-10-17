@@ -57,7 +57,7 @@ test('fully assessed normal review is still actionable without fabricating a fla
   normal = store.update(normal.id, { reviewBasis: w.reviewRules.BASIS[0], decisionOwnerId: 'GOV-003', assessment: { strategicAlignment: 'High', expectedBenefits: 'Yes', deliveryPerformance: 'On track', costPosition: 'Within expectations', risk: 'Low', futureEconomicValue: 'Positive' } });
   w.governanceUI.renderDashboard([normal], 5, () => {});
   assert.equal(rows(w).length, 1); assert.equal(byClass(rows(w)[0], 'flag-explanation').length, 0);
-  assert(rows(w)[0].textContent.includes('No concerns identified')); assert.equal(byClass(rows(w)[0], 'queue-action')[0].children[1].textContent, 'Review & Decide');
+  assert(rows(w)[0].textContent.includes('No concerns identified')); assert.equal(byClass(rows(w)[0], 'queue-action')[0].children[1].textContent, 'Open Review');
   assert.equal(store.get(normal.id).decision, null);
 });
 
@@ -79,7 +79,7 @@ test('metric help opens on hover and focus, stays hoverable, is dismissible with
   wrapper.events.mouseenter[0](); assert.equal(text.hidden, false); assert.equal(trigger.getAttribute('aria-expanded'), 'true');
   wrapper.events.mouseleave[0](); assert.equal(text.hidden, true);
   trigger.events.focus[0](); assert.equal(text.hidden, false); wrapper.events.mouseleave[0](); assert.equal(text.hidden, false);
-  let dismissed = false; w.document.events.keydown[0]({ key: 'Escape', preventDefault() { dismissed = true; } });
+  let dismissed = false; for (const callback of w.document.events.keydown) callback({ key: 'Escape', preventDefault() { dismissed = true; } });
   assert(dismissed); assert.equal(text.hidden, true); trigger.events.blur[0]();
   // A real pointer/touch click can focus the button before click fires; it must not immediately close the help.
   trigger.events.focus[0](); trigger.events.click[0](); assert.equal(text.hidden, false); trigger.events.click[0](); assert.equal(text.hidden, true);

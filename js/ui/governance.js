@@ -3,8 +3,8 @@
   const app = window.DPEApp = window.DPEApp || {};
   const rules = app.reviewRules;
   const el = id => document.getElementById(id);
-  const views = ["dashboard", "investments", "detail", "assessment", "summary", "decision", "confirmation"];
-  const titles = { dashboard: "Portfolio Governance", investments: "Portfolio", detail: "Investment Details", assessment: "Continuation Review – Assessment", summary: "Review Summary", decision: "Governance Decision", confirmation: "Decision Confirmation" };
+  const workspaceViews = ["detail", "current", "history", "assessment", "summary", "decision", "confirmation"];
+  const titles = { dashboard: "Portfolio Governance", investments: "Portfolio" };
   const assessmentIDs = { strategicAlignment: "assessment-alignment", expectedBenefits: "assessment-benefits", deliveryPerformance: "assessment-delivery", costPosition: "assessment-cost", risk: "assessment-risk", futureEconomicValue: "assessment-value" };
   let directoryPeople = [];
   let directoryError = "";
@@ -157,20 +157,19 @@
     container.append(status, timeline);
     if (record.status !== "decision_recorded") container.append(node("p", control.status === "Within decision window" ? `${control.daysRemaining} days remaining` : `${control.daysOverdue} days overdue`, "timing-window"));
   }
-  function resumeLabel(record) { return rules.readiness(record).ready ? "Review & Decide" : "Continue Assessment"; }
   // Presentation only: an investment outlives any one review/immutable decision.
   function completedReviews(records, uuid) {
     return records.filter(record => record.status === "decision_recorded" && (!uuid || record.project.ProjectUUID === uuid))
       .sort((a, b) => Date.parse(b.decision.timestamp) - Date.parse(a.decision.timestamp) || a.id.localeCompare(b.id));
   }
   function portfolioState(project, records, storageAvailable = true) {
-    if (!storageAvailable) return { label: "Governance unavailable", nextStep: "View Investment", active: null, latest: null, nextReview: null };
+    if (!storageAvailable) return { label: "Governance status unavailable", nextStep: "Open Investment", active: null, latest: null, nextReview: null };
     const active = rules.activeReview(records, project.ProjectUUID), latest = completedReviews(records, project.ProjectUUID)[0] || null;
     const outcome = latest?.decision.outcome;
     const label = active ? (rules.readiness(active).ready ? "Ready for decision" : "Assessment in progress")
       : outcome === "Stop" ? "Stopped" : outcome === "Pause" ? "Paused" : ["Modify", "Continue with Conditions"].includes(outcome) ? "Follow-up" : "Monitoring";
     return { label, active, latest, nextReview: active || outcome === "Stop" ? null : latest?.decision.nextReviewDate || null,
-      nextStep: active ? resumeLabel(active) : outcome === "Stop" ? "View Decision" : "View Investment" };
+      nextStep: active ? "Open Review" : outcome === "Stop" ? "View Record" : "Open Investment" };
   }
   const dashboardFilters = [
     { key: "active", label: "Active Reviews", heading: "Active Reviews", unit: "review", description: "Show all currently open reviews", matches: () => true, empty: "No active reviews awaiting a governance decision." },
@@ -191,6 +190,14 @@
     emerging: "A deteriorating or uncertain assessment requiring attention or monitoring, but not currently classified as material.",
     gap: "An assessment area has insufficient evidence for a reliable conclusion."
   };
+  const reviewTriggerHelp = "Why this formal review was opened. A review may begin at a scheduled stage gate or because a material trigger calls the current investment case into question. The trigger is not itself a review finding.";
+  const findingsHelp = "Reviewer assessment results across the six continuation-review dimensions. Findings may be Material Concerns, Emerging Concerns, Evidence Gaps, or no concern. They inform governance judgement but do not determine the decision.";
+  const contextHelps = new Map();
+  function contextHelp(key, label, copy) {
+    if (!contextHelps.has(key)) contextHelps.set(key, metricHelp({ key, label }, copy, false));
+    return contextHelps.get(key);
+  }
+  let dashboardColumnLabels = null;
   let selectedDashboardFilter = "active";
   let dashboardState = null;
   let dashboardFilterButtons = [];
@@ -247,7 +254,14 @@
     el("decision-queue-title").textContent = filter.heading;
     el("dashboard-filter-count").textContent = storageAvailable ? countLabel(items.length, filter.unit) : "Records unavailable";
     const labels = ["Investment", "Review Trigger", filter.recorded ? "Decision" : "Findings", filter.recorded ? "Decision Date" : "Decision Timing", "Next Step"];
-    el("dashboard-columns").replaceChildren(...labels.map(label => node("span", label)));
+    if (!dashboardColumnLabels) {
+      dashboardColumnLabels = labels.map(label => { const cell = node("span"), text = node("span", label, "column-label"); cell.append(text); return cell; });
+      dashboardColumnLabels[1].append(contextHelp("dashboard-trigger", "Review Trigger", reviewTriggerHelp));
+      dashboardColumnLabels[2].append(contextHelp("dashboard-findings", "Findings", findingsHelp));
+      el("dashboard-columns").replaceChildren(...dashboardColumnLabels);
+    }
+    labels.forEach((label, index) => { dashboardColumnLabels[index].children[0].textContent = label; dashboardColumnLabels[index].dataset.label = label; });
+    contextHelps.get("dashboard-findings").hidden = !!filter.recorded;
     const queue = el("dashboard-attention"); queue.replaceChildren();
     queue.dataset.mode = filter.recorded ? "recorded" : "current";
     if (!storageAvailable) queue.append(node("p", "Review storage unavailable; governance records cannot be refreshed.", "queue-empty"));
@@ -262,13 +276,14 @@
       const identity = node("p", review.project.Project, "queue-identity"); identity.append(sourceBadge(review.project));
       investment.append(node("h4", review.project.ProjectDescription || review.project.Project), identity);
       const basis = rules.normalizeBasis(review.reviewBasis), trigger = node("div", undefined, "queue-trigger"); trigger.dataset.tone = basis === "Material trigger" ? "warm" : "neutral";
-      trigger.append(node("span", "Review Trigger", "queue-field-label"), node("p", basis || "Not selected"));
+      const triggerText = node("p", basis || "Not selected"); triggerText.title = reviewTriggerHelp; triggerText.setAttribute("aria-label", `${basis || "Review Trigger not selected"}. ${reviewTriggerHelp}`);
+      trigger.append(node("span", "Review Trigger", "queue-field-label"), triggerText);
       if (filter.recorded) {
         const outcome = node("div", undefined, "queue-decision"); outcome.append(node("span", "Decision", "queue-field-label"), node("strong", review.decision.outcome, "governance-chip"));
         const date = node("div", undefined, "queue-timing"), time = node("time", shortDate(review.decision.timestamp)); time.dateTime = review.decision.timestamp; time.title = dateTime(review.decision.timestamp);
         date.append(node("span", "Decision Date", "queue-field-label"), time);
-        const primary = node("div", undefined, "queue-action"), button = action("View Decision", () => onOpen(review.id)); button.className = "queue-action-button";
-        button.setAttribute("aria-label", `View Decision: ${review.project.ProjectDescription || review.project.Project} · ${dateTime(review.decision.timestamp)}`);
+        const primary = node("div", undefined, "queue-action"), button = action("View Record", () => onOpen(review.id)); button.className = "queue-action-button";
+        button.setAttribute("aria-label", `View Record: ${review.project.ProjectDescription || review.project.Project} · ${dateTime(review.decision.timestamp)}`);
         primary.append(node("span", "Next Step", "queue-field-label"), button);
         grid.append(investment, trigger, outcome, date, primary); row.append(grid, sequence); queue.append(row); continue;
       }
@@ -289,30 +304,31 @@
       deadline.append(node("span", "Decision Timing", "queue-field-label"));
       if (timing.status !== "Within decision window") deadline.append(node("strong", timing.status));
       deadline.append(time);
-      const primary = node("div", undefined, "queue-action"), button = action(resumeLabel(review), () => onOpen(review.id)); button.className = "queue-action-button";
-      button.setAttribute("aria-label", `${resumeLabel(review)}: ${review.project.ProjectDescription || review.project.Project}`); primary.append(node("span", "Next Step", "queue-field-label"), button);
+      const primary = node("div", undefined, "queue-action"), button = action("Open Review", () => onOpen(review.id)); button.className = "queue-action-button";
+      button.setAttribute("aria-label", `Open Review: ${review.project.ProjectDescription || review.project.Project}`); primary.append(node("span", "Next Step", "queue-field-label"), button);
       grid.append(investment, trigger, findings, deadline, primary); row.append(grid, sequence);
       queue.append(row);
     }
   }
-  function renderReviewHistory(body, records, onOpen, storageAvailable) {
+  function renderReviewHistory(body, records, onOpen, storageAvailable, selectedID) {
     body.replaceChildren();
-    const labels = ["Decision Date", "Review Trigger", "Decision", "Decision Owner", "Next Review", "Next Step"];
+    const labels = ["Decision Date", "Review Trigger", "Decision", "Decision Owner", "Next Review", "Record"];
     if (!records.length || !storageAvailable) {
-      const row = node("tr"), cell = node("td", !storageAvailable ? "Decision storage unavailable." : "No completed reviews for this investment.", "empty");
+      const row = node("tr"), cell = node("td", !storageAvailable ? "Decision history unavailable." : "No recorded decisions.", "empty");
       cell.colSpan = labels.length; row.append(cell); body.append(row); return;
     }
     for (const record of records) {
-      const row = node("tr"); row.dataset.reviewId = record.id;
+      const row = node("tr"); row.dataset.reviewId = record.id; row.dataset.selected = String(record.id === selectedID);
       const values = [shortDate(record.decision.timestamp), rules.normalizeBasis(record.reviewBasis) || "Not selected", record.decision.outcome, record.decision.owner, shortDate(record.decision.nextReviewDate)];
       values.forEach((value, index) => { const cell = node("td", value); cell.dataset.label = labels[index]; row.append(cell); });
       const outcomeCell = row.children[2]; outcomeCell.replaceChildren(node("span", record.decision.outcome, "governance-chip"));
-      const cell = node("td"), button = action("View Decision", () => onOpen(record.id)); cell.dataset.label = "Next Step";
-      button.setAttribute("aria-label", `View Decision: ${record.project.Project} · ${shortDate(record.decision.timestamp)}`);
+      const cell = node("td"), button = action("View Record", () => onOpen(record.id)); cell.dataset.label = "Record";
+      button.setAttribute("aria-label", `View Record: ${record.project.Project} · ${dateTime(record.decision.timestamp)}`);
+      button.setAttribute("aria-expanded", String(record.id === selectedID)); button.setAttribute("aria-controls", "confirmation-view");
       cell.append(button); row.append(cell); body.append(row);
     }
   }
-  function details(project, evidence, records, capturedContext = false, storageAvailable = true, onOpen = () => {}) {
+  function details(project, evidence, records, capturedContext = false, storageAvailable = true, onOpen = () => {}, selectedID = null, freshRecord = false) {
     el("detail-project-id").textContent = project.Project;
     el("detail-project-name").textContent = project.ProjectDescription || "Unnamed investment";
     const synthetic = app.services.showcase?.isShowcase(project);
@@ -326,20 +342,29 @@
     const context = el("investment-context"); context.replaceChildren();
     context.hidden = !!synthetic;
     pairs(context, [["Project dates", `${app.ui.formatDate(project.ProjectStartDate)} – ${app.ui.formatDate(project.ProjectEndDate)}`], ["Company", project.CompanyCode], ["Currency", project.ProjectCurrency]]);
-    if (capturedContext) context.append(node("p", "Saved project context. Refresh evidence for current activity.", "hint"));
+    el("workspace-snapshot-notice").hidden = !capturedContext;
     const governance = portfolioState(project, records, storageAvailable), { active, latest } = governance;
     const timing = active ? rules.timing(active) : null;
     const status = el("detail-review-status"); status.replaceChildren(node("strong", governance.label, "detail-state")); status.dataset.state = governance.label.toLowerCase().replace(/ /g, "-");
-    for (const line of [timing ? `${timing.status === "Within decision window" ? "Decision due" : timing.status + " · Due"} ${shortDate(timing.decisionTarget)}` : !latest && storageAvailable ? "No active review" : "",
-      latest ? `Latest decision ${latest.decision.outcome} · ${shortDate(latest.decision.timestamp)}` : "",
+    for (const line of [active ? rules.normalizeBasis(active.reviewBasis) : "",
+      timing ? `${timing.status === "Within decision window" ? "Decision due" : timing.status + " · Due"} ${shortDate(timing.decisionTarget)}` : !latest && storageAvailable ? "No active review" : "",
+      latest ? `${!active && latest.decision.outcome === "Stop" ? "Decision recorded" : "Latest decision: " + latest.decision.outcome + " ·"} ${shortDate(latest.decision.timestamp)}` : "",
       governance.nextReview ? `Next review ${shortDate(governance.nextReview)}` : ""]) if (line) status.append(node("span", line));
-    el("start-review").disabled = !storageAvailable;
-    el("start-review").textContent = active ? resumeLabel(active) : latest ? "Start New Review" : "Start Review";
+    el("start-review").disabled = !storageAvailable || capturedContext && !active;
+    el("start-review").textContent = active ? "Open Review" : latest ? "Start New Review" : "Start Review";
     el("start-review").hidden = !active && latest?.decision.outcome === "Stop";
     el("view-last-decision").hidden = !storageAvailable || !latest;
-    el("view-last-decision").textContent = !active && latest?.decision.outcome === "Stop" ? "View Decision" : "View Latest Decision";
+    el("view-last-decision").textContent = "View Latest Record";
     el("view-last-decision").className = !active && latest?.decision.outcome === "Stop" ? "" : "secondary";
-    renderReviewHistory(el("investment-history-body"), completedReviews(records, project.ProjectUUID), onOpen, storageAvailable);
+    renderReviewHistory(el("investment-history-body"), completedReviews(records, project.ProjectUUID), onOpen, storageAvailable, selectedID);
+    el("current-review-empty").textContent = !storageAvailable ? "Review status unavailable." : active ? "" : latest?.decision.outcome === "Stop"
+      ? "No active continuation review. This investment is stopped. The recorded decision is available in History."
+      : "No active continuation review. A formal review can be started from Overview when a scheduled stage gate or material trigger requires reassessment.";
+    el("current-review-empty").hidden = storageAvailable && !!active;
+    el("workspace-recorded-notice").hidden = !freshRecord || !storageAvailable;
+    el("workspace-recorded-notice").setAttribute("tabindex", "-1");
+    el("history-fresh-actions").hidden = !freshRecord || !storageAvailable;
+    if (!storageAvailable || !selectedID) el("confirmation-view").hidden = true;
     overview(el("detail-lifecycle-overview"), "lifecycle", evidence, !!app.state?.elementController, false);
     overview(el("detail-financial-overview"), "gl", evidence, !!(app.state?.glController || app.state?.elementController), false);
     overview(el("detail-procurement-overview"), "po", evidence, !!(app.state?.poController || app.state?.elementController), false);
@@ -409,12 +434,9 @@
   }
   function chrome(record, busy) {
     ownerRecord = record;
-    el("current-review-project").textContent = `${record.project.Project} · ${record.project.ProjectDescription || "Continuation review"}`;
-    el("current-review-project").append(sourceBadge(record.project));
     const basis = rules.normalizeBasis(record.reviewBasis);
     const trigger = el("review-trigger"); trigger.dataset.trigger = basis === "Material trigger" ? "material" : basis === "Scheduled stage-gate review" ? "scheduled" : "other";
-    trigger.replaceChildren(node("strong", basis || "Select a Review Trigger"), node("span", `Decision due ${shortDate(rules.timing(record).decisionTarget)}`));
-    if (app.services.showcase?.isShowcase(record.project)) trigger.append(node("p", app.services.showcase.governanceContext(record.project).reviewReason, "review-reason"));
+    trigger.replaceChildren(node("strong", basis || "Select a Review Trigger"), contextHelp("current-trigger", "Review Trigger", reviewTriggerHelp), node("span", `Decision due ${shortDate(rules.timing(record).decisionTarget)}`));
     const readiness = rules.readiness(record);
     const eligible = app.services?.governanceDirectory?.eligible(record) ?? rules.ownerAssigned(record);
     if (eligible) el("governance-directory-status").textContent = "Prototype Governance Directory · Fictional roles, not SAP or real DPE employees.";
@@ -481,6 +503,7 @@
   function confirmation(record) {
     const target = el("confirmation-record"); target.replaceChildren(); const decision = record.decision;
     el("confirmation-outcome").textContent = decision.outcome;
+    el("confirmation-view").hidden = false;
     const hero = node("header", undefined, "decision-record-context");
     hero.append(node("h3", record.project.Project), node("p", record.project.ProjectDescription || "", "record-description"));
     hero.append(sourceBadge(record.project));
@@ -507,28 +530,46 @@
     renderEvidence(snapshot, decision.evidenceSnapshot, record.project);
   }
   function showView(view, dashboardFilter = "active") {
+    const inWorkspace = workspaceViews.includes(view), stages = ["assessment", "summary", "decision"];
+    const tab = view === "detail" ? "overview" : ["confirmation", "history"].includes(view) ? "history" : "current";
     if (view === "dashboard") { selectedDashboardFilter = dashboardFilter === "recorded" ? "recorded" : "active"; renderDashboardQueue(); }
     if (view !== "dashboard") dismissMetricHelp();
-    for (const name of views) el(`${name}-view`).hidden = name !== view;
-    el("review-chrome").hidden = !["assessment", "summary", "decision"].includes(view);
+    for (const name of ["dashboard", "investments"]) el(`${name}-view`).hidden = name !== view;
+    el("workspace-view").hidden = !inWorkspace;
+    el("global-page-header").hidden = inWorkspace;
+    el("skip-link").setAttribute("href", inWorkspace ? "#detail-project-name" : "#page-title");
+    el("detail-view").hidden = !inWorkspace || tab !== "overview";
+    el("workspace-current").hidden = !inWorkspace || tab !== "current";
+    el("workspace-history").hidden = !inWorkspace || tab !== "history";
+    for (const name of stages) el(`${name}-view`).hidden = view !== name;
+    el("confirmation-view").hidden = view !== "confirmation";
+    el("review-chrome").hidden = !stages.includes(view);
+    el("current-review-empty").hidden = stages.includes(view);
+    for (const name of ["overview", "current", "history"]) {
+      const button = el(`workspace-tab-${name}`); button.setAttribute("aria-selected", String(name === tab)); button.setAttribute("tabindex", name === tab ? "0" : "-1");
+    }
     if (view === "detail") el("investment-technical-details").open = false;
-    el("page-title").textContent = titles[view]; el("page-title").focus();
+    if (!inWorkspace) { el("page-title").textContent = titles[view]; el("page-title").focus(); }
+    else { const target = stages.includes(view) ? el(`${view}-view`) : el("detail-project-name"); target.setAttribute("tabindex", "-1"); target.focus({ preventScroll: true }); }
     el("page-eyebrow").hidden = view === "dashboard";
     el("dashboard-portfolio-count").hidden = view !== "dashboard";
     for (const name of ["dashboard", "investments"]) {
-      const active = view === name || name === "investments" && ["detail", "assessment", "summary", "decision"].includes(view) || name === "dashboard" && view === "confirmation";
+      const active = view === name || name === "investments" && inWorkspace;
       if (active) el(`nav-${name}`).setAttribute("aria-current", "page"); else el(`nav-${name}`).removeAttribute("aria-current");
     }
-    const step = ["assessment", "summary", "decision"].indexOf(view);
+    const step = stages.indexOf(view);
     [...el("review-steps").children].forEach((item, index) => {
       item.dataset.state = index < step ? "complete" : index === step ? "current" : "future";
       if (index === step) item.setAttribute("aria-current", "step"); else item.removeAttribute("aria-current");
-      if (item.children[0]) { item.children[0].textContent = index < step ? "✓" : String(index + 1); item.children[0].setAttribute("aria-hidden", "true"); }
-      item.setAttribute("aria-label", `${index + 1} ${["Assessment", "Summary", "Decision"][index]}${index < step ? ", completed" : index === step ? ", current step" : ", upcoming"}`);
+      const button = el(`review-step-${stages[index]}`); button.disabled = index >= step;
+      if (button.children[0]) { button.children[0].textContent = index < step ? "✓" : String(index + 1); button.children[0].setAttribute("aria-hidden", "true"); }
+      button.setAttribute("aria-label", `${index < step ? "Back to " : ""}${["Assessment", "Review Summary", "Governance Decision"][index]}${index < step ? ", completed step" : index === step ? ", current step" : ", upcoming"}`);
     });
     el("workflow-message").hidden = true;
     el("decision-incomplete").hidden = true;
-    document.querySelector("main").dataset.view = view;
+    document.querySelector("main").dataset.view = inWorkspace ? "workspace" : view;
+    document.querySelector("main").dataset.workspaceTab = inWorkspace ? tab : "";
+    document.querySelector("main").dataset.reviewStage = stages.includes(view) ? view : "";
     el("load-projects").hidden = view !== "investments";
     window.scrollTo({ top: 0, behavior: "instant" });
   }
@@ -536,9 +577,9 @@
   let technicalAction = () => {};
   const metricHelpControls = [];
   function dismissMetricHelp() { for (const control of metricHelpControls) control.dismiss(); }
-  function metricHelp(filter) {
-    const wrapper = node("span", undefined, "metric-help-wrap"), trigger = node("button", "?", "metric-help"), text = node("span", lensHelp[filter.key], "metric-tooltip");
-    trigger.id = `metric-help-${filter.key}`; trigger.type = "button"; text.id = `metric-tip-${filter.key}`; text.hidden = true; text.setAttribute("role", "tooltip");
+  function metricHelp(filter, copy = lensHelp[filter.key], isMetric = true) {
+    const wrapper = node("span", undefined, isMetric ? "metric-help-wrap" : "context-help-wrap"), trigger = node("button", "?", isMetric ? "metric-help" : "context-help"), text = node("span", copy, "metric-tooltip");
+    trigger.id = `${isMetric ? "metric" : "context"}-help-${filter.key}`; trigger.type = "button"; text.id = `${isMetric ? "metric" : "context"}-tip-${filter.key}`; text.hidden = true; text.setAttribute("role", "tooltip");
     trigger.setAttribute("aria-label", `About ${filter.label}`); trigger.setAttribute("aria-describedby", text.id); trigger.setAttribute("aria-controls", text.id);
     let hovered = false, focused = false, pinned = false, dismissed = false;
     const position = () => {
@@ -554,6 +595,7 @@
       dismiss() { hovered = false; focused = false; pinned = false; dismissed = true; update(); }, position,
       contains(target) { return wrapper.contains?.(target) || false; },
       place() {
+        if (!isMetric) { position(); return; }
         const label = wrapper.parentElement?.children[0]?.children[0];
         if (label && Number.isFinite(label.offsetWidth)) {
           // Keep the separate help button beside the label's reserved 32px space, even after wrapping.
@@ -589,7 +631,6 @@
     el("view-last-decision").addEventListener("click", actions.lastDecision);
     el("reload-lifecycle").addEventListener("click", actions.reloadLifecycle);
     el("load-review-evidence").addEventListener("click", actions.loadEvidence);
-    for (const id of ["review-back-investment", "return-investment"]) el(id).addEventListener("click", actions.returnInvestment);
     el("back-dashboard").addEventListener("click", () => actions.backDashboard ? actions.backDashboard() : actions.navigate("dashboard"));
     el("assessment-form").addEventListener("submit", event => { event.preventDefault(); actions.summary(); });
     for (const event of ["input", "change"]) el("assessment-form").addEventListener(event, () => { el("workflow-message").hidden = true; actions.saveDraft(); });
@@ -599,9 +640,21 @@
     for (const event of ["input", "change"]) el("decision-form").addEventListener(event, () => { el("decision-incomplete").hidden = true; decisionRequirements(); actions.saveDraft(); });
     el("decision-form").addEventListener("submit", event => { event.preventDefault(); actions.confirm(); });
     options(el("review-basis"), rules.BASIS);
+    el("assessment-trigger-help").append(contextHelp("assessment-trigger", "Review Trigger", reviewTriggerHelp));
+    const tabs = ["overview", "current", "history"];
+    for (const [index, tab] of tabs.entries()) {
+      const button = el(`workspace-tab-${tab}`);
+      button.addEventListener("click", () => actions.workspaceTab?.(tab));
+      button.addEventListener("keydown", event => {
+        const target = event.key === "Home" ? 0 : event.key === "End" ? 2 : event.key === "ArrowRight" ? (index + 1) % 3 : event.key === "ArrowLeft" ? (index + 2) % 3 : -1;
+        if (target < 0) return; event.preventDefault();
+        if (actions.workspaceTab?.(tabs[target]) !== false) el(`workspace-tab-${tabs[target]}`).focus({ preventScroll: true });
+      });
+    }
+    for (const stage of ["assessment", "summary", "decision"]) el(`review-step-${stage}`).addEventListener("click", () => { if (!el(`review-step-${stage}`).disabled) actions.reviewStep(stage); });
     for (const input of document.querySelectorAll("textarea")) input.addEventListener("input", growTextareas);
   }
-  app.governanceUI = { bind, showView, details, renderDashboard, portfolioState, completedReviews, resumeLabel, assessment, readAssessment, decision, readDecision, chrome, reviewSummary, confirmation, evidenceStatus,
+  app.governanceUI = { bind, showView, details, renderDashboard, portfolioState, completedReviews, assessment, readAssessment, decision, readDecision, chrome, reviewSummary, confirmation, evidenceStatus,
     setDirectory(people, error = "") { directoryPeople = people; directoryError = error; populateOwners(); },
     storageNotice(text) { el("storage-notice").hidden = !text; el("storage-notice").textContent = text; el("assessment-save-status").textContent = text ? "Draft could not be saved." : "Draft saved"; },
     error(text) { el("workflow-message").hidden = false; el("workflow-message").textContent = text; },

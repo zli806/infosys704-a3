@@ -13,8 +13,7 @@ function choose(w, group, value) { for (const radio of w.elements.get(group).que
 async function openInvestment(w, index) {
   click(w, 'nav-investments'); w.elements.get('projects-body').children[index].children[4].children[0].events.click[0]();
   // Active Portfolio next steps enter the process directly; inspect through its existing Back to Investment control.
-  if (['assessment', 'summary', 'decision'].includes(w.state.view)) click(w, 'review-back-investment');
-  else if (w.state.view === 'confirmation') click(w, 'return-investment');
+  if (['assessment', 'summary', 'decision', 'confirmation'].includes(w.state.view)) click(w, 'workspace-tab-overview');
   await tick();
 }
 function reset(w) { w.confirmReset(true); click(w, 'reset-showcase'); }
@@ -64,7 +63,7 @@ test('SAP refresh is available on Investments but absent throughout the showcase
 
 test('ready hero CTA resumes Summary, exposes five unselected choices, records Modify, persists and resets through controller/DOM events', async () => {
   const w = workspace({ controller: true }); reset(w); await openInvestment(w, 0);
-  assert.equal(w.elements.get('start-review').textContent, 'Review & Decide');
+  assert.equal(w.elements.get('start-review').textContent, 'Open Review');
   assert(w.elements.get('detail-review-status').textContent.includes('Ready for decision'));
   click(w, 'start-review'); assert.equal(w.state.view, 'summary');
   assert(w.elements.get('review-summary').textContent.includes('3 material concerns · 2 emerging concerns'));
@@ -95,7 +94,7 @@ test('ready hero CTA resumes Summary, exposes five unselected choices, records M
 test('new Infrastructure review remains at Assessment until trigger, six judgements, owner and evidence are complete', async () => {
   const w = workspace({ controller: true }); reset(w); await openInvestment(w, 3);
   assert.equal(w.elements.get('start-review').textContent, 'Start Review'); click(w, 'start-review'); assert.equal(w.state.view, 'assessment');
-  assert.equal(w.elements.get('start-review').textContent, 'Continue Assessment');
+  assert.equal(w.elements.get('start-review').textContent, 'Open Review');
   assert.equal(w.elements.get('proceed-decision').disabled, true);
   click(w, 'proceed-decision'); assert.equal(w.state.view, 'assessment');
   submit(w, 'assessment-form'); assert.equal(w.state.view, 'assessment'); assert.match(w.elements.get('workflow-message').textContent, /^Complete:/);
@@ -193,7 +192,7 @@ test('timing-only urgency stays visible without inventing concerns or extra per-
 
 test('static guidance remains progressive and explicit about human judgement, with no classification hints beside assessment inputs', () => {
   const html = readFileSync(join(__dirname, '../index.html'), 'utf8');
-  assert.match(html, /id="proceed-decision"[^>]*>Continue to Decision/);
+  assert.match(html, /id="proceed-decision"[^>]*>Continue to Governance Decision/);
   assert(html.includes('Select one outcome. Assessment signals inform this decision but do not determine it.'));
   assert(html.includes('These signals support governance judgement; they do not automatically select an outcome.'));
   assert(html.includes('This review contains material concerns. Explain how the selected outcome addresses them.'));

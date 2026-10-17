@@ -9,7 +9,7 @@
     if (Number.isNaN(date.getTime())) return String(value);
     return new Intl.DateTimeFormat("en-NZ", { year: "numeric", month: "short", day: "2-digit", timeZone: "UTC" }).format(date);
   }
-  let governanceForProject = () => ({ label: "Monitoring", nextStep: "View Investment" }), openReview = () => {};
+  let governanceForProject = () => ({ label: "Monitoring", nextStep: "Open Investment" }), openReview = () => {};
   const dom = {
     button: document.getElementById("load-projects"),
     connection: document.getElementById("connection-status"),
@@ -107,7 +107,7 @@
       action.textContent = governance.nextStep;
       action.setAttribute("aria-label", `${governance.nextStep} for ${project.Project || "project"}`);
       action.addEventListener("click", () => governance.active ? openReview(governance.active.id)
-        : governance.nextStep === "View Decision" && latest ? openReview(latest.id) : onSelect(project));
+        : governance.nextStep === "View Record" && latest ? openReview(latest.id) : onSelect(project));
       actionCell.append(action);
       row.append(actionCell);
       if (project === selectedProject) row.className = "selected-project";
