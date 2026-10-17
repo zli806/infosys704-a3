@@ -102,13 +102,20 @@
     return clean;
   }
   function get(id) { return list().find(record => record.id === id) || null; }
-  function start(project, evidence) {
+  function start(project, evidence, { reviewBasis } = {}) {
     const records = list();
+    // Enforce terminal Stop here, not just in the presentation/controller.
+    const latest = records.filter(record => record.status === "decision_recorded"
+      && record.project.ProjectUUID.toLowerCase() === project.ProjectUUID.toLowerCase())
+      .sort((a, b) => Date.parse(b.decision.timestamp) - Date.parse(a.decision.timestamp) || a.id.localeCompare(b.id))[0];
+    if (latest?.decision.outcome === "Stop") throw new Error("This investment is stopped. A new review cannot be started through the normal review workflow.");
     const existing = rules.activeReview(records, project.ProjectUUID);
     if (existing) return existing;
+    const basis = rules.normalizeBasis(reviewBasis);
+    if (!basis) throw new Error("Select a Review Trigger before starting a review.");
     const now = new Date().toISOString();
     const record = { id: window.crypto?.randomUUID?.() || `review-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      project: rules.projectSnapshot(project), projectContextCapturedAt: now, status: "in_progress", reviewBasis: "", reviewOpenedAt: now,
+      project: rules.projectSnapshot(project), projectContextCapturedAt: now, status: "in_progress", reviewBasis: basis, reviewOpenedAt: now,
       assessment: rules.defaultAssessment(), decisionOwner: "", decisionOwnerId: "", decisionOwnerSnapshot: null, evidence: cleanEvidence(evidence), decisionDraft: cleanDraft() };
     return write([...records, record]).find(item => item.id === record.id);
   }
@@ -131,6 +138,8 @@
     const owner = app.services.governanceDirectory.resolve(record.decisionOwnerId);
     // The assessment's governed owner is authoritative, not an independently edited decision field.
     const decision = { ...cleanDraft(draft), owner: owner.name, ownerId: owner.id, ownerSnapshot: owner };
+    // New Stop records cannot schedule another continuation review. Historical records stay untouched.
+    if (decision.outcome === "Stop") decision.nextReviewDate = "";
     const errors = rules.decisionErrors(record, decision);
     if (errors.length) throw new Error(errors.join(" "));
     record.status = "decision_recorded";

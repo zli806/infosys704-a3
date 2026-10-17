@@ -3,8 +3,9 @@
   const app = window.DPEApp = window.DPEApp || {};
   const rules = app.reviewRules;
   const el = id => document.getElementById(id);
-  const views = ["dashboard", "investments", "detail", "reviews", "assessment", "summary", "decision", "confirmation"];
-  const titles = { dashboard: "Dashboard", investments: "Investments", detail: "Investment Details", reviews: "Reviews", assessment: "Continuation Review – Assessment", summary: "Review Summary", decision: "Governance Decision", confirmation: "Decision Confirmation" };
+  const workspaceViews = ["detail", "current", "history", "assessment", "summary", "decision", "confirmation"];
+  const titles = { dashboard: "Portfolio Governance", investments: "Portfolio", "how-it-works": "How It Works" };
+  let displayedReviewStage = "";
   const assessmentIDs = { strategicAlignment: "assessment-alignment", expectedBenefits: "assessment-benefits", deliveryPerformance: "assessment-delivery", costPosition: "assessment-cost", risk: "assessment-risk", futureEconomicValue: "assessment-value" };
   let directoryPeople = [];
   let directoryError = "";
@@ -19,11 +20,9 @@
   }
   function section(container, title) { const part = node("section", undefined, "panel"); part.append(node("h3", title)); container.append(part); return part; }
   function action(text, callback) { const button = node("button", text, "secondary"); button.type = "button"; button.addEventListener("click", callback); return button; }
-  function options(select, values) { for (const value of values) { const option = node("option", value); option.value = value; select.append(option); } }
   function countLabel(count, singular) { return `${count} ${singular}${count === 1 ? "" : "s"}`; }
   function sourceBadge(project) {
-    const synthetic = app.services.showcase?.isShowcase(project);
-    return node("span", synthetic ? "SHOWCASE" : "SAP SANDBOX", `source ${synthetic ? "showcase" : "sap"}`);
+    return app.ui.sourceBadge(node("span"), project);
   }
   function compactAmount(value, signed = false) {
     if (value === null) return "Not validated";
@@ -63,6 +62,7 @@
     values.forEach((value, index) => {
       const label = node("label", undefined, "choice-card"); const input = node("input");
       input.type = "radio"; input.name = id; input.value = value; input.id = `${id}-choice-${index}`;
+      input.required = true;
       const copy = node("span", undefined, "choice-copy"); copy.append(node("strong", value));
       if (id === "decision-outcome") copy.append(node("small", decisionDescriptions[value], "choice-description"));
       const selected = node("span", "Selected", "choice-selected"); selected.setAttribute("aria-hidden", "true"); copy.append(selected);
@@ -84,7 +84,8 @@
     select.disabled = !directoryPeople.length;
     el("governance-directory-status").textContent = directoryError || (ownerRecord.decisionOwner && !eligible
       ? "Previously saved owner text is preserved. Select an eligible owner before a new decision. PROTOTYPE GOVERNANCE DIRECTORY — fictional configuration, not SAP staff."
-      : "Prototype Governance Directory · Fictional roles, not SAP or real DPE employees.");
+       : "Prototype Governance Directory · Fictional roles, not SAP or real DPE employees.");
+    el("governance-directory-status").className = directoryError || ownerRecord.decisionOwner && !eligible ? "hint directory-warning" : "sr-only";
   }
   function evidenceStatus(item, pending = false) {
     if (pending) return { label: "Loading", tone: "loading" };
@@ -156,140 +157,193 @@
     container.append(status, timeline);
     if (record.status !== "decision_recorded") container.append(node("p", control.status === "Within decision window" ? `${control.daysRemaining} days remaining` : `${control.daysOverdue} days overdue`, "timing-window"));
   }
-  const signalCategories = [["material", "Material Concerns"], ["emerging", "Emerging Concerns"], ["gap", "Evidence Gaps"]];
-  let selectedAttentionCategory = null;
-  let chartButtons = [];
-  function resumeLabel(record) { return rules.readiness(record).ready ? "Review Summary & Decide" : "Continue Assessment"; }
-  function timingExplanation(record) {
-    const timing = rules.timing(record);
-    return `${timing.status} · Decision due ${shortDate(timing.decisionTarget)} · ${timing.daysOverdue} days overdue${timing.status === "Escalation threshold reached" ? ` · Escalation threshold ${shortDate(timing.escalationThreshold)}` : ""}`;
+  // Presentation only: an investment outlives any one review/immutable decision.
+  function completedReviews(records, uuid) {
+    return records.filter(record => record.status === "decision_recorded" && (!uuid || record.project.ProjectUUID === uuid))
+      .sort((a, b) => Date.parse(b.decision.timestamp) - Date.parse(a.decision.timestamp) || a.id.localeCompare(b.id));
   }
-  function appendAssessmentFindings(container, entries) {
-    for (const [category, label] of signalCategories) {
-      const matching = entries.filter(entry => entry.category === category); if (!matching.length) continue;
-      const group = node("section", undefined, "attention-group"); group.dataset.category = label.toLowerCase().replace(/ /g, "-");
-      const list = node("ul"); for (const entry of matching) list.append(node("li", `${entry.dimension} — ${entry.value}`));
-      group.append(node("h4", label), list); container.append(group);
-    }
+  function portfolioState(project, records, storageAvailable = true) {
+    if (!storageAvailable) return { label: "Governance status unavailable", nextStep: "Open Investment", active: null, latest: null, nextReview: null };
+    const active = rules.activeReview(records, project.ProjectUUID), latest = completedReviews(records, project.ProjectUUID)[0] || null;
+    const outcome = latest?.decision.outcome;
+    const label = active ? (rules.readiness(active).ready ? "Ready for decision" : "Assessment in progress")
+      : outcome === "Stop" ? "Stopped" : outcome === "Pause" ? "Paused" : ["Modify", "Continue with Conditions"].includes(outcome) ? "Follow-up" : "Monitoring";
+    return { label, active, latest, nextReview: active || outcome === "Stop" ? null : latest?.decision.nextReviewDate || null,
+      nextStep: active ? "Continue Review" : outcome === "Stop" ? "View Decision" : "Open Investment" };
   }
-  function whyFlagged(review, expanded) {
-    const details = node("details", undefined, "flag-explanation"); details.dataset.reviewId = review.id; details.open = expanded;
-    details.append(node("summary", "Why is this flagged?"));
-    appendAssessmentFindings(details, rules.signalBreakdown(review));
-    if (rules.timing(review).status !== "Within decision window") details.append(node("h4", "Timing requires attention"), node("p", timingExplanation(review), "hint"));
-    return details;
+  const dashboardFilters = [
+    { key: "active", label: "Active Reviews", heading: "Active Reviews", description: "Show investments with a current active continuation review", matches: () => true, empty: "No active reviews awaiting a governance decision." },
+    { key: "overdue", label: "Overdue", heading: "Overdue Decisions", description: "Show investments whose current review is overdue or has reached the escalation threshold", matches: item => ["Decision overdue", "Escalation threshold reached"].includes(item.timing.status), empty: "No overdue decisions awaiting governance action." },
+    { key: "material", label: "Material Concerns", heading: "Investments with Material Concerns", description: "Show active investments with at least one Material Concern", matches: item => item.signals.materialConcerns.length > 0, empty: "No active investments with material concerns." },
+    { key: "gap", label: "Evidence Gaps", heading: "Investments with Evidence Gaps", description: "Show active investments with at least one reviewer Evidence Gap", matches: item => item.signals.evidenceGaps.length > 0, empty: "No active investments with evidence gaps." },
+    { key: "recorded", label: "Reviewed Investments", heading: "Reviewed Investments", description: "Show investments with at least one completed governance decision, using their latest completed decision", recorded: true, empty: "No investments have a recorded governance decision yet." }
+  ];
+  const lensHelp = {
+    active: "Distinct investments with an active continuation review awaiting assessment completion or a governance decision. Lenses may overlap; percentages are independent and do not sum to 100%.",
+    overdue: "Investments whose active review is past the 14-day decision target, including reviews that have reached the 30-day escalation threshold.",
+    material: "Active investments with at least one Material Concern identified during assessment. This number counts investments, not individual findings.",
+    gap: "Active investments where at least one assessment area has insufficient evidence for a reliable conclusion. This number counts investments, not individual gaps.",
+    recorded: "Investments with at least one completed governance decision. Each investment is counted once; full review-cycle history remains available in the investment History tab."
+  };
+  const findingHelp = {
+    material: "A serious adverse assessment requiring formal management attention.",
+    emerging: "A deteriorating or uncertain assessment requiring attention or monitoring, but not currently classified as material.",
+    gap: "An assessment area has insufficient evidence for a reliable conclusion."
+  };
+  const reviewTriggerHelp = "Why this formal review was opened. A review may begin at a scheduled stage gate or because a material trigger calls the current investment case into question. The trigger is not itself a review finding.";
+  const findingsHelp = "Reviewer assessment results across the six continuation-review dimensions. Findings may be Material Concerns, Emerging Concerns, Evidence Gaps, or no concern. They inform governance judgement but do not determine the decision.";
+  const contextHelps = new Map();
+  function contextHelp(key, label, copy) {
+    if (!contextHelps.has(key)) contextHelps.set(key, metricHelp({ key, label }, copy, false));
+    return contextHelps.get(key);
   }
-  function renderAttentionBreakdown(records, storageAvailable) {
-    const target = el("attention-breakdown"); target.replaceChildren();
-    const category = selectedAttentionCategory;
-    const groups = storageAvailable && category ? records.filter(record => record.status === "in_progress").map(review => ({ review,
-      entries: category === "overdue" ? [] : rules.signalBreakdown(review).filter(entry => entry.category === category) }))
-      .filter(group => category === "overdue" ? rules.timing(group.review).status !== "Within decision window" : group.entries.length) : [];
-    if (!groups.length) selectedAttentionCategory = null;
-    target.hidden = !groups.length;
-    for (const button of chartButtons) button.setAttribute("aria-expanded", String(button.dataset.category === selectedAttentionCategory));
-    if (!groups.length) return;
-    const label = category === "overdue" ? "Overdue Reviews" : signalCategories.find(([key]) => key === category)[1];
-    target.append(node("h4", label));
-    const count = groups.reduce((sum, group) => sum + group.entries.length, 0);
-    target.append(node("p", category === "overdue" ? `${countLabel(groups.length, "overdue open review")}`
-      : `${countLabel(count, "assessment signal")} across ${countLabel(groups.length, "open review")}`, "hint"));
-    for (const { review, entries } of groups) {
-      const group = node("section", undefined, "drilldown-review"); group.append(node("h5", review.project.ProjectDescription || review.project.Project));
-      if (category === "overdue") group.append(node("p", timingExplanation(review), "hint"));
-      else { const list = node("ul"); for (const entry of entries) list.append(node("li", `${entry.dimension} — ${entry.value}`)); group.append(list); }
-      target.append(group);
-    }
-    target.append(action("Close breakdown", () => {
-      const previous = chartButtons.find(button => button.dataset.category === selectedAttentionCategory);
-      selectedAttentionCategory = null; renderAttentionBreakdown(records, storageAvailable); previous?.focus();
+  let dashboardColumnLabels = null;
+  let selectedDashboardFilter = "active";
+  let dashboardState = null;
+  let dashboardFilterButtons = [];
+  function investmentIdentity(project, fallback) {
+    return project?.ProjectUUID?.trim() ? `uuid:${project.ProjectUUID.trim().toLowerCase()}` : project?.Project ? `project:${project.Project}` : `review:${fallback}`;
+  }
+  function distinctDashboardInvestments(items) {
+    const seen = new Set();
+    return items.filter(({ review }) => {
+      const identity = investmentIdentity(review.project, review.id);
+      if (seen.has(identity)) return false;
+      seen.add(identity); return true;
+    });
+  }
+  function renderDashboard(records, projects, onOpen, storageAvailable = true) {
+    const now = new Date(), result = rules.dashboard(records, projects.length, now);
+    // Portfolio plus saved-only identities is the Dashboard's represented universe.
+    // A missing live project stays in governance/history without inflating any share above 100%.
+    const universe = new Set(projects.map((project, index) => investmentIdentity(project, `portfolio-${index}`)));
+    for (const review of records) universe.add(investmentIdentity(review.project, review.id));
+    const items = result.open.map(review => ({ review, signals: rules.reviewSignals(review), timing: rules.timing(review, now) }));
+    const timingOrder = ["Escalation threshold reached", "Decision overdue", "Within decision window"];
+    const compare = (left, right) => left < right ? -1 : left > right ? 1 : 0;
+    items.sort((left, right) => timingOrder.indexOf(left.timing.status) - timingOrder.indexOf(right.timing.status)
+      || compare(left.timing.decisionTarget, right.timing.decisionTarget)
+      || compare(left.review.project.Project || "", right.review.project.Project || "") || compare(left.review.id, right.review.id));
+    const subsets = Object.fromEntries(dashboardFilters.map(filter => {
+      if (filter.recorded) return [filter.key, distinctDashboardInvestments(completedReviews(records).map(review => ({ review })))];
+      return [filter.key, distinctDashboardInvestments(items.filter(filter.matches))];
     }));
-  }
-  function renderDashboard(records, count, onOpen, storageAvailable = true) {
-    const result = rules.dashboard(records, count);
-    const attention = el("dashboard-attention");
-    const expanded = new Set(Array.from(attention.querySelectorAll("details[open]"), details => details.dataset.reviewId));
-    attention.replaceChildren();
-    if (!storageAvailable) attention.append(node("p", "Review storage unavailable; review signals cannot be refreshed."));
-    else {
-      const items = rules.needsAttention(records);
-      if (!items.length) attention.append(node("p", "No open reviews currently flagged. Unfinished assessments may still need your input."));
-      for (const { review, signals, timing } of items) {
-        const row = node("article", undefined, "attention-item"); row.dataset.timing = timing.status;
-        const context = node("div", undefined, "attention-item-context");
-        const identity = node("p", review.project.Project, "hint"); identity.append(sourceBadge(review.project));
-        context.append(node("h4", review.project.ProjectDescription || review.project.Project), identity, node("p", rules.normalizeBasis(review.reviewBasis) || "Review Trigger not selected", "attention-trigger"));
-        const counts = node("div", undefined, "attention-counts");
-        for (const [count, label, tone] of [[signals.materialConcerns.length, "material concern", "material"], [signals.attentionItems.length, "emerging concern", "attention"], [signals.evidenceGaps.length, "evidence gap", "gap"]]) {
-          if (!count) continue;
-          const indicator = node("span", countLabel(count, label), "attention-count"); indicator.dataset.tone = tone; counts.append(indicator);
-        }
-        if (!counts.children.length) counts.append(node("span", "Decision timing requires attention", "hint"));
-        const timingText = node("p", timing.status === "Within decision window" ? `Decision due in ${timing.daysRemaining} days · ${shortDate(timing.decisionTarget)}` : `${timing.status} · ${timing.daysOverdue} days overdue`, "attention-timing");
-        const button = action(resumeLabel(review), () => onOpen(review.id)); button.className = "attention-action";
-        row.append(context, counts, timingText, whyFlagged(review, expanded.has(review.id)), button); attention.append(row);
+    dashboardState = { subsets, onOpen, storageAvailable };
+    const pulse = el("dashboard-cards");
+    for (const filter of dashboardFilters) {
+      const value = subsets[filter.key].length;
+      let metric = dashboardFilterButtons.find(button => button.dataset.filter === filter.key);
+      if (!metric) {
+        const cell = node("div", undefined, "pulse-metric-wrap"); cell.dataset.kind = filter.key;
+        metric = node("button", undefined, "pulse-metric"); metric.type = "button"; metric.id = `dashboard-filter-${filter.key}`;
+        metric.dataset.kind = filter.key; metric.dataset.filter = filter.key;
+        metric.setAttribute("aria-controls", "dashboard-attention");
+        const ring = node("span", undefined, "pulse-ring"); ring.setAttribute("aria-hidden", "true");
+        ring.append(node("span", undefined, "pulse-ring-arc"), node("span", "", "pulse-percentage"));
+        metric.append(node("span", filter.label, "pulse-label"), node("span", "", "pulse-value"), ring);
+        metric.addEventListener("click", () => { dismissMetricHelp(); selectedDashboardFilter = filter.key; renderDashboardQueue(); });
+        cell.append(metric, metricHelp(filter)); pulse.append(cell); dashboardFilterButtons.push(metric);
       }
+      metric.dataset.active = String(storageAvailable && value > 0);
+      metric.disabled = !storageAvailable;
+      const percentage = universe.size ? Math.max(0, Math.min(100, Math.round(value / universe.size * 100))) : 0;
+      metric.setAttribute("aria-label", `${filter.label}: ${storageAvailable ? `${countLabel(value, "investment")}, ${percentage} percent of the current investment universe` : "Unavailable"}. ${filter.description}.`);
+      metric.children[1].textContent = storageAvailable ? value : "Unavailable";
+      const ring = metric.children[2]; ring.hidden = !storageAvailable;
+      ring.children[0].style.background = storageAvailable ? `conic-gradient(var(--metric-tone) ${percentage}%, transparent 0)` : "none";
+      ring.children[1].textContent = storageAvailable ? `${percentage}%` : "";
     }
-    const cards = el("dashboard-cards"); cards.replaceChildren();
-    const openSignals = result.open.map(review => rules.reviewSignals(review));
-    const materialCount = openSignals.reduce((sum, signals) => sum + signals.materialConcerns.length, 0);
-    const gapCount = openSignals.reduce((sum, signals) => sum + signals.evidenceGaps.length, 0);
-    for (const [label, value] of [["Open Reviews", result.open.length], ["Material Concerns", materialCount], ["Evidence Gaps", gapCount], ["Decisions Recorded", result.decisions.length]]) {
-      const card = node("div", undefined, "metric status-card"); card.append(node("p", label), node("strong", storageAvailable ? value : "Unavailable")); cards.append(card);
+    renderDashboardQueue();
+  }
+  function renderDashboardQueue() {
+    if (!dashboardState) return;
+    const filter = dashboardFilters.find(filter => filter.key === selectedDashboardFilter) || dashboardFilters[0];
+    selectedDashboardFilter = filter.key;
+    const { subsets, onOpen, storageAvailable } = dashboardState, items = subsets[filter.key];
+    for (const button of dashboardFilterButtons) button.setAttribute("aria-pressed", String(button.dataset.filter === selectedDashboardFilter));
+    for (const control of metricHelpControls) control.place();
+    el("decision-queue-title").textContent = filter.heading;
+    el("dashboard-filter-count").textContent = storageAvailable ? countLabel(items.length, "investment") : "Records unavailable";
+    const labels = ["Investment", "Review Trigger", filter.recorded ? "Latest Decision" : "Findings", filter.recorded ? "Decision Date" : "Decision Timing", "Next Step"];
+    if (!dashboardColumnLabels) {
+      dashboardColumnLabels = labels.map(label => { const cell = node("span"), text = node("span", label, "column-label"); cell.append(text); return cell; });
+      dashboardColumnLabels[1].append(contextHelp("dashboard-trigger", "Review Trigger", reviewTriggerHelp));
+      dashboardColumnLabels[2].append(contextHelp("dashboard-findings", "Findings", findingsHelp));
+      el("dashboard-columns").replaceChildren(...dashboardColumnLabels);
     }
-    cards.append(node("p", `${result.projectCount} investments available`, "session-context"));
-    const profile = el("attention-profile"); profile.replaceChildren();
-    chartButtons = [];
-    const values = [["material", "Material concerns", materialCount], ["emerging", "Emerging concerns", openSignals.reduce((sum, signals) => sum + signals.attentionItems.length, 0)], ["gap", "Evidence gaps", gapCount], ["overdue", "Overdue reviews", result.overdue]];
-    if (!storageAvailable) profile.append(node("p", "Review storage unavailable."));
-    else if (!values.some(([, , value]) => value)) profile.append(node("p", "No active review signals yet."));
-    else {
-      const chart = node("ul", undefined, "attention-chart"); chart.setAttribute("aria-label", "Governance Attention Profile — counts across open reviews");
-      const max = Math.max(...values.map(([, , value]) => value));
-      for (const [category, label, value] of values) {
-        const item = node("li"), row = node("button", undefined, "chart-row chart-select"); row.type = "button"; row.dataset.category = category; row.disabled = value === 0;
-        row.setAttribute("aria-controls", "attention-breakdown"); row.setAttribute("aria-label", `${label}: ${value}. Inspect breakdown`);
-        row.addEventListener("click", () => { selectedAttentionCategory = selectedAttentionCategory === category ? null : category; renderAttentionBreakdown(records, storageAvailable); });
-        chartButtons.push(row);
-        const track = node("span", undefined, "chart-track"); track.setAttribute("aria-hidden", "true");
-        const bar = node("span", undefined, "chart-bar"); bar.style.width = `${value / max * 100}%`; track.append(bar);
-        row.append(node("span", label), track, node("strong", value)); item.append(row); chart.append(item);
+    labels.forEach((label, index) => { dashboardColumnLabels[index].children[0].textContent = label; dashboardColumnLabels[index].dataset.label = label; });
+    contextHelps.get("dashboard-findings").hidden = !!filter.recorded;
+    const queue = el("dashboard-attention"); queue.replaceChildren();
+    queue.dataset.mode = filter.recorded ? "recorded" : "current";
+    if (!storageAvailable) queue.append(node("p", "Review storage unavailable; governance records cannot be refreshed.", "queue-empty"));
+    else if (!items.length) queue.append(node("p", filter.empty, "queue-empty"));
+    else for (const [index, { review, signals, timing }] of items.entries()) {
+      const row = node("article", undefined, "decision-queue-row"); row.dataset.reviewId = review.id; row.setAttribute("role", "listitem");
+      const sequence = node("span", String(index + 1).padStart(2, "0"), "queue-sequence"); sequence.setAttribute("aria-hidden", "true");
+      if (timing) row.dataset.timing = timing.status;
+      const urgent = !!timing && timing.status !== "Within decision window"; row.dataset.urgent = String(urgent);
+      const grid = node("div", undefined, "queue-grid");
+      const investment = node("div", undefined, "queue-investment");
+      const identity = node("p", review.project.Project, "queue-identity"); identity.append(sourceBadge(review.project));
+      investment.append(node("h4", review.project.ProjectDescription || review.project.Project), identity);
+      const basis = rules.normalizeBasis(review.reviewBasis), trigger = node("div", undefined, "queue-trigger"); trigger.dataset.tone = basis === "Material trigger" ? "warm" : "neutral";
+      const triggerText = node("p", basis || "Not selected"); triggerText.title = reviewTriggerHelp; triggerText.setAttribute("aria-label", `${basis || "Review Trigger not selected"}. ${reviewTriggerHelp}`);
+      trigger.append(node("span", "Review Trigger", "queue-field-label"), triggerText);
+      if (filter.recorded) {
+        const outcome = node("div", undefined, "queue-decision"); outcome.append(node("span", "Latest Decision", "queue-field-label"), node("strong", review.decision.outcome, "governance-chip"));
+        const date = node("div", undefined, "queue-timing"), time = node("time", shortDate(review.decision.timestamp)); time.dateTime = review.decision.timestamp; time.title = dateTime(review.decision.timestamp);
+        date.append(node("span", "Decision Date", "queue-field-label"), time);
+        const primary = node("div", undefined, "queue-action"), button = action("View Decision", () => onOpen(review.id)); button.className = "queue-action-button";
+        button.setAttribute("aria-label", `View Decision: ${review.project.ProjectDescription || review.project.Project} · ${dateTime(review.decision.timestamp)}`);
+        primary.append(node("span", "Next Step", "queue-field-label"), button);
+        grid.append(investment, trigger, outcome, date, primary); row.append(grid, sequence); queue.append(row); continue;
       }
-      profile.append(chart);
-    }
-    renderAttentionBreakdown(records, storageAvailable);
-    const open = el("dashboard-open-reviews"); open.replaceChildren();
-    const recent = el("dashboard-decisions"); recent.replaceChildren();
-    if (!storageAvailable) { open.append(node("p", "Review storage unavailable.")); recent.append(node("p", "Decision records could not be read.")); return; }
-    const flagged = new Set(rules.needsAttention(records).map(item => item.review.id));
-    const other = result.open.filter(record => !flagged.has(record.id));
-    if (!other.length) open.append(node("p", "No other open reviews."));
-    for (const record of other) {
-      const row = node("div", undefined, "review-item"); row.append(node("p", `${record.project.Project} · ${rules.timing(record).status}`), action(resumeLabel(record), () => onOpen(record.id))); open.append(row);
-    }
-    if (!result.decisions.length) recent.append(node("p", "No decisions recorded yet."));
-    for (const record of result.decisions.slice(0, 5)) {
-      const row = node("div", undefined, "review-item"); const identity = node("div");
-      identity.append(node("strong", record.project.ProjectDescription || record.project.Project), sourceBadge(record.project), node("p", `${record.project.Project} · ${record.decision.outcome} · ${shortDate(record.decision.timestamp)}`));
-      row.append(identity, action("View Decision", () => onOpen(record.id))); recent.append(row);
-    }
-  }
-  function renderReviews(records, onOpen, storageAvailable = true) {
-    const body = el("reviews-body"); body.replaceChildren();
-    if (!records.length || !storageAvailable) { const row = node("tr"); const cell = node("td", storageAvailable ? "No reviews saved yet." : "Review storage unavailable.", "empty"); cell.colSpan = 6; row.append(cell); body.append(row); }
-    if (!storageAvailable) return;
-    for (const record of [...records].sort((a, b) => b.reviewOpenedAt.localeCompare(a.reviewOpenedAt))) {
-      const control = rules.timing(record); const row = node("tr");
-      for (const value of [record.project.Project, rules.normalizeBasis(record.reviewBasis) || "Not selected", dateTime(record.reviewOpenedAt), dateTime(control.decisionTarget), record.status === "decision_recorded" ? "Decision recorded" : control.status === "Within decision window" ? "In progress" : control.status]) row.append(node("td", value));
-      row.children[0].append(sourceBadge(record.project));
-      const cell = node("td"); cell.append(action(record.status === "decision_recorded" ? "View Decision" : resumeLabel(record), () => onOpen(record.id))); row.append(cell); body.append(row);
+      const findings = node("div", undefined, "queue-signals"); findings.append(node("span", "Findings", "queue-field-label"));
+      const list = node("ul");
+      for (const [count, label, tone] of [[signals.materialConcerns.length, "Material", "material"], [signals.attentionItems.length, "Emerging", "emerging"], [signals.evidenceGaps.length, "Evidence Gap", "gap"]]) {
+        if (!count) continue;
+        const signal = node("li", label === "Evidence Gap" ? countLabel(count, label) : `${count} ${label}`, "queue-signal"); signal.dataset.tone = tone;
+        signal.title = findingHelp[tone]; signal.setAttribute("aria-label", `${signal.textContent}. ${findingHelp[tone]}`); list.append(signal);
+      }
+      if (!list.children.length) {
+        const assessed = Object.entries(rules.ASSESSMENTS).every(([key, field]) => field.options.includes(review.assessment?.[key]) && review.assessment[key] !== field.missing);
+        list.append(node("li", assessed ? "No concerns identified" : "Assessment in progress", "queue-signal"));
+      }
+      findings.append(list);
+      const deadline = node("div", undefined, "queue-timing"); deadline.dataset.timing = timing.status;
+      const time = node("time", `Due ${shortDate(timing.decisionTarget)}`); time.dateTime = timing.decisionTarget;
+      deadline.append(node("span", "Decision Timing", "queue-field-label"));
+      if (timing.status !== "Within decision window") deadline.append(node("strong", timing.status));
+      deadline.append(time);
+      const primary = node("div", undefined, "queue-action"), button = action("Continue Review", () => onOpen(review.id)); button.className = "queue-action-button";
+      button.setAttribute("aria-label", `Continue Review: ${review.project.ProjectDescription || review.project.Project}`); primary.append(node("span", "Next Step", "queue-field-label"), button);
+      grid.append(investment, trigger, findings, deadline, primary); row.append(grid, sequence);
+      queue.append(row);
     }
   }
-  function details(project, evidence, records, capturedContext = false, storageAvailable = true) {
+  function renderReviewHistory(body, records, onOpen, storageAvailable, selectedID) {
+    body.replaceChildren();
+    const labels = ["Decision Date", "Review Trigger", "Decision", "Decision Owner", "Next Review", "Record"];
+    if (!records.length || !storageAvailable) {
+      const row = node("tr"), cell = node("td", !storageAvailable ? "Decision history unavailable." : "No recorded decisions.", "empty");
+      cell.colSpan = labels.length; row.append(cell); body.append(row); return;
+    }
+    for (const record of records) {
+      const row = node("tr"); row.dataset.reviewId = record.id; row.dataset.selected = String(record.id === selectedID);
+      const values = [shortDate(record.decision.timestamp), rules.normalizeBasis(record.reviewBasis) || "Not selected", record.decision.outcome, record.decision.owner, shortDate(record.decision.nextReviewDate)];
+      values.forEach((value, index) => { const cell = node("td", value); cell.dataset.label = labels[index]; row.append(cell); });
+      const outcomeCell = row.children[2]; outcomeCell.replaceChildren(node("span", record.decision.outcome, "governance-chip"));
+      const cell = node("td"), button = action("View Record", () => onOpen(record.id)); cell.dataset.label = "Record";
+      button.setAttribute("aria-label", `View Record: ${record.project.Project} · ${dateTime(record.decision.timestamp)}`);
+      button.setAttribute("aria-expanded", String(record.id === selectedID)); button.setAttribute("aria-controls", "confirmation-view");
+      cell.append(button); row.append(cell); body.append(row);
+    }
+  }
+  function details(project, evidence, records, capturedContext = false, storageAvailable = true, onOpen = () => {}, selectedID = null, freshRecord = false) {
     el("detail-project-id").textContent = project.Project;
     el("detail-project-name").textContent = project.ProjectDescription || "Unnamed investment";
     const synthetic = app.services.showcase?.isShowcase(project);
-    el("detail-source").textContent = synthetic ? "SHOWCASE" : "SAP SANDBOX"; el("detail-source").className = `source ${synthetic ? "showcase" : "sap"}`;
+    app.ui.sourceBadge(el("detail-source"), project);
     investmentContext(project);
     el("technical-source").textContent = synthetic
       ? "Synthetic SAP-schema-compatible showcase payload. Governance context and seeded scenario assessments are separate from the SAP-shaped records. Not live SAP Sandbox or real DPE data."
@@ -299,17 +353,35 @@
     const context = el("investment-context"); context.replaceChildren();
     context.hidden = !!synthetic;
     pairs(context, [["Project dates", `${app.ui.formatDate(project.ProjectStartDate)} – ${app.ui.formatDate(project.ProjectEndDate)}`], ["Company", project.CompanyCode], ["Currency", project.ProjectCurrency]]);
-    if (capturedContext) context.append(node("p", "Saved project context. Refresh evidence for current activity.", "hint"));
-    const active = rules.activeReview(records, project.ProjectUUID), timing = active ? rules.timing(active) : null;
-    const recorded = records.some(record => record.project.ProjectUUID === project.ProjectUUID && record.status === "decision_recorded");
-    const ready = active && rules.readiness(active).ready;
-    el("detail-review-status").textContent = !storageAvailable ? "Review storage unavailable" : timing
-      ? `${ready ? "Assessment complete · Ready for governance decision" : "Review in progress"} · ${timing.status === "Within decision window" ? "Decision due" : timing.status + " · Due"} ${shortDate(timing.decisionTarget)}` : rules.projectStatus(records, project.ProjectUUID);
-    el("start-review").disabled = !storageAvailable;
-    el("start-review").textContent = active ? resumeLabel(active) : "Start Review";
-    el("start-review").hidden = !active && recorded;
-    el("view-last-decision").hidden = !storageAvailable || !recorded;
-    el("view-last-decision").className = active ? "secondary" : "";
+    el("workspace-snapshot-notice").hidden = !capturedContext;
+    const governance = portfolioState(project, records, storageAvailable), { active, latest } = governance;
+    const timing = active ? rules.timing(active) : null;
+    const status = el("detail-review-status"); status.replaceChildren(node("strong", governance.label, "detail-state")); status.dataset.state = governance.label.toLowerCase().replace(/ /g, "-");
+    const metadata = el("workspace-review-context"); metadata.replaceChildren();
+    if (active) {
+      const trigger = node("span", rules.normalizeBasis(active.reviewBasis) || "Trigger not recorded", "header-context-item");
+      trigger.append(contextHelp("workspace-trigger", "Review Trigger", reviewTriggerHelp));
+      const due = node("time", `Due ${shortDate(timing.decisionTarget)}`, "header-context-item header-deadline"); due.dateTime = timing.decisionTarget; due.title = timing.status;
+      due.dataset.urgent = String(timing.status !== "Within decision window"); metadata.append(trigger, due);
+    } else if (latest) {
+      metadata.append(node("span", `${latest.decision.outcome === "Stop" ? "Decision recorded" : "Latest decision: " + latest.decision.outcome + " ·"} ${shortDate(latest.decision.timestamp)}`, "header-context-item"));
+      if (governance.nextReview) metadata.append(node("span", `Next review ${shortDate(governance.nextReview)}`, "header-context-item"));
+    } else if (storageAvailable) metadata.append(node("span", "No active review", "header-context-item"));
+    el("start-review").disabled = !storageAvailable || capturedContext && !active;
+    el("start-review").textContent = active ? "Continue Review" : latest ? "Start New Review" : "Start Review";
+    el("start-review").hidden = !active && latest?.decision.outcome === "Stop";
+    el("view-last-decision").hidden = !storageAvailable || !latest;
+    el("view-last-decision").textContent = "View Latest Decision";
+    el("view-last-decision").className = !active && latest?.decision.outcome === "Stop" ? "" : "secondary";
+    renderReviewHistory(el("investment-history-body"), completedReviews(records, project.ProjectUUID), onOpen, storageAvailable, selectedID);
+    el("current-review-empty").textContent = !storageAvailable ? "Review status unavailable." : active ? "" : latest?.decision.outcome === "Stop"
+      ? "No active continuation review. This investment is stopped. The recorded decision is available in History."
+      : "No active continuation review. A formal review can be started from Overview when a scheduled stage gate or material trigger requires reassessment.";
+    el("current-review-empty").hidden = storageAvailable && !!active;
+    el("workspace-recorded-notice").hidden = !freshRecord || !storageAvailable;
+    el("workspace-recorded-notice").setAttribute("tabindex", "-1");
+    el("history-fresh-actions").hidden = !freshRecord || !storageAvailable;
+    if (!storageAvailable || !selectedID) el("confirmation-view").hidden = true;
     overview(el("detail-lifecycle-overview"), "lifecycle", evidence, !!app.state?.elementController, false);
     overview(el("detail-financial-overview"), "gl", evidence, !!(app.state?.glController || app.state?.elementController), false);
     overview(el("detail-procurement-overview"), "po", evidence, !!(app.state?.poController || app.state?.elementController), false);
@@ -325,15 +397,12 @@
   }
   function assessment(record) {
     ownerRecord = record; populateOwners();
-    el("review-basis").value = rules.normalizeBasis(record.reviewBasis);
     for (const [key, id] of Object.entries(assessmentIDs)) setChoice(id, record.assessment[key]);
     el("assessment-comments").value = record.assessment.comments; el("assessment-dependencies").value = record.assessment.keyRisks;
-    overview(el("assessment-financial-evidence"), "gl", record.evidence, !!app.state?.glController, false);
     growTextareas();
   }
   function readAssessment() {
-    const value = { reviewBasis: el("review-basis").value,
-      assessment: { ...Object.fromEntries(Object.entries(assessmentIDs).map(([key, id]) => [key, choiceValue(id, rules.ASSESSMENTS[key].missing)])), comments: el("assessment-comments").value, keyRisks: el("assessment-dependencies").value } };
+    const value = { assessment: { ...Object.fromEntries(Object.entries(assessmentIDs).map(([key, id]) => [key, choiceValue(id, rules.ASSESSMENTS[key].missing)])), comments: el("assessment-comments").value, keyRisks: el("assessment-dependencies").value } };
     if (el("assessment-owner").value !== "__legacy__") value.decisionOwnerId = el("assessment-owner").value;
     return value;
   }
@@ -345,16 +414,15 @@
     if (record.decisionOwnerId) el("decision-owner-help").textContent = "Decision Owner · selected in Assessment";
     else el("decision-owner-help").textContent = "Legacy saved owner text. Select a governed owner in Assessment before a new decision.";
     el("decision-action").value = draft.requiredAction; el("decision-action-owner").value = draft.actionOwner; el("decision-next-date").value = draft.nextReviewDate;
-    const signals = rules.reviewSignals(record), counts = el("decision-context-counts");
-    counts.replaceChildren(...[[signals.materialConcerns.length, "Material Concern"], [signals.attentionItems.length, "Emerging Concern"], [signals.evidenceGaps.length, "Evidence Gap"]]
-      .map(([count, label]) => node("span", countLabel(count, label), "attention-count")));
+    el("decision-owner-help").className = record.decisionOwnerId ? "sr-only" : "hint";
+    const signals = rules.reviewSignals(record);
     el("decision-rationale-help").hidden = signals.materialConcerns.length === 0;
     decisionRequirements();
     growTextareas();
   }
   function readDecision() {
     return { outcome: choiceValue("decision-outcome"), rationale: el("decision-rationale").value, owner: ownerRecord.decisionOwner,
-      requiredAction: el("decision-action").value, actionOwner: el("decision-action-owner").value, nextReviewDate: el("decision-next-date").value };
+      requiredAction: el("decision-action").value, actionOwner: el("decision-action-owner").value, nextReviewDate: choiceValue("decision-outcome") === "Stop" ? "" : el("decision-next-date").value };
   }
   function decisionRequirements() {
     const outcome = choiceValue("decision-outcome"); const required = rules.needsActions(outcome);
@@ -362,29 +430,52 @@
     if (followUp.dataset.outcome !== outcome) followUp.open = required;
     followUp.dataset.outcome = outcome;
     el("decision-follow-up-title").textContent = required ? "Required follow-up action" : outcome ? "Optional follow-up action" : "Follow-up action";
-    el("decision-requirements").textContent = required ? "Required action, action owner and next review date are required for this outcome." : outcome
-      ? "Action, action owner and next review date are optional for Continue / Stop. Rationale and decision owner remain required."
+    el("decision-requirements").textContent = required ? "Required action, action owner and next review date are required for this outcome." : outcome === "Stop"
+      ? "Stop ends the continuation path; no next review is scheduled. Closure actions are optional. Rationale and decision owner remain required." : outcome
+      ? "Action, action owner and next review date are optional for Continue. Rationale and decision owner remain required."
       : "Select a decision to see its follow-up requirements. Continue with Conditions, Modify and Pause require an action, action owner and next review date.";
-    for (const id of ["decision-action", "decision-action-owner", "decision-next-date"]) el(id).required = required;
+    for (const id of ["decision-action", "decision-action-owner", "decision-next-date"]) {
+      el(id).required = required;
+      el(`${id}-required`).hidden = !required;
+    }
+    el("decision-next-review-field").hidden = outcome === "Stop";
+    el("decision-next-date").disabled = outcome === "Stop";
     const date = el("decision-next-date").value;
     el("decision-next-date-help").textContent = rules.validDate(date)
       ? `Selected date: ${shortDate(date)}. Use the calendar to change it.`
       : "Use the calendar to choose a date, or enter it in your browser’s date format.";
   }
-  function chrome(record, busy) {
+  function renderReviewSteps(stage, record, busy = false, saveBlocked = false) {
+    const ready = !!record && rules.readiness(record).ready;
+    const eligible = !!record && (app.services?.governanceDirectory?.eligible(record) ?? rules.ownerAssigned(record));
+    const canDecide = ready && eligible && !busy && !saveBlocked;
+    const gate = !ready || !eligible ? "Not ready" : busy ? "Evidence loading" : saveBlocked ? "Save unavailable" : "";
+    for (const [index, name] of ["assessment", "summary", "decision"].entries()) {
+      const button = el(`review-step-${name}`), item = button.parentElement;
+      const current = stage === name, complete = name === "assessment" && ready;
+      const state = current ? "current" : complete ? "complete" : name === "decision" && !canDecide ? "gated" : "available";
+      if (item) { item.dataset.state = state; if (current) item.setAttribute("aria-current", "step"); else item.removeAttribute("aria-current"); }
+      button.disabled = false; button.setAttribute("aria-disabled", String(name === "decision" && !canDecide));
+      button.dataset.gate = name === "decision" ? gate : "";
+      button.title = name === "decision" && !canDecide ? saveBlocked ? "Restore draft saving before entering Governance Decision." : busy ? "Finish the current evidence refresh before entering Governance Decision." : "Activate for an explanation of the remaining decision-readiness requirements." : "";
+      if (button.children[0]) { button.children[0].textContent = complete ? "✓" : String(index + 1); button.children[0].setAttribute("aria-hidden", "true"); }
+      button.setAttribute("aria-label", `${["Assessment", "Review Summary", "Governance Decision"][index]}${current ? ", current stage" : complete ? ", assessment complete" : name === "decision" && !canDecide ? `, ${gate.toLowerCase()}; activate for details` : ", available"}`);
+    }
+    el("proceed-decision").disabled = false; el("proceed-decision").setAttribute("aria-disabled", String(!canDecide));
+  }
+  function chrome(record, busy, saveBlocked = false) {
     ownerRecord = record;
-    el("current-review-project").textContent = `${record.project.Project} · ${record.project.ProjectDescription || "Continuation review"}`;
-    el("current-review-project").append(sourceBadge(record.project));
     const basis = rules.normalizeBasis(record.reviewBasis);
-    const trigger = el("review-trigger"); trigger.dataset.trigger = basis === "Material trigger" ? "material" : basis === "Scheduled stage-gate review" ? "scheduled" : "other";
-    trigger.replaceChildren(node("strong", basis || "Select a Review Trigger"), node("span", `Decision due ${shortDate(rules.timing(record).decisionTarget)}`));
-    if (app.services.showcase?.isShowcase(record.project)) trigger.append(node("p", app.services.showcase.governanceContext(record.project).reviewReason, "review-reason"));
-    const readiness = rules.readiness(record);
+    el("review-trigger").hidden = !!basis;
     const eligible = app.services?.governanceDirectory?.eligible(record) ?? rules.ownerAssigned(record);
-    if (eligible) el("governance-directory-status").textContent = "Prototype Governance Directory · Fictional roles, not SAP or real DPE employees.";
-    el("proceed-decision").disabled = !readiness.ready || !eligible || busy;
+    if (eligible && !directoryError) {
+      const notice = "Prototype Governance Directory · Fictional roles, not SAP or real DPE employees.";
+      if (el("governance-directory-status").textContent !== notice) el("governance-directory-status").textContent = notice;
+      el("governance-directory-status").className = "sr-only";
+    }
+    renderReviewSteps(displayedReviewStage, record, busy, saveBlocked);
     el("confirm-decision").disabled = busy;
-    el("assessment-save-status").textContent = !el("storage-notice").hidden ? "Draft could not be saved." : "Draft saved";
+    el("confirm-decision").title = busy ? "Finish the current evidence refresh before recording a decision." : "Record the immutable governance decision.";
   }
   function ownerContext(container, snapshot, legacy) {
     container.className = "accountability-context hint";
@@ -401,50 +492,36 @@
     }
     container.append(matrix);
   }
-  function executiveSnapshot(container, record) {
-    const snapshot = node("section", undefined, "summary-assessment"); container.append(snapshot);
-    const assessment = record.assessment;
-    signalMatrix(snapshot, record);
-    const signals = rules.reviewSignals(record);
-    const hasSignals = signals.materialConcerns.length || signals.attentionItems.length || signals.evidenceGaps.length;
-    const attention = node("section", undefined, hasSignals ? "management-attention" : ""); snapshot.append(attention);
-    attention.append(node("h4", hasSignals ? "Management Attention Required" : "Management Attention"));
-    attention.append(node("p", [countLabel(signals.materialConcerns.length, "material concern"), countLabel(signals.attentionItems.length, "emerging concern"), countLabel(signals.evidenceGaps.length, "evidence gap")].join(" · ")));
-    for (const [title, items] of [["Material Concerns", signals.materialConcerns], ["Emerging Concerns", signals.attentionItems], ["Evidence Gaps", signals.evidenceGaps]]) {
-      if (!items.length) continue;
-      const group = node("section", undefined, "attention-group"); group.dataset.category = title.toLowerCase().replace(/ /g, "-"); const heading = node("h4", title);
-      const list = node("ul"); for (const item of items) list.append(node("li", item)); group.append(heading, list); attention.append(group);
-    }
-    if (!hasSignals) attention.append(node("p", Object.entries(rules.ASSESSMENTS).every(([key, field]) => field.options.includes(assessment[key]) && assessment[key] !== field.missing)
-      ? "No material concerns are identified from the completed reviewer assessment." : "Complete the reviewer assessment to identify management concerns."));
-  }
   function reviewSummary(record) {
     const target = el("review-summary"); target.replaceChildren();
-    const signals = rules.reviewSignals(record), control = rules.timing(record);
+    const signals = rules.reviewSignals(record);
+    const missing = rules.readiness(record).missing, pending = !!(app.state?.elementController || app.state?.glController || app.state?.poController);
+    el("summary-readiness").hidden = !missing.length && !pending;
+    el("summary-readiness").textContent = missing.length ? `Assessment incomplete · ${countLabel(missing.length, "required item")} remaining` : pending ? "Evidence refresh in progress · decision entry paused" : "";
+    el("summary-readiness").title = missing.join(", ").replace(/Review basis/g, "Review Trigger");
     const decisionOverview = el("summary-decision-overview");
     decisionOverview.dataset.tone = signals.materialConcerns.length ? "material" : signals.evidenceGaps.length ? "gap" : signals.attentionItems.length ? "emerging" : "neutral";
-    decisionOverview.replaceChildren(node("p", signals.materialConcerns.length ? "Management Attention Required" : "Review Findings", "summary-context-label"),
-      node("p", [countLabel(signals.materialConcerns.length, "material concern"), countLabel(signals.attentionItems.length, "emerging concern"), countLabel(signals.evidenceGaps.length, "evidence gap")].join(" · "), "summary-signal-counts"),
-      node("p", `${control.status} · Decision due ${shortDate(control.decisionTarget)}`, "summary-deadline"),
+    decisionOverview.replaceChildren(node("p", [`${signals.materialConcerns.length} Material`, `${signals.attentionItems.length} Emerging`, countLabel(signals.evidenceGaps.length, "Evidence Gap")].join(" · "), "summary-signal-counts"),
       node("p", `Decision Owner: ${record.decisionOwnerSnapshot?.name || record.decisionOwner || "Not selected"}${record.decisionOwnerSnapshot?.role ? ` · ${record.decisionOwnerSnapshot.role}` : ""}`, "summary-owner"));
-    executiveSnapshot(target, record);
+    const assessment = node("section", undefined, "summary-assessment"); signalMatrix(assessment, record); target.append(assessment);
     renderTiming(section(target, "Governance Timeline"), record);
-    const evidence = section(target, "Evidence Reviewed");
-    evidence.append(node("p", "Evidence availability describes retrieved records. Evidence Gap reflects the reviewer’s assessment of whether information is sufficient.", "hint"));
+    const evidence = section(target, "Evidence Basis"); evidence.className = "panel summary-evidence-basis";
+    const sources = node("div", undefined, "evidence-basis-sources");
     for (const [key, title] of [["lifecycle", "Project Structure"], ["gl", "Financial Activity"], ["po", "Procurement Activity"]]) {
-      const row = node("div", undefined, "evidence-row"); row.append(node("h4", title));
-      const state = node("div"); overview(state, key, record.evidence, false, false);
-      row.append(state); evidence.append(row);
+      const pending = !!app.state?.elementController || key === "gl" && !!app.state?.glController || key === "po" && !!app.state?.poController;
+      const state = evidenceStatus(record.evidence[key], pending), row = node("div", undefined, "evidence-basis-item"), badge = node("span", state.label, "evidence-status"); badge.dataset.tone = state.tone;
+      row.append(node("h4", title), badge); sources.append(row);
     }
-    const context = node("details", undefined, "optional-context"); context.append(node("summary", "Reviewer context"));
-    const owner = node("div"); ownerContext(owner, record.decisionOwnerSnapshot, record.decisionOwner); context.append(node("h4", "Decision Owner"), owner);
+    evidence.append(sources, node("p", "Source availability is not a judgement of evidence sufficiency. Evidence Gap is a reviewer assessment.", "hint"), action("View evidence in Overview →", () => evidenceAction()));
+    const context = node("details", undefined, "optional-context"); context.open = false; context.append(node("summary", "Reviewer Context"));
     if (record.assessment.comments || record.assessment.keyRisks) pairs(context, [["Reviewer comments", record.assessment.comments], ["Key risks / dependencies", record.assessment.keyRisks]]);
-    evidence.append(context);
-    evidence.append(action(app.services.showcase?.isShowcase(record.project) ? "View Technical Details" : "View SAP Technical Details", () => technicalAction()));
+    else context.append(node("p", "No additional review notes recorded.", "hint"));
+    target.append(context);
   }
   function confirmation(record) {
     const target = el("confirmation-record"); target.replaceChildren(); const decision = record.decision;
     el("confirmation-outcome").textContent = decision.outcome;
+    el("confirmation-view").hidden = false;
     const hero = node("header", undefined, "decision-record-context");
     hero.append(node("h3", record.project.Project), node("p", record.project.ProjectDescription || "", "record-description"));
     hero.append(sourceBadge(record.project));
@@ -470,58 +547,167 @@
     const assessment = section(snapshot, "Assessment Snapshot"); pairs(assessment, [...Object.entries(rules.ASSESSMENTS).map(([key, field]) => [field.label, decision.assessmentSnapshot[key]]), ["Reviewer comments", decision.assessmentSnapshot.comments], ["Key risks / dependencies", decision.assessmentSnapshot.keyRisks]]);
     renderEvidence(snapshot, decision.evidenceSnapshot, record.project);
   }
-  function showView(view) {
-    for (const name of views) el(`${name}-view`).hidden = name !== view;
-    el("review-chrome").hidden = !["assessment", "summary", "decision"].includes(view);
+  function showView(view, dashboardFilter = "active") {
+    const inWorkspace = workspaceViews.includes(view), stages = ["assessment", "summary", "decision"];
+    const tab = view === "detail" ? "overview" : ["confirmation", "history"].includes(view) ? "history" : "current";
+    if (view === "dashboard") { selectedDashboardFilter = dashboardFilter === "recorded" ? "recorded" : "active"; renderDashboardQueue(); }
+    if (view !== "dashboard") dismissMetricHelp();
+    for (const name of ["dashboard", "investments", "how-it-works"]) el(`${name}-view`).hidden = name !== view;
+    el("workspace-view").hidden = !inWorkspace;
+    el("global-page-header").hidden = inWorkspace;
+    el("skip-link").setAttribute("href", inWorkspace ? "#detail-project-name" : "#page-title");
+    el("detail-view").hidden = !inWorkspace || tab !== "overview";
+    el("workspace-current").hidden = !inWorkspace || tab !== "current";
+    el("workspace-history").hidden = !inWorkspace || tab !== "history";
+    for (const name of stages) el(`${name}-view`).hidden = view !== name;
+    el("confirmation-view").hidden = view !== "confirmation";
+    el("review-chrome").hidden = !stages.includes(view);
+    el("current-review-empty").hidden = stages.includes(view);
+    for (const name of ["overview", "current", "history"]) {
+      const button = el(`workspace-tab-${name}`); button.setAttribute("aria-selected", String(name === tab)); button.setAttribute("tabindex", name === tab ? "0" : "-1");
+    }
     if (view === "detail") el("investment-technical-details").open = false;
-    el("page-title").textContent = titles[view]; el("page-title").focus();
-    for (const name of ["dashboard", "investments", "reviews"]) {
-      const active = view === name || name === "investments" && view === "detail" || name === "reviews" && ["assessment", "summary", "decision", "confirmation"].includes(view);
+    if (!inWorkspace) { el("page-title").textContent = titles[view]; el("page-title").focus(); }
+    else { const target = stages.includes(view) ? el(`${view}-view`) : el("detail-project-name"); target.setAttribute("tabindex", "-1"); target.focus({ preventScroll: true }); }
+    for (const name of ["dashboard", "investments"]) {
+      const active = view === name || name === "investments" && inWorkspace;
       if (active) el(`nav-${name}`).setAttribute("aria-current", "page"); else el(`nav-${name}`).removeAttribute("aria-current");
     }
-    const step = ["assessment", "summary", "decision"].indexOf(view);
-    [...el("review-steps").children].forEach((item, index) => { if (index === step) item.setAttribute("aria-current", "step"); else item.removeAttribute("aria-current"); });
+    if (view === "how-it-works") el("nav-how-it-works").setAttribute("aria-current", "page"); else el("nav-how-it-works").removeAttribute("aria-current");
+    displayedReviewStage = stages.includes(view) ? view : "";
+    renderReviewSteps(displayedReviewStage, null);
     el("workflow-message").hidden = true;
     el("decision-incomplete").hidden = true;
-    document.querySelector("main").dataset.view = view;
+    document.querySelector("main").dataset.view = inWorkspace ? "workspace" : view;
+    document.querySelector("main").dataset.workspaceTab = inWorkspace ? tab : "";
+    document.querySelector("main").dataset.reviewStage = stages.includes(view) ? view : "";
     el("load-projects").hidden = view !== "investments";
+    el("portfolio-tools").hidden = view !== "investments";
     window.scrollTo({ top: 0, behavior: "instant" });
   }
   function growTextareas() { for (const input of document.querySelectorAll("textarea")) { if (input.offsetParent !== null) { input.style.height = "auto"; input.style.height = Math.max(110, input.scrollHeight + 2) + "px"; } } }
-  let technicalAction = () => {};
+  let evidenceAction = () => {};
+  let reviewStartRecovery = false;
+  function reviewStart(recovery = false) {
+    reviewStartRecovery = recovery;
+    setChoice("review-start-trigger", ""); el("review-start-error").hidden = true;
+    el("review-start-trigger").removeAttribute("aria-invalid");
+    el("review-start-title").textContent = recovery ? "Set Review Trigger" : "Start Continuation Review";
+    el("review-start-submit").textContent = recovery ? "Save Review Trigger" : "Start Review";
+    el("review-start-help").textContent = recovery ? "Record why this existing formal review was opened. The trigger is not itself a review finding." : "Why this formal review is being opened. The trigger is not itself a review finding.";
+    const dialog = el("review-start-dialog"); if (dialog.showModal) dialog.showModal(); else dialog.open = true;
+  }
+  function closeReviewStart() {
+    const dialog = el("review-start-dialog"); if (dialog.close) dialog.close(); else dialog.open = false;
+    el(reviewStartRecovery ? "set-review-trigger" : "start-review").focus({ preventScroll: true });
+  }
+  const metricHelpControls = [];
+  function dismissMetricHelp() { for (const control of metricHelpControls) control.dismiss(); }
+  function metricHelp(filter, copy = lensHelp[filter.key], isMetric = true) {
+    const wrapper = node("span", undefined, isMetric ? "metric-help-wrap" : "context-help-wrap"), trigger = node("button", "?", isMetric ? "metric-help" : "context-help"), text = node("span", copy, "metric-tooltip");
+    trigger.id = `${isMetric ? "metric" : "context"}-help-${filter.key}`; trigger.type = "button"; text.id = `${isMetric ? "metric" : "context"}-tip-${filter.key}`; text.hidden = true; text.setAttribute("role", "tooltip");
+    trigger.setAttribute("aria-label", `About ${filter.label}`); trigger.setAttribute("aria-describedby", text.id); trigger.setAttribute("aria-controls", text.id);
+    let hovered = false, focused = false, pinned = false, dismissed = false;
+    const position = () => {
+      if (!trigger.getBoundingClientRect || text.hidden) return;
+      const width = document.documentElement?.clientWidth || window.innerWidth, height = document.documentElement?.clientHeight || window.innerHeight;
+      text.style.maxWidth = `${Math.max(0, width - 24)}px`;
+      const rect = trigger.getBoundingClientRect(), tip = text.getBoundingClientRect();
+      text.style.left = `${Math.max(12, Math.min(rect.left - 20, width - tip.width - 12))}px`;
+      text.style.top = `${Math.max(12, rect.bottom + tip.height > height - 12 ? rect.top - tip.height : rect.bottom)}px`;
+    };
+    const update = () => { const open = !dismissed && (hovered || focused || pinned); text.hidden = !open; trigger.setAttribute("aria-expanded", String(open)); position(); };
+    const control = {
+      dismiss() { hovered = false; focused = false; pinned = false; dismissed = true; update(); }, position,
+      contains(target) { return wrapper.contains?.(target) || false; },
+      place() {
+        if (!isMetric) { position(); return; }
+        const label = wrapper.parentElement?.children[0]?.children[0];
+        if (label && Number.isFinite(label.offsetWidth)) {
+          // Keep the separate help button beside the label's reserved 32px space, even after wrapping.
+          wrapper.style.left = `${label.offsetLeft + label.offsetWidth - 32 + 8}px`;
+          wrapper.style.top = `${label.offsetTop + (label.offsetHeight - 24) / 2}px`;
+          wrapper.style.bottom = "auto";
+        }
+        position();
+      }
+    };
+    const activate = () => { for (const other of metricHelpControls) if (other !== control) other.dismiss(); dismissed = false; };
+    metricHelpControls.push(control);
+    wrapper.addEventListener("mouseenter", () => { activate(); hovered = true; update(); });
+    wrapper.addEventListener("mouseleave", () => { hovered = false; update(); });
+    trigger.addEventListener("focus", () => { activate(); focused = true; update(); });
+    trigger.addEventListener("blur", () => { focused = false; pinned = false; update(); });
+    trigger.addEventListener("click", () => { if (!pinned) activate(); pinned = !pinned; dismissed = !pinned; update(); });
+    document.addEventListener("keydown", event => { if (event.key === "Escape" && !text.hidden) { dismissed = true; pinned = false; update(); event.preventDefault(); } });
+    wrapper.append(trigger, text); update(); return wrapper;
+  }
   function bind(actions) {
-    technicalAction = actions.technicalDetails || (() => {});
-    el("retry-projects").addEventListener("click", actions.retryProjects);
-    el("project-diagnostics").addEventListener("click", technicalAction);
+    evidenceAction = actions.viewEvidence || (() => {});
     el("reset-showcase").addEventListener("click", actions.resetShowcase);
-    for (const [key, id] of Object.entries(assessmentIDs)) buildChoices(id, rules.ASSESSMENTS[key].options);
+    window.addEventListener?.("resize", () => metricHelpControls.forEach(control => control.place()));
+    window.addEventListener?.("scroll", () => metricHelpControls.forEach(control => control.position()), true);
+    document.addEventListener("pointerdown", event => { for (const control of metricHelpControls) if (!control.contains(event.target)) control.dismiss(); });
+    for (const [key, id] of Object.entries(assessmentIDs)) {
+      const field = rules.ASSESSMENTS[key]; buildChoices(id, field.options.filter(value => value !== field.missing));
+      el(`${id}-help`).append(contextHelp(id, field.label, field.question));
+    }
     buildChoices("decision-outcome", rules.OUTCOMES);
-    for (const view of ["dashboard", "investments", "reviews"]) el(`nav-${view}`).addEventListener("click", () => actions.navigate(view));
-    el("dashboard-view-investments").addEventListener("click", () => actions.navigate("investments"));
+    buildChoices("review-start-trigger", rules.BASIS.slice(0, 2));
+    for (const view of ["dashboard", "investments"]) el(`nav-${view}`).addEventListener("click", () => actions.navigate(view));
+    el("nav-how-it-works").addEventListener("click", () => actions.navigate("how-it-works"));
+    el("how-dashboard").addEventListener("click", () => actions.navigate("dashboard"));
+    el("how-portfolio").addEventListener("click", () => actions.navigate("investments"));
+    el("retry-save").addEventListener("click", () => { if (actions.retrySave?.() && displayedReviewStage) el(`review-step-${displayedReviewStage}`).focus({ preventScroll: true }); });
     el("start-review").addEventListener("click", actions.startReview);
     el("view-last-decision").addEventListener("click", actions.lastDecision);
     el("reload-lifecycle").addEventListener("click", actions.reloadLifecycle);
     el("load-review-evidence").addEventListener("click", actions.loadEvidence);
-    for (const id of ["review-back-investment", "return-investment"]) el(id).addEventListener("click", actions.returnInvestment);
-    el("back-dashboard").addEventListener("click", () => actions.navigate("dashboard"));
+    el("back-dashboard").addEventListener("click", () => actions.backDashboard ? actions.backDashboard() : actions.navigate("dashboard"));
     el("assessment-form").addEventListener("submit", event => { event.preventDefault(); actions.summary(); });
     for (const event of ["input", "change"]) el("assessment-form").addEventListener(event, () => { el("workflow-message").hidden = true; actions.saveDraft(); });
     el("back-assessment").addEventListener("click", () => actions.reviewStep("assessment"));
     el("proceed-decision").addEventListener("click", () => actions.reviewStep("decision"));
     el("back-summary").addEventListener("click", () => actions.reviewStep("summary"));
-    for (const event of ["input", "change"]) el("decision-form").addEventListener(event, () => { el("decision-incomplete").hidden = true; decisionRequirements(); actions.saveDraft(); });
+    for (const event of ["input", "change"]) el("decision-form").addEventListener(event, () => { if (el("decision-incomplete").dataset.kind !== "record") el("decision-incomplete").hidden = true; decisionRequirements(); actions.saveDraft(); });
     el("decision-form").addEventListener("submit", event => { event.preventDefault(); actions.confirm(); });
-    options(el("review-basis"), rules.BASIS);
+    el("assessment-owner-help").append(contextHelp("assessment-owner", "Decision Owner source", "Prototype Governance Directory: fictional roles, not SAP or real DPE employees. The selected owner is accountable for the decision."));
+    el("review-start-form").addEventListener("submit", event => { event.preventDefault(); actions.confirmReviewStart?.(); });
+    el("review-start-cancel").addEventListener("click", () => actions.cancelReviewStart?.());
+    el("review-start-dialog").addEventListener("cancel", event => { event.preventDefault(); actions.cancelReviewStart?.(); });
+    el("review-start-trigger").addEventListener("change", () => { el("review-start-error").hidden = true; el("review-start-trigger").removeAttribute("aria-invalid"); });
+    el("set-review-trigger").addEventListener("click", () => actions.setLegacyReviewTrigger?.());
+    const tabs = ["overview", "current", "history"];
+    for (const [index, tab] of tabs.entries()) {
+      const button = el(`workspace-tab-${tab}`);
+      button.addEventListener("click", () => actions.workspaceTab?.(tab));
+      button.addEventListener("keydown", event => {
+        const target = event.key === "Home" ? 0 : event.key === "End" ? 2 : event.key === "ArrowRight" ? (index + 1) % 3 : event.key === "ArrowLeft" ? (index + 2) % 3 : -1;
+        if (target < 0) return; event.preventDefault();
+        if (actions.workspaceTab?.(tabs[target]) !== false) el(`workspace-tab-${tabs[target]}`).focus({ preventScroll: true });
+      });
+    }
+    for (const stage of ["assessment", "summary", "decision"]) el(`review-step-${stage}`).addEventListener("click", () => actions.reviewStep(stage));
     for (const input of document.querySelectorAll("textarea")) input.addEventListener("input", growTextareas);
   }
-  app.governanceUI = { bind, showView, details, renderDashboard, renderReviews, assessment, readAssessment, decision, readDecision, chrome, reviewSummary, confirmation, evidenceStatus,
+  app.governanceUI = { bind, showView, details, renderDashboard, portfolioState, completedReviews, assessment, readAssessment, decision, readDecision, chrome, reviewSummary, confirmation, evidenceStatus, reviewStart, closeReviewStart,
+    readReviewStart() { return choiceValue("review-start-trigger"); },
+    reviewStartError(text) { el("review-start-error").textContent = text; el("review-start-error").hidden = false; el("review-start-trigger").setAttribute("aria-invalid", "true"); },
     setDirectory(people, error = "") { directoryPeople = people; directoryError = error; populateOwners(); },
-    storageNotice(text) { el("storage-notice").hidden = !text; el("storage-notice").textContent = text; el("assessment-save-status").textContent = text ? "Draft could not be saved." : "Draft saved"; },
-    error(text) { el("workflow-message").hidden = false; el("workflow-message").textContent = text; },
-    incompleteAssessment(missing) { el("workflow-message").hidden = false; el("workflow-message").textContent = `Complete: ${missing.join(", ")}.`; el("workflow-message").focus(); },
-    incompleteDecision(errors) { el("decision-incomplete").hidden = false; el("decision-incomplete").textContent = errors.join(" ").replace(/Review basis/g, "Review Trigger"); },
+    storageNotice(text) { el("storage-notice").hidden = !text; el("storage-notice").textContent = text; },
+    autosaveStatus(failed, unavailable = false) {
+      const status = el("review-save-status"), text = failed ? "Couldn’t save changes" : unavailable ? "Storage unavailable" : "";
+      if (status.textContent !== text) status.textContent = text;
+      status.dataset.state = failed ? "failed" : unavailable ? "unavailable" : "saved";
+      el("draft-save-error").hidden = !failed;
+    },
+    focusSaveError() { el("draft-save-error").focus({ preventScroll: true }); el("draft-save-error").scrollIntoView({ block: "nearest" }); },
+    workflowGate(text) { el("workflow-message").dataset.kind = "gate"; el("workflow-message").hidden = false; el("workflow-message").textContent = text; el("workflow-message").focus({ preventScroll: true }); el("workflow-message").scrollIntoView({ block: "nearest" }); },
+    error(text) { el("workflow-message").dataset.kind = "error"; el("workflow-message").hidden = false; el("workflow-message").textContent = text; },
+    incompleteAssessment(missing) { el("workflow-message").dataset.kind = "error"; el("workflow-message").hidden = false; el("workflow-message").textContent = `Complete: ${missing.join(", ")}.`; el("workflow-message").focus(); },
+    incompleteDecision(errors, { recordFailure = false } = {}) { el("decision-incomplete").dataset.kind = recordFailure ? "record" : "validation"; el("decision-incomplete").hidden = false; el("decision-incomplete").textContent = errors.join(" ").replace(/Review basis/g, "Review Trigger"); },
     openTechnical() { el("investment-technical-details").open = true; el("investment-technical-details").scrollIntoView({ block: "start" }); },
-    financialSnapshot(record) { overview(el("assessment-financial-evidence"), "gl", record.evidence, !!app.state?.glController, false); },
+    focusEvidence() { el("overview-evidence-title").focus({ preventScroll: true }); el("overview-evidence-title").scrollIntoView({ block: "start" }); },
     evidenceButton(enabled) { el("load-review-evidence").disabled = !enabled; }
   };
 })();

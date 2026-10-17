@@ -15,20 +15,21 @@ function record(rules, assessment = {}) {
     decisionDraft: { outcome: '', rationale: '', requiredAction: '', actionOwner: '', nextReviewDate: '' } };
 }
 
-test('dashboard uses governance metrics, separate session context and actionable attention anatomy', () => {
+test('dashboard pulse distinguishes investments from signals and keeps queue actions functional', () => {
   const w = workspace(); const first = record(w.reviewRules, { risk: 'High' });
   const second = { ...record(w.reviewRules, { costPosition: 'Insufficient information', futureEconomicValue: 'Negative' }), id: 'second' };
   const completed = { ...first, id: 'closed', status: 'decision_recorded', decision: { outcome: 'Modify', timestamp: '2026-01-02T00:00:00Z' } };
   let opened;
-  w.governanceUI.renderDashboard([first, second, completed], 5, id => { opened = id; });
-  const cards = byClass(w.elements.get('dashboard-cards'), 'status-card');
-  assert.deepEqual(cards.map(card => card.children[0].textContent), ['Open Reviews', 'Material Concerns', 'Evidence Gaps', 'Decisions Recorded']);
-  assert.deepEqual(cards.map(card => card.children[1].textContent), ['2', '2', '1', '1']);
-  assert.equal(byClass(w.elements.get('dashboard-cards'), 'session-context').length, 1);
-  const items = byClass(w.elements.get('dashboard-attention'), 'attention-item'); assert.equal(items.length, 2);
-  assert.equal(byClass(items[0], 'attention-count').length, 1);
-  assert(items[0].textContent.includes(first.reviewBasis) && items[0].textContent.includes('days overdue'));
-  byClass(items[0], 'attention-action')[0].events.click[0](); assert.equal(opened, first.id);
+  w.governanceUI.renderDashboard([first, second, completed], [], id => { opened = id; });
+  const metrics = byClass(w.elements.get('dashboard-cards'), 'pulse-metric');
+  assert.deepEqual(metrics.map(metric => metric.children[0].textContent), ['Active Reviews', 'Overdue', 'Material Concerns', 'Evidence Gaps', 'Reviewed Investments']);
+  // Both open test records share one project identity; two material findings do not mean two investments.
+  assert.deepEqual(metrics.map(metric => metric.children[1].textContent), ['1', '1', '1', '1', '1']);
+  assert.deepEqual(metrics.map(metric => metric.children[2].children[1].textContent), ['100%', '100%', '100%', '100%', '100%']);
+  const items = byClass(w.elements.get('dashboard-attention'), 'decision-queue-row'); assert.equal(items.length, 1);
+  assert.equal(byClass(items[0], 'queue-signal').length, 1);
+  assert(items[0].textContent.includes(first.reviewBasis) && items[0].textContent.includes(w.reviewRules.timing(first).status));
+  byClass(items[0], 'queue-action')[0].children[1].events.click[0](); assert.equal(opened, first.id);
 });
 
 test('six-dimension matrix uses explicit input and existing categorical signals, not numeric scoring', () => {
@@ -60,10 +61,10 @@ test('governance timeline keeps actual dates/text and positions the recorded mil
 
 test('trigger treatment reflects only the selected basis, with a neutral scheduled variant', () => {
   const w = workspace(); const review = record(w.reviewRules); w.governanceUI.decision(review); w.governanceUI.chrome(review, false);
-  assert.equal(w.elements.get('review-trigger').dataset.trigger, 'material');
-  assert(w.elements.get('review-trigger').textContent.includes('Decision due'));
-  review.reviewBasis = 'Scheduled governance review'; w.governanceUI.chrome(review, false);
-  assert.equal(w.elements.get('review-trigger').dataset.trigger, 'scheduled');
+  w.governanceUI.details(review.project, review.evidence, [review]);
+  assert.equal(w.elements.get('review-trigger').hidden, true); assert(w.elements.get('workspace-review-context').textContent.includes('Material trigger'));
+  review.reviewBasis = 'Scheduled governance review'; w.governanceUI.chrome(review, false); w.governanceUI.details(review.project, review.evidence, [review]);
+  assert(w.elements.get('workspace-review-context').textContent.includes('Scheduled stage-gate review'));
 });
 
 test('decision cards have neutral descriptions and a non-colour selected marker without choosing an outcome', () => {
