@@ -190,6 +190,6 @@ Runtime `validation-report.json` and `validation-summary.md` are generated outpu
 
 ## Governance follow-up persistence
 
-Storage remains version 1 with an optional version-1 investmentContextSnapshot on the review and its completed decision. Sanitisation whitelists fields and preserves null unknowns. No bulk migration or historical reconstruction occurs. Capture is an explicit save before Summary/Decision for older active reviews; failure blocks advancement. Confirmation copies the saved context, assessment and evidence and validates the UTC date at the write boundary.
+Storage remains version 1 with an optional version-1 investmentContextSnapshot on the review and its completed decision. Sanitisation whitelists fields and preserves null unknowns. No bulk migration or historical reconstruction occurs. Capture is an explicit save before Summary/Decision for older active reviews; failure blocks advancement. Confirmation copies the saved context, assessment and evidence and validates the browser-local calendar date at the write boundary.
 
 review-rules owns validated canonical project identity and latest completed selection. The store, controller and governance presentation reuse those rules; provider identifiers and WBS joins retain original values. followUpDue is a read-only projection, independent of active-review timing controls.

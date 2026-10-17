@@ -168,7 +168,7 @@
     const label = active ? (rules.readiness(active).ready ? "Ready for decision" : "Assessment in progress")
       : outcome === "Stop" ? "Stopped" : outcome === "Pause" ? "Paused" : ["Modify", "Continue with Conditions"].includes(outcome) ? "Follow-up" : "Monitoring";
     const checkpoint = rules.followUpDue(records).find(item => item.projectKey === rules.projectKey(project));
-    return { label, active, latest, checkpointLabel: checkpoint ? (checkpoint.status === "due" ? "Next review due today (UTC)" : "Overdue checkpoint (UTC)") : "", nextReview: active || outcome === "Stop" ? null : latest?.decision.nextReviewDate || null,
+    return { label, active, latest, checkpointLabel: checkpoint ? (checkpoint.status === "due" ? "Follow-up due today" : "Follow-up date passed") : "", nextReview: active || outcome === "Stop" ? null : latest?.decision.nextReviewDate || null,
       nextStep: active ? "Continue Review" : outcome === "Stop" ? "View Decision" : "Open Investment" };
   }
   const dashboardFilters = [
@@ -441,11 +441,11 @@
     }
     el("decision-next-review-field").hidden = outcome === "Stop";
     el("decision-next-date").disabled = outcome === "Stop";
-    el("decision-next-date").min = rules.utcDateKey();
+    el("decision-next-date").min = rules.localDateKey();
     const date = el("decision-next-date").value;
     el("decision-next-date-help").textContent = rules.validDate(date)
-      ? `Selected date: ${shortDate(date)}. Choose today or later (UTC); checked again when recorded.`
-      : "Choose today or later (UTC), using the calendar or your browser’s date format.";
+      ? `Selected date: ${shortDate(date)}. Choose today or later; checked again when recorded.`
+      : "Choose today or later, using the calendar or your browser’s date format.";
   }
   function renderReviewSteps(stage, record, busy = false, saveBlocked = false) {
     const ready = !!record && rules.readiness(record).ready;
@@ -546,7 +546,6 @@
       row.append(node("h4", title), badge); sources.append(row);
     }
     evidence.append(sources, node("p", "Source availability is not a judgement of evidence sufficiency. Evidence Gap is a reviewer assessment.", "hint"), action("View evidence in Overview →", () => evidenceAction()));
-    financialBasis(target, record);
     const context = node("details", undefined, "optional-context"); context.open = false; context.append(node("summary", "Reviewer Context"));
     if (record.assessment.comments || record.assessment.keyRisks) pairs(context, [["Reviewer comments", record.assessment.comments], ["Key risks / dependencies", record.assessment.keyRisks]]);
     else context.append(node("p", "No additional review notes recorded.", "hint"));

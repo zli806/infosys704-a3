@@ -110,7 +110,10 @@
       && new Date(value + "T00:00:00Z").toISOString().slice(0, 10) === value;
   }
   function needsActions(outcome) { return ["Continue with Conditions", "Modify", "Pause"].includes(outcome); }
-  function utcDateKey(now = new Date()) { return new Date(now).toISOString().slice(0, 10); }
+  function localDateKey(now = new Date()) {
+    const date = new Date(now);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  }
   function decisionErrors(review, draft, { now = new Date() } = {}) {
     const errors = readiness(review).missing.map(item => `Missing readiness item: ${item}`);
     if (!OUTCOMES.includes(draft.outcome)) errors.push("Select a human governance decision.");
@@ -122,7 +125,7 @@
       if (!draft.nextReviewDate) errors.push("Next review date is required for this decision.");
     }
     if (draft.nextReviewDate && !validDate(draft.nextReviewDate)) errors.push("Next review date must be a valid calendar date.");
-    if (draft.nextReviewDate && validDate(draft.nextReviewDate) && draft.nextReviewDate < utcDateKey(now)) errors.push("Next review date must be today or later (UTC), checked when the decision is recorded.");
+    if (draft.nextReviewDate && validDate(draft.nextReviewDate) && draft.nextReviewDate < localDateKey(now)) errors.push("Next review date must be today or later, checked when the decision is recorded.");
     return errors;
   }
   function projectKey(projectOrUUID) {
@@ -135,7 +138,7 @@
       .sort((a, b) => Date.parse(b.decision.timestamp) - Date.parse(a.decision.timestamp) || a.id.localeCompare(b.id));
   }
   function followUpDue(records, now = new Date()) {
-    const today = utcDateKey(now), seen = new Set(), result = [];
+    const today = localDateKey(now), seen = new Set(), result = [];
     for (const record of completedReviews(records)) {
       const key = projectKey(record.project);
       if (!key || seen.has(key)) continue;
@@ -159,5 +162,5 @@
     return { projectCount, open, decisions, overdue: open.filter(record => timing(record, now).status !== "Within decision window").length };
   }
   app.reviewRules = { BASIS, normalizeBasis, SIGNAL_RULES, classifyAssessment, signalBreakdown, OUTCOMES, ASSESSMENTS, PROJECT_FIELDS, projectSnapshot, emptyEvidence, defaultAssessment,
-    calendarTarget, timing, readiness, ownerAssigned, needsAttention, reviewSignals, validDate, utcDateKey, needsActions, decisionErrors, projectKey, sameProject, completedReviews, followUpDue, activeReview, latestReview, projectStatus, dashboard };
+    calendarTarget, timing, readiness, ownerAssigned, needsAttention, reviewSignals, validDate, localDateKey, needsActions, decisionErrors, projectKey, sameProject, completedReviews, followUpDue, activeReview, latestReview, projectStatus, dashboard };
 })();

@@ -234,8 +234,8 @@ Final submission validation: 151 tests/157 hooks pass, including deterministic i
 
 ## 17 October validation contract
 
-- Date input minimum is today's UTC date. The persistence boundary independently rechecks against the single confirmation timestamp. New Stop decisions strip Next Review; old records remain readable.
+- Date input minimum is today's browser-local date. The persistence boundary independently rechecks against the single confirmation timestamp. New Stop decisions strip Next Review; old records remain readable.
 - Valid UUID case variants share active/history/status/Stop identity. Duplicate active variants cause a storage error without overwriting JSON. Invalid/missing UUIDs never identify the same investment. SAP WBS matching and numeric internal-ID fallback are unchanged.
-- Summary and History render saved Financial Basis, retaining each currency, availability/partial/error/zero-match distinctions and limitations. Verbose calculation notes use closed disclosures. No provider fetch occurs in the renderer or confirmation.
+- History renders saved Financial Basis, retaining each currency, availability/partial/error/zero-match distinctions and limitations. Verbose calculation notes use closed disclosures. No provider fetch occurs in the renderer or confirmation.
 - Optional version-1 investmentContextSnapshot contains only source, sourceAsOf, capturedAt, currency and four nullable decimal-string investment values. New reviews capture it once; legacy active reviews capture before Summary or Decision. Missing context blocks confirmation. Completed legacy records remain unchanged and show a missing-context label.
-- Checkpoint due status uses the latest completed non-Stop decision only when no active review exists. Due today/overdue is text in Portfolio/Overview, never an automatic action or a Dashboard overdue count.
+- Checkpoint due status uses the browser-local date and the latest completed non-Stop decision only when no active review exists. Follow-up due today/Follow-up date passed is text in Portfolio/Overview, never an automatic action or a Dashboard overdue count.

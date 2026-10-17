@@ -70,6 +70,8 @@ Functional end-to-end flow; traceability to A2; transparent SHOWCASE / SAP SANDB
 
 ## Approved minimal follow-up
 
-Financial Basis exposes stored G/L and PO summaries plus whitelisted investment context, source/as-of/capture time and limitations in Summary and History. No new financial calculation, currency conversion or completeness claim is added. Context is captured once for a new review, or before Summary/Decision for an older active review; confirmation requires a saved context and copies it without fetching newer provider values. Older completed history is never backfilled.
+Financial Basis exposes stored G/L and PO summaries plus whitelisted investment context, source/as-of/capture time and limitations in History. No new financial calculation, currency conversion or completeness claim is added. Context is captured once for a new review, or before Summary/Decision for an older active review; confirmation requires a saved context and copies it without fetching newer provider values. Older completed history is never backfilled.
 
-Portfolio/Overview show due-today or overdue manual Next Review checkpoints using UTC dates. This differs from the active-review 14-day decision target and 30-day escalation. No automatic new cycle, notification or Dashboard metric is added.
+Portfolio/Overview show manual Next Review checkpoints as Follow-up due today or Follow-up date passed using browser-local dates. This differs from the active-review 14-day decision target and 30-day escalation. No automatic new cycle, notification or Dashboard metric is added.
+
+Review Summary synthesises the assessment and links to Overview for current evidence; it does not duplicate the Financial Basis section.

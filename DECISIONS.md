@@ -213,10 +213,8 @@ The final Continue / Continue with Conditions / Modify / Pause / Stop outcome re
 
 Ready active reviews resume at Summary, incomplete ones at Assessment, and recorded decisions at their record; Summary remains the checkpoint before the explicit human decision. Dashboard drill-downs project the unchanged assessment convention and timing, distinguishing signal counts from affected reviews. All five outcomes remain available regardless of severity: required rationale explains the accountable human judgement; material-concern guidance is non-blocking. There is no system recommendation or override concept, and no new business/validation rule.
 
-## 2026-10-17 — Approved governance validation follow-up
+## 2026-10-18 — Review validation and historical context
 
-User approved UTC today-or-future confirmation dates and the minimal U01/G01/A01 scope: saved financial basis, Portfolio/Overview checkpoint labels, new immutable context snapshots. No redesign, new notification or Dashboard lens. Historical dates/context stay readable without invented backfill.
+Next Review validates against the browser-local calendar date at confirmation. Follow-up due today / Follow-up date passed distinguish previous decision checkpoints from the unchanged 14/30-day active-review controls. UUID matching is canonical and historical context is saved without reconstruction from current values.
 
-Implementation base is upstream 28d2f9c3d4f8af2aa0c13eb655404decab9a6b4b, which adds reset-all-local-review behavior after the 9d2512b handoff baseline. That teammate change is retained. Reset Showcase clears this app's Showcase and SAP review records after explicit confirmation; it was not invoked against the user's browser data during this work.
-
-Course check: Canvas A3 V3, Week 10 Lab 02 and Lab 01 preview text were read on 17 October. They specify OpenCode/agentic development and SAP APIs; Lab 02 uses plain HTML/CSS/JS and browser fetch. Those reviewed documents do not explicitly require an in-app AI Review Brief or MCP. This supports retaining the deferred baseline but is not a teacher waiver or exhaustive confirmation of all course announcements. See the dated acceptance report for sources and limits.
+Overview owns current evidence, Assessment owns human judgement, Review Summary synthesises that judgement, and History owns the full saved financial context. Financial Basis is therefore shown only in History. Existing multi-cycle history, five outcomes, Stop protection and Reset Showcase behaviour remain unchanged.

@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { workspace } = require('./helpers/workspace');
 function setup() {
-  let now = '2026-10-17T10:00:00Z';
+  let now = '2026-10-17T12:00:00';
   class Clock extends Date { constructor(...args) { super(...(args.length ? args : [now])); } static now() { return Date.parse(now); } }
   const w = workspace({ clock: Clock }); w.services.reviewStore.seedShowcase(); w.services.reviewStore.captureContext("SHOWCASE-ODP-REVIEW");
   return { w, store: w.services.reviewStore, setNow(value) { now = value; } };
@@ -15,14 +15,14 @@ for (const date of ['2000-01-01', '2026-10-16', '2026-02-30']) test(`F01 rejects
 });
 for (const date of ['2026-10-17', '2026-10-18']) test(`F01 accepts ${date} using confirmation timestamp`, () => {
   const {store} = setup(), record = store.confirm('SHOWCASE-ODP-REVIEW', draft(date));
-  assert.equal(record.decision.nextReviewDate, date); assert.equal(record.decision.timestamp, '2026-10-17T10:00:00.000Z');
+  assert.equal(record.decision.nextReviewDate, date); assert.equal(record.decision.timestamp, new Date('2026-10-17T12:00:00').toISOString());
 });
-test('F01 revalidates across UTC midnight and keeps historical decisions readable', () => {
+test('F01 revalidates across local midnight and keeps historical decisions readable', () => {
   const {w, store, setNow} = setup();
-  setNow('2026-10-17T23:59:59Z');
+  setNow('2026-10-17T23:59:59');
   w.governanceUI.decision(store.get('SHOWCASE-ODP-REVIEW'));
   assert.equal(w.elements.get('decision-next-date').min, '2026-10-17');
-  setNow('2026-10-18T00:00:00Z');
+  setNow('2026-10-18T00:00:00');
   const before = w.map.get(store.STORAGE_KEY);
   assert.throws(() => store.confirm('SHOWCASE-ODP-REVIEW', draft('2026-10-17')), /date/i);
   assert.equal(w.map.get(store.STORAGE_KEY), before);
@@ -37,4 +37,12 @@ test('F01 Continue may omit date, Stop strips it, conditional outcomes still req
     const {store} = setup(); assert.throws(() => store.confirm('SHOWCASE-ODP-REVIEW', draft('', outcome)), /date/i);
   }
   const {store} = setup(); assert.throws(() => store.confirm('SHOWCASE-ODP-REVIEW', draft('2000-01-01', 'Continue')), /date/i);
+});
+
+test('local date rule follows NZ calendar when UTC still has the previous day', () => {
+ const {w,store,setNow}=setup();setNow('2026-10-18T00:30:00');
+ w.governanceUI.decision(store.get('SHOWCASE-ODP-REVIEW'));
+ assert.equal(w.elements.get('decision-next-date').min,'2026-10-18');
+ assert.throws(()=>store.confirm('SHOWCASE-ODP-REVIEW',draft('2026-10-17')),/date/i);
+ assert(!w.elements.get('decision-next-date-help').textContent.includes('UTC'));
 });

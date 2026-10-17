@@ -57,8 +57,8 @@ Never commit/share **`config.local.js`, API keys or secrets**. Browser-side cred
 
 ## Governance validation follow-up (17 October 2026)
 
-New decisions accept a Next Review date only on or after the confirmation-day UTC date. Continue may omit it; Stop omits it. Historical decisions remain readable. UUID matching is case-insensitive throughout review selection, history, status and Stop protection.
+New decisions accept a Next Review date only on or after the confirmation-day browser-local date. Continue may omit it; Stop omits it. Historical decisions remain readable. UUID matching is case-insensitive throughout review selection, history, status and Stop protection.
 
-Review Summary and History now show Financial Basis from saved evidence and a small investment-context snapshot. Amounts retain their original currency and limitations; missing context in older history is explicitly labelled. Portfolio and Overview mark a human checkpoint as due today or overdue, without creating a review or changing Dashboard metrics.
+History shows Financial Basis from saved evidence and a small investment-context snapshot. Amounts retain their original currency and limitations; missing context in older history is explicitly labelled. Portfolio and Overview mark a human checkpoint as Follow-up due today or Follow-up date passed, without creating a review or changing Dashboard metrics.
 
-See [this round's acceptance report](docs/GOVERNANCE_VALIDATION_20261017.md) for the exact baseline, verification and remaining limits. This is browser-local prototype history, not a production audit trail.
+See [validation summary](docs/GOVERNANCE_VALIDATION_20261017.md) for verified behaviours and validation commands. This is browser-local prototype history, not a production audit trail.
