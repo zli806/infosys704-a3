@@ -441,9 +441,10 @@ body {
   position:absolute;
   left:0;
   bottom:-1px;
-  width:52px;
+  width:30px;
   height:3px;
-  background:linear-gradient(90deg,var(--brand-blue) 0 58%,var(--brand-red) 58% 100%);
+  background:var(--brand-blue);
+  box-shadow:22px 0 0 var(--brand-red);
 }
 .brand-mark {
   border:0;
