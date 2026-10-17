@@ -136,3 +136,17 @@ test('stored Review Trigger help is shared by Dashboard/header, while Findings h
   click(w, 'nav-dashboard'); assert.equal(w.document.getElementById('context-help-dashboard-findings').parentElement.hidden, false);
   click(w, 'dashboard-filter-recorded'); assert.equal(w.document.getElementById('context-help-dashboard-findings').parentElement.hidden, true);
 });
+
+test('A01 direct Decision navigation captures missing context and blocks if the capture cannot save', () => {
+  for (const fail of [false,true]) {
+    const w=workspace({controller:true}); openPortfolioRow(w,0); click(w,'back-assessment');
+    const store=w.services.reviewStore,raw=JSON.parse(w.map.get(store.STORAGE_KEY));
+    raw.reviews.find(r=>r.id==='SHOWCASE-ODP-REVIEW').investmentContextSnapshot=null;
+    w.map.set(store.STORAGE_KEY,JSON.stringify(raw)); w.state.reviews=store.list();
+    const capture=store.captureContext; if(fail) store.captureContext=()=>{throw Error('Cannot save context');};
+    click(w,'review-step-decision');
+    assert.equal(w.state.view,fail?'assessment':'decision');
+    assert.equal(!!store.get('SHOWCASE-ODP-REVIEW').investmentContextSnapshot,!fail);
+    store.captureContext=capture;
+  }
+});

@@ -126,7 +126,7 @@
       const row = document.createElement("tr");
       const governance = governanceForProject(project), latest = governance.latest;
       cells(row, [project.ProjectDescription || project.Project, governance.label,
-        latest ? `${latest.decision.outcome} · ${formatDate(latest.decision.timestamp)}` : "—", formatDate(governance.nextReview)]);
+        latest ? `${latest.decision.outcome} · ${formatDate(latest.decision.timestamp)}` : "—", [formatDate(governance.nextReview), governance.checkpointLabel].filter(Boolean).join(" · ")]);
       ["Investment", "Governance State", "Latest Decision", "Next Review"].forEach((label, index) => { row.children[index].dataset.label = label; });
       if (latest) {
         const outcome = document.createElement("strong"), date = document.createElement("span");

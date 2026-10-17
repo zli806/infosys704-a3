@@ -8,7 +8,7 @@ const plain = value => JSON.parse(JSON.stringify(value));
 function record(rules, assessment = {}) {
   return {
     id: 'unit-review', status: 'in_progress',
-    project: { Project: 'Unit view-model context', ProjectDescription: 'Rendering test, not SAP sample data' },
+    project: { ProjectUUID: 'abcdefab-1234-4234-8234-abcdefabcdef', Project: 'Unit view-model context', ProjectDescription: 'Rendering test, not SAP sample data' },
     reviewBasis: 'Material trigger', reviewOpenedAt: '2026-10-15T00:00:00Z', projectContextCapturedAt: '2026-10-15T00:00:00Z',
     assessment: { ...rules.defaultAssessment(), ...assessment }, evidence: rules.emptyEvidence(), decisionOwner: directory.people[0].name,
     decisionOwnerId: directory.people[0].id, decisionOwnerSnapshot: directory.people[0],
@@ -63,7 +63,7 @@ test('one categorical matrix leads Summary with a single headline, timeline and 
   for (const value of ['Strategic Alignment', 'Expected Benefits', 'Delivery Performance', 'Risk', 'Future Economic Value', 'Insufficient information', 'Material Concern', 'Emerging Concern', 'Evidence Gap']) assert(target.children[0].textContent.includes(value), value);
   assert(!target.textContent.includes('Management Attention Required'));
   for (const title of ['Governance Timeline', 'Evidence Basis']) assert(target.children.some(child => child.textContent.startsWith(title)), title);
-  assert.equal(target.children.length, 4); assert(target.textContent.includes('View evidence in Overview'));
+  assert.equal(target.children.length, 5); assert(target.textContent.includes('Financial Basis')); assert(target.textContent.includes('View evidence in Overview'));
   assert.equal(review.assessment.costPosition, 'Insufficient information');
   assert(!descendants(target.children[0]).some(child => child.className === 'source reviewer'));
 });

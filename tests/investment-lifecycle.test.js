@@ -82,7 +82,7 @@ test('non-Stop decision stays immutable while Start New Review creates a fresh s
 
 test('every completed non-Stop outcome allows a new cycle, whereas latest Stop exposes only View Latest Decision', () => {
   for (const outcome of ['Continue', 'Continue with Conditions', 'Modify', 'Pause', 'Stop']) {
-    const w = workspace(), store = w.services.reviewStore; store.seedShowcase(); const completed = store.confirm('SHOWCASE-ODP-REVIEW', draft(outcome));
+    const w = workspace(), store = w.services.reviewStore; store.seedShowcase(); store.captureContext("SHOWCASE-ODP-REVIEW"); const completed = store.confirm('SHOWCASE-ODP-REVIEW', draft(outcome));
     const before = JSON.stringify(completed); w.governanceUI.details(completed.project, completed.evidence, store.list());
     assert.equal(w.elements.get('start-review').hidden, outcome === 'Stop'); assert.equal(w.elements.get('view-last-decision').hidden, false);
     if (outcome !== 'Stop') { assert.equal(w.elements.get('start-review').textContent, 'Start New Review'); assert.notEqual(store.start(completed.project, completed.evidence, { reviewBasis: w.reviewRules.BASIS[0] }).id, completed.id); }
@@ -116,7 +116,7 @@ test('Dashboard selects each latest decision while complete investment history r
 });
 
 test('historical investment missing from live portfolio remains readable through Dashboard and history callbacks', async () => {
-  const source = workspace(), store = source.services.reviewStore; store.seedShowcase();
+  const source = workspace(), store = source.services.reviewStore; store.seedShowcase(); store.captureContext("SHOWCASE-ODP-REVIEW");
   const original = store.get('SHOWCASE-LRP-DECISION'), missing = JSON.parse(JSON.stringify(original)); missing.id = 'missing-history';
   missing.project = { ...original.project, ProjectUUID: '11111111-2222-3333-4444-555555555555', Project: 'HISTORICAL-ONLY', ProjectDescription: 'Historical snapshot' };
   const raw = JSON.parse(source.map.get(store.STORAGE_KEY)); raw.reviews.push(missing); source.map.set(store.STORAGE_KEY, JSON.stringify(raw));
@@ -136,8 +136,13 @@ test('unavailable storage never claims Monitoring or empty history and cannot cr
 });
 
 test('a past recorded Next Review checkpoint does not automatically create another review', () => {
-  const w = workspace(), store = w.services.reviewStore; store.seedShowcase();
-  const completed = store.confirm('SHOWCASE-ODP-REVIEW', { ...draft('Modify'), nextReviewDate: '2020-01-01' });
+  const w = workspace(), store = w.services.reviewStore; store.seedShowcase(); store.captureContext("SHOWCASE-ODP-REVIEW");
+  // Load a legacy decision instead of creating an invalid new past-dated decision.
+  const raw = JSON.parse(w.map.get(store.STORAGE_KEY));
+  const completed = raw.reviews.find(r => r.id === 'SHOWCASE-ODP-REVIEW');
+  completed.status = 'decision_recorded';
+  completed.decision = { ...draft('Modify'), owner: completed.decisionOwner, timestamp: '2020-01-01T00:00:00Z', nextReviewDate: '2020-01-01', assessmentSnapshot: completed.assessment, evidenceSnapshot: completed.evidence };
+  w.map.set(store.STORAGE_KEY, JSON.stringify(raw));
   const reloaded = workspace({ controller: true, storage: w.map });
   assert.equal(reloaded.reviewRules.activeReview(reloaded.state.reviews, completed.project.ProjectUUID), null);
   click(reloaded, 'nav-investments'); assert.equal(buttonIn(reloaded.elements.get('projects-body').children[0]).textContent, 'Open Investment');

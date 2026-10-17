@@ -1,3 +1,4 @@
+const { testUUID } = require('./helpers/workspace');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
@@ -13,7 +14,7 @@ const rows = w => w.elements.get('dashboard-attention').children.filter(row => r
 const action = row => byClass(row, 'queue-action-button')[0];
 const ago = days => new Date(Date.now() - days * 86400000).toISOString();
 function fixture(w) {
-  const projects = Array.from({ length: 10 }, (_, i) => ({ ProjectUUID: `unit-investment-${i}`, Project: `UNIT-${i}`, ProjectDescription: `Unit investment ${i}` }));
+  const projects = Array.from({ length: 10 }, (_, i) => ({ ProjectUUID: testUUID(i), Project: `UNIT-${i}`, ProjectDescription: `Unit investment ${i}` }));
   const records = projects.slice(0, 4).map((project, i) => ({ id: `active-${i}`, project, status: 'in_progress', reviewOpenedAt: ago(i === 0 ? 20 : 0), reviewBasis: w.reviewRules.BASIS[0], assessment: { ...w.reviewRules.defaultAssessment(), risk: i < 3 ? 'High' : 'Low', costPosition: i === 3 ? 'Insufficient information' : 'Within expectations' } }));
   for (const i of [0, 4]) records.push({ ...records[0], project: projects[i], id: `decision-${i}`, status: 'decision_recorded', decision: { outcome: i ? 'Continue' : 'Modify', timestamp: ago(3) } });
   return { projects, records };
@@ -74,6 +75,7 @@ test('three immutable cycles collapse only on Dashboard, latest exact-record nav
   let active = initial;
   for (const [i, outcome] of ['Continue', 'Modify', 'Pause'].entries()) {
     if (i) { active = store.start(project, initial.evidence, { reviewBasis: w.reviewRules.BASIS[0] }); active = store.update(active.id, { assessment: initial.assessment, decisionOwnerId: initial.decisionOwnerId }); }
+    store.captureContext(active.id);
     completed.push(store.confirm(active.id, { outcome, rationale: `Unit accountable cycle ${i}`, requiredAction: 'Unit follow-up', actionOwner: 'Unit owner', nextReviewDate: '2026-11-17' }));
   }
   // Give controlled distinct times to guarantee a latest decision independent of UUID tie breaks.

@@ -1,3 +1,4 @@
+const { testUUID } = require('./helpers/workspace');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
@@ -48,7 +49,7 @@ test('one investment with three completed cycles contributes one reviewed invest
 
 test('reviewed list includes every distinct investment without a cap and resolves latest decision timestamp ties deterministically', () => {
   const w = workspace(), seed = w.services.showcase.seededReviews()[3];
-  const input = Array.from({ length: 8 }, (_, i) => ({ ...seed, id: `history-${i}`, project: { ...seed.project, ProjectUUID: `unit-${i}` }, decision: { ...seed.decision, timestamp: i > 5 ? '2026-10-17T00:00:00Z' : `2026-09-0${i + 1}T00:00:00Z` } }));
+  const input = Array.from({ length: 8 }, (_, i) => ({ ...seed, id: `history-${i}`, project: { ...seed.project, ProjectUUID: testUUID(i) }, decision: { ...seed.decision, timestamp: i > 5 ? '2026-10-17T00:00:00Z' : `2026-09-0${i + 1}T00:00:00Z` } }));
   input.push({ ...input[6], id: 'history-6-z' }); // Same investment and timestamp: lower record ID wins.
   w.governanceUI.renderDashboard(input.slice().reverse(), [], () => {}); click(w, 'dashboard-filter-recorded');
   assert.equal(count(w, 'recorded'), 8); assert.equal(rows(w).length, 8); assert.deepEqual(rows(w).slice(0, 2).map(row => row.dataset.reviewId), ['history-6', 'history-7']);

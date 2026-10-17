@@ -42,6 +42,7 @@ test('seeding is idempotent and never overwrites edited/completed versions; expl
   const edited = w.map.get(store.STORAGE_KEY); store.seedShowcase(); assert.equal(w.map.get(store.STORAGE_KEY), edited);
   assert.throws(() => store.confirm(hero.id, { outcome: '', rationale: 'Unit' }), /Select a human/);
   assert.throws(() => store.confirm(hero.id, { outcome: 'Modify', rationale: 'Unit' }), /Required action/);
+  store.captureContext(hero.id);
   const completed = store.confirm(hero.id, { outcome: 'Modify', rationale: 'Human-selected unit decision', owner: 'Spoofed owner', requiredAction: 'Review plan', actionOwner: 'Unit coordinator', nextReviewDate: '2026-11-01' });
   assert.equal(completed.decision.owner, 'Alex Lee'); assert.equal(completed.assessment.risk, 'Medium');
   const raw = w.map.get(store.STORAGE_KEY); store.seedShowcase(); assert.equal(w.map.get(store.STORAGE_KEY), raw);
@@ -49,7 +50,7 @@ test('seeding is idempotent and never overwrites edited/completed versions; expl
 });
 
 test('Reset Showcase clears all local Showcase/SAP review cycles and drafts in one write, preserving other storage', () => {
-  const w = workspace(), store = w.services.reviewStore, s = w.services.showcase; store.seedShowcase();
+  const w = workspace(), store = w.services.reviewStore, s = w.services.showcase; store.seedShowcase(); store.captureContext("SHOWCASE-ODP-REVIEW");
   const seed = store.get('SHOWCASE-ODP-REVIEW');
   const own = store.start(external, seed.evidence, { reviewBasis: w.reviewRules.BASIS[0] }); store.update(own.id, { assessment: seed.assessment, decisionOwnerId: seed.decisionOwnerId });
   store.confirm(own.id, { outcome: 'Continue', rationale: 'Local SAP decision for reset coverage' });
@@ -82,7 +83,7 @@ test('normal read-through trigger migration preserves legacy open and completed 
 });
 
 test('showcase cards, financial context, source badges, seeded controls and historical confirmation share normal rendering', () => {
-  const w = workspace(), s = w.services.showcase, records = w.services.reviewStore.seedShowcase();
+  const w = workspace(), s = w.services.showcase, records = w.services.reviewStore.seedShowcase(); w.services.reviewStore.captureContext("SHOWCASE-ODP-REVIEW");
   w.governanceUI.details(s.projects()[0], s.evidence(s.projects()[0]), records);
   const text = w.elements.get('showcase-investment-context').textContent;
   for (const value of ['A$8.40m', 'A$6.15m', 'A$9.35m', '+A$0.95m (+11.3%)', 'A$3.20m', 'A$1.48m', 'A$1.07m']) assert(text.includes(value), value);

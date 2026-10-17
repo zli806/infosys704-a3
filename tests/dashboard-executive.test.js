@@ -1,3 +1,4 @@
+const { testUUID } = require('./helpers/workspace');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
@@ -9,7 +10,7 @@ const pulse = w => byClass(w.elements.get('dashboard-cards'), 'pulse-metric').ma
 const rows = w => byClass(w.elements.get('dashboard-attention'), 'decision-queue-row');
 const openedAgo = days => new Date(Date.now() - days * 86400000).toISOString();
 function record(rules, id, days, assessment = {}) {
-  return { id, status: 'in_progress', project: { Project: id, ProjectUUID: `unit-${id}`, ProjectDescription: `Investment ${id}` },
+  return { id, status: 'in_progress', project: { Project: id, ProjectUUID: testUUID(id), ProjectDescription: `Investment ${id}` },
     reviewOpenedAt: openedAgo(days), reviewBasis: rules.BASIS[0], assessment: { ...rules.defaultAssessment(), ...assessment }, evidence: rules.emptyEvidence() };
 }
 

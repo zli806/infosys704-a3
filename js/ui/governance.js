@@ -159,8 +159,7 @@
   }
   // Presentation only: an investment outlives any one review/immutable decision.
   function completedReviews(records, uuid) {
-    return records.filter(record => record.status === "decision_recorded" && (!uuid || record.project.ProjectUUID === uuid))
-      .sort((a, b) => Date.parse(b.decision.timestamp) - Date.parse(a.decision.timestamp) || a.id.localeCompare(b.id));
+    return rules.completedReviews(records, uuid);
   }
   function portfolioState(project, records, storageAvailable = true) {
     if (!storageAvailable) return { label: "Governance status unavailable", nextStep: "Open Investment", active: null, latest: null, nextReview: null };
@@ -168,7 +167,8 @@
     const outcome = latest?.decision.outcome;
     const label = active ? (rules.readiness(active).ready ? "Ready for decision" : "Assessment in progress")
       : outcome === "Stop" ? "Stopped" : outcome === "Pause" ? "Paused" : ["Modify", "Continue with Conditions"].includes(outcome) ? "Follow-up" : "Monitoring";
-    return { label, active, latest, nextReview: active || outcome === "Stop" ? null : latest?.decision.nextReviewDate || null,
+    const checkpoint = rules.followUpDue(records).find(item => item.projectKey === rules.projectKey(project));
+    return { label, active, latest, checkpointLabel: checkpoint ? (checkpoint.status === "due" ? "Next review due today (UTC)" : "Overdue checkpoint (UTC)") : "", nextReview: active || outcome === "Stop" ? null : latest?.decision.nextReviewDate || null,
       nextStep: active ? "Continue Review" : outcome === "Stop" ? "View Decision" : "Open Investment" };
   }
   const dashboardFilters = [
@@ -202,7 +202,8 @@
   let dashboardState = null;
   let dashboardFilterButtons = [];
   function investmentIdentity(project, fallback) {
-    return project?.ProjectUUID?.trim() ? `uuid:${project.ProjectUUID.trim().toLowerCase()}` : project?.Project ? `project:${project.Project}` : `review:${fallback}`;
+    const key = rules.projectKey(project);
+    return key ? `uuid:${key}` : `review:${fallback}`;
   }
   function distinctDashboardInvestments(items) {
     const seen = new Set();
@@ -365,7 +366,7 @@
       due.dataset.urgent = String(timing.status !== "Within decision window"); metadata.append(trigger, due);
     } else if (latest) {
       metadata.append(node("span", `${latest.decision.outcome === "Stop" ? "Decision recorded" : "Latest decision: " + latest.decision.outcome + " ·"} ${shortDate(latest.decision.timestamp)}`, "header-context-item"));
-      if (governance.nextReview) metadata.append(node("span", `Next review ${shortDate(governance.nextReview)}`, "header-context-item"));
+      if (governance.nextReview) metadata.append(node("span", `Next review ${shortDate(governance.nextReview)}${governance.checkpointLabel ? ` · ${governance.checkpointLabel}` : ""}`, "header-context-item"));
     } else if (storageAvailable) metadata.append(node("span", "No active review", "header-context-item"));
     el("start-review").disabled = !storageAvailable || capturedContext && !active;
     el("start-review").textContent = active ? "Continue Review" : latest ? "Start New Review" : "Start Review";
@@ -440,10 +441,11 @@
     }
     el("decision-next-review-field").hidden = outcome === "Stop";
     el("decision-next-date").disabled = outcome === "Stop";
+    el("decision-next-date").min = rules.utcDateKey();
     const date = el("decision-next-date").value;
     el("decision-next-date-help").textContent = rules.validDate(date)
-      ? `Selected date: ${shortDate(date)}. Use the calendar to change it.`
-      : "Use the calendar to choose a date, or enter it in your browser’s date format.";
+      ? `Selected date: ${shortDate(date)}. Choose today or later (UTC); checked again when recorded.`
+      : "Choose today or later (UTC), using the calendar or your browser’s date format.";
   }
   function renderReviewSteps(stage, record, busy = false, saveBlocked = false) {
     const ready = !!record && rules.readiness(record).ready;
@@ -492,6 +494,37 @@
     }
     container.append(matrix);
   }
+  function financialBasis(container, record, historical = false) {
+    const context = historical ? record.decision.investmentContextSnapshot : record.investmentContextSnapshot;
+    const evidence = historical ? record.decision.evidenceSnapshot : record.evidence;
+    const part = section(container, "Financial Basis"); part.className = "panel summary-evidence-basis";
+    part.append(node("p", "Saved evidence for this review; Overview may show newer information. Availability does not establish sufficiency.", "hint"));
+    if (context) {
+      part.append(node("p", `${context.source} · Captured ${dateTime(context.capturedAt)} · Source as of ${dateTime(context.sourceAsOf)}`, "hint"));
+      if (context.source === "SHOWCASE CONTEXT") pairs(part, [
+        ["Approved Investment", context.approvedInvestment === null ? "Not validated" : `${context.currency} ${context.approvedInvestment}`],
+        ["Forecast at Completion", context.forecastAtCompletion === null ? "Not validated" : `${context.currency} ${context.forecastAtCompletion}`],
+        ["Forecast Variance", context.forecastVariance === null ? "Not validated" : `${context.currency} ${context.forecastVariance}`],
+        ["Remaining Forecast Investment", context.remainingForecastInvestment === null ? "Not validated" : `${context.currency} ${context.remainingForecastInvestment}`]
+      ]);
+      else part.append(node("p", "Approved investment and forecast are not provided by this SAP evidence. No budget or forecast is inferred.", "hint"));
+    } else part.append(node("p", "Investment context was not saved for this record; current provider values cannot reconstruct it.", "hint"));
+    for (const [key, title] of [["gl", "G/L Financial Activity"], ["po", "PO-linked Procurement Activity"]]) {
+      const value = evidence?.[key] || {}, state = evidenceStatus(value);
+      const block = node("section"); block.append(node("h4", title), node("p", `${state.label} · ${record.sources?.project || (app.services.showcase?.isShowcase(record.project) ? "SHOWCASE" : "SAP SANDBOX")} · Evidence as of ${dateTime(value.capturedAt)}`, "hint"));
+      const notes = node("details"); notes.append(node("summary", "Calculation notes & limitations"));
+      if (value.status === "success") for (const line of value.summaryLines || []) {
+        // Display existing per-currency summaries unchanged; never recalculate or combine amounts.
+        (/^[A-Z]{3}(?:[: ]|$)/.test(line) ? block : notes).append(node("p", line));
+      }
+      if (value.note) notes.append(node("p", value.note, "hint"));
+      if (value.linkedRecordCount !== null && value.linkedRecordCount !== undefined) block.append(node("p", `${value.linkedRecordCount} linked records in the saved evidence`, "hint"));
+      if (value.hasMore) block.append(node("p", "Partial returned page; more records may exist.", "hint"));
+      if (value.linkedRecordCount === 0) block.append(node("p", "Zero matching records are not zero exposure.", "hint"));
+      block.append(node("p", key === "gl" ? "Returned accounting activity is not complete project cost; currencies stay separate." : "PO-linked amounts are not unpaid liabilities; currencies stay separate.", "hint"));
+      block.append(notes); part.append(block);
+    }
+  }
   function reviewSummary(record) {
     const target = el("review-summary"); target.replaceChildren();
     const signals = rules.reviewSignals(record);
@@ -513,6 +546,7 @@
       row.append(node("h4", title), badge); sources.append(row);
     }
     evidence.append(sources, node("p", "Source availability is not a judgement of evidence sufficiency. Evidence Gap is a reviewer assessment.", "hint"), action("View evidence in Overview →", () => evidenceAction()));
+    financialBasis(target, record);
     const context = node("details", undefined, "optional-context"); context.open = false; context.append(node("summary", "Reviewer Context"));
     if (record.assessment.comments || record.assessment.keyRisks) pairs(context, [["Reviewer comments", record.assessment.comments], ["Key risks / dependencies", record.assessment.keyRisks]]);
     else context.append(node("p", "No additional review notes recorded.", "hint"));
@@ -537,6 +571,7 @@
       }
       followUp.append(fields);
     }
+    financialBasis(target, record, true);
     const metadata = node("details"); metadata.append(node("summary", "Record context & timing")); target.append(metadata);
     if (!decision.ownerId) metadata.append(node("p", "Previously saved text owner — not verified against the prototype directory."));
     pairs(metadata, [["Record ID (SYSTEM CALCULATED)", record.id], ["Project", record.project.Project], ["ProjectUUID", record.project.ProjectUUID], ["Review Trigger (REVIEWER INPUT)", rules.normalizeBasis(record.reviewBasis) || "Not selected"],

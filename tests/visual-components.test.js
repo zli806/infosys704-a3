@@ -8,7 +8,7 @@ const descendants = element => [element, ...element.children.flatMap(descendants
 const byClass = (element, name) => descendants(element).filter(child => (child.className || '').split(' ').includes(name));
 function record(rules, assessment = {}) {
   return { id: 'presentation-only-review', status: 'in_progress',
-    project: { Project: 'Unit presentation context', ProjectDescription: 'In-memory UI test; not SAP sample data' },
+    project: { ProjectUUID: 'abcdefab-1234-4234-8234-abcdefabcdef', Project: 'Unit presentation context', ProjectDescription: 'In-memory UI test; not SAP sample data' },
     reviewOpenedAt: '2026-01-01T00:00:00.000Z', projectContextCapturedAt: '2026-01-01T00:00:00.000Z', reviewBasis: rules.BASIS[1],
     assessment: { ...rules.defaultAssessment(), ...assessment }, evidence: rules.emptyEvidence(),
     decisionOwner: directory.people[0].name, decisionOwnerId: directory.people[0].id, decisionOwnerSnapshot: directory.people[0],

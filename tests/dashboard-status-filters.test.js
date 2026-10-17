@@ -1,3 +1,4 @@
+const { testUUID } = require('./helpers/workspace');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { workspace } = require('./helpers/workspace');
@@ -11,7 +12,7 @@ const selected = w => buttons(w).filter(button => button.getAttribute('aria-pres
 const count = (w, key) => Number(button(w, key).children[1].textContent);
 const openedAgo = days => new Date(Date.now() - days * 86400000).toISOString();
 function review(r, id, days, assessment = {}) {
-  return { id, status: 'in_progress', project: { ProjectUUID: `unit-${id}`, Project: id, ProjectDescription: `Unit ${id}` }, reviewBasis: r.BASIS[0],
+  return { id, status: 'in_progress', project: { ProjectUUID: testUUID(id), Project: id, ProjectDescription: `Unit ${id}` }, reviewBasis: r.BASIS[0],
     reviewOpenedAt: openedAgo(days), assessment: { ...r.defaultAssessment(), ...assessment }, evidence: r.emptyEvidence() };
 }
 

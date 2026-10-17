@@ -15,9 +15,9 @@
     catch (error) { state.storageError = error.message; governance.storageNotice(error.message); return false; }
   }
   function mergeProjects(sandboxProjects) {
-    const result = [...showcase.projects()], seen = new Set(result.map(project => project.ProjectUUID.toLowerCase()));
+    const result = [...showcase.projects()], seen = new Set(result.map(project => rules.projectKey(project)));
     for (const project of sandboxProjects) {
-      const id = project.ProjectUUID?.toLowerCase();
+      const id = rules.projectKey(project);
       if (id && !seen.has(id)) { seen.add(id); result.push(project); }
     }
     return result;
@@ -43,7 +43,7 @@
       return rules.activeReview(state.reviews, state.selectedProject?.ProjectUUID)?.evidence || state.evidence;
     }
     const record = currentReview();
-    if (record?.project.ProjectUUID === state.selectedProject?.ProjectUUID) return record.status === "decision_recorded" ? record.decision.evidenceSnapshot : record.evidence;
+    if (rules.sameProject(record?.project, state.selectedProject)) return record.status === "decision_recorded" ? record.decision.evidenceSnapshot : record.evidence;
     return rules.activeReview(state.reviews, state.selectedProject?.ProjectUUID)?.evidence || state.evidence;
   }
   function refreshGovernance() {
@@ -163,7 +163,7 @@
   function confirmReviewStart() {
     const basis = rules.normalizeBasis(governance.readReviewStart());
     if (!basis) { governance.reviewStartError(pendingReviewStart?.recordID ? "Select the missing Review Trigger for this existing review." : "Select a Review Trigger before starting the review."); return; }
-    if (!pendingReviewStart || pendingReviewStart.projectUUID !== state.selectedProject?.ProjectUUID) { cancelReviewStart(); return; }
+    if (!pendingReviewStart || !rules.sameProject(pendingReviewStart.projectUUID, state.selectedProject)) { cancelReviewStart(); return; }
     try {
       if (!refreshRecords()) { governance.reviewStartError(state.storageError); return; }
       let record;
@@ -180,10 +180,10 @@
     if (!canLeaveReview() || !refreshRecords()) return;
     freshlyRecordedDecisionID = null;
     const record = state.reviews.find(item => item.id === id); if (!record) return;
-    if (state.selectedProject?.ProjectUUID !== record.project.ProjectUUID) {
+    if (!rules.sameProject(state.selectedProject, record.project)) {
       resetElementSelection(); state.evidence = rules.emptyEvidence();
-      state.selectedProject = state.projects.find(project => project.ProjectUUID === record.project.ProjectUUID) || record.project;
-      state.selectedFromSnapshot = !state.projects.some(project => project.ProjectUUID === record.project.ProjectUUID);
+      state.selectedProject = state.projects.find(project => rules.sameProject(project, record.project)) || record.project;
+      state.selectedFromSnapshot = !state.projects.some(project => rules.sameProject(project, record.project));
       ui.selectProject(state.selectedProject, state.projects, loadProjectElements);
       if (state.selectedFromSnapshot) state.evidence = record.status === "decision_recorded" ? record.decision.evidenceSnapshot : record.evidence;
     }
@@ -201,6 +201,10 @@
       if (missing.length) { governance.workflowGate(`Complete Assessment before entering Governance Decision: ${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} still required.`); return; }
       if (busy()) { governance.workflowGate("Finish the current evidence refresh before entering Governance Decision."); return; }
       if (state.storageError) { governance.workflowGate("Governance storage is unavailable. Restore storage before entering Governance Decision."); return; }
+    }
+    if (["summary", "decision"].includes(view) && !record.investmentContextSnapshot) {
+      try { store.captureContext(record.id); refreshRecords(); }
+      catch (error) { state.storageError = error.message; governance.storageNotice(error.message); governance.workflowGate("Could not save the investment context. Retry opening Review Summary after restoring storage."); return; }
     }
     if (view === state.view) { refreshGovernance(); return; }
     state.view = view; governance.showView(view);
@@ -290,7 +294,7 @@
     state.elementController?.abort();
     state.elementController = null;
     state.selectedProject = project;
-    state.selectedFromSnapshot = !state.projects.some(item => item.ProjectUUID === project.ProjectUUID);
+    state.selectedFromSnapshot = !state.projects.some(item => rules.sameProject(item, project));
     state.projectElements = [];
     ui.selectProject(project, state.projects, loadProjectElements);
     state.view = "detail"; governance.showView("detail"); refreshGovernance();

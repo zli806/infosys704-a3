@@ -27,6 +27,29 @@
     }
     return base;
   }
+  // Context is captured once before presentation, never fetched again at confirmation.
+  function cleanContext(value) {
+    if (!value || value.version !== 1 || !["SHOWCASE CONTEXT", "SAP SANDBOX"].includes(value.source)) return null;
+    const result = { version: 1, source: value.source,
+      sourceAsOf: typeof value.sourceAsOf === "string" && !Number.isNaN(Date.parse(value.sourceAsOf)) ? value.sourceAsOf : null,
+      capturedAt: typeof value.capturedAt === "string" && !Number.isNaN(Date.parse(value.capturedAt)) ? value.capturedAt : null,
+      currency: text(value.currency, 3) };
+    for (const field of ["approvedInvestment", "forecastAtCompletion", "forecastVariance", "remainingForecastInvestment"])
+      result[field] = value.source === "SHOWCASE CONTEXT" && typeof value[field] === "string" && /^-?\d+(?:\.\d+)?$/.test(value[field]) ? text(value[field], 100) : null;
+    return result;
+  }
+  function contextFor(project) {
+    const context = app.services.showcase?.isShowcase(project) ? app.services.showcase.financialContext(project) : null;
+    return cleanContext({ ...context, version: 1, source: context ? "SHOWCASE CONTEXT" : "SAP SANDBOX",
+      sourceAsOf: context?.evidenceAsOf || null, capturedAt: new Date().toISOString(), currency: context?.currency || project.ProjectCurrency || "" });
+  }
+  function captureContext(id) {
+    const records = list(), record = records.find(item => item.id === id);
+    if (!record || record.status !== "in_progress") throw new Error("Only an active review may capture investment context.");
+    if (record.investmentContextSnapshot) return record;
+    record.investmentContextSnapshot = contextFor(record.project);
+    return write(records).find(item => item.id === id);
+  }
   function cleanAssessment(value = {}) {
     const result = rules.defaultAssessment();
     for (const [key, field] of Object.entries(rules.ASSESSMENTS)) if (field.options.includes(value[key])) result[key] = value[key];
@@ -49,12 +72,12 @@
       reviewBasis: rules.normalizeBasis(record.reviewBasis),
       reviewOpenedAt: record.reviewOpenedAt, assessment: cleanAssessment(record.assessment),
       decisionOwner: text(record.decisionOwner, 200), decisionOwnerId: text(record.decisionOwnerId, 100),
-      decisionOwnerSnapshot: cleanOwner(record.decisionOwnerSnapshot), evidence: cleanEvidence(record.evidence),
+      decisionOwnerSnapshot: cleanOwner(record.decisionOwnerSnapshot), investmentContextSnapshot: cleanContext(record.investmentContextSnapshot), evidence: cleanEvidence(record.evidence),
       decisionDraft: cleanDraft(record.decisionDraft), decision: null,
       sources: { project: showcase ? "SHOWCASE" : "SAP SANDBOX", assessment: showcase ? "SHOWCASE SCENARIO / REVIEWER INPUT" : "REVIEWER INPUT", controls: "SYSTEM CALCULATED" }
     };
     if (record.decision) result.decision = {
-      ...cleanDraft(record.decision), timestamp: text(record.decision.timestamp, 40),
+      ...cleanDraft(record.decision), investmentContextSnapshot: cleanContext(record.decision.investmentContextSnapshot), timestamp: text(record.decision.timestamp, 40),
       ownerId: text(record.decision.ownerId, 100), ownerSnapshot: cleanOwner(record.decision.ownerSnapshot),
       decisionTarget: rules.calendarTarget(record.reviewOpenedAt, 14), escalationThreshold: rules.calendarTarget(record.reviewOpenedAt, 30),
       assessmentSnapshot: cleanAssessment(record.decision.assessmentSnapshot), evidenceSnapshot: cleanEvidence(record.decision.evidenceSnapshot)
@@ -91,7 +114,7 @@
     data.reviews.forEach(validate);
     if (new Set(data.reviews.map(record => record.id)).size !== data.reviews.length) throw new Error("Prototype review storage contains duplicate record IDs; existing data was not overwritten.");
     const active = data.reviews.filter(record => record.status === "in_progress");
-    if (new Set(active.map(record => record.project.ProjectUUID)).size !== active.length) throw new Error("Prototype review storage has duplicate active reviews for a project; existing data was not overwritten.");
+    if (new Set(active.map(record => rules.projectKey(record.project))).size !== active.length) throw new Error("Prototype review storage has duplicate active reviews for a project; existing data was not overwritten.");
     return data.reviews.map(sanitize);
   }
   function write(records) {
@@ -105,9 +128,8 @@
   function start(project, evidence, { reviewBasis } = {}) {
     const records = list();
     // Enforce terminal Stop here, not just in the presentation/controller.
-    const latest = records.filter(record => record.status === "decision_recorded"
-      && record.project.ProjectUUID.toLowerCase() === project.ProjectUUID.toLowerCase())
-      .sort((a, b) => Date.parse(b.decision.timestamp) - Date.parse(a.decision.timestamp) || a.id.localeCompare(b.id))[0];
+    if (!rules.projectKey(project)) throw new Error("The selected project has an invalid UUID.");
+    const latest = rules.completedReviews(records, project.ProjectUUID)[0];
     if (latest?.decision.outcome === "Stop") throw new Error("This investment is stopped. A new review cannot be started through the normal review workflow.");
     const existing = rules.activeReview(records, project.ProjectUUID);
     if (existing) return existing;
@@ -115,7 +137,7 @@
     if (!basis) throw new Error("Select a Review Trigger before starting a review.");
     const now = new Date().toISOString();
     const record = { id: window.crypto?.randomUUID?.() || `review-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      project: rules.projectSnapshot(project), projectContextCapturedAt: now, status: "in_progress", reviewBasis: basis, reviewOpenedAt: now,
+      project: rules.projectSnapshot(project), investmentContextSnapshot: contextFor(project), projectContextCapturedAt: now, status: "in_progress", reviewBasis: basis, reviewOpenedAt: now,
       assessment: rules.defaultAssessment(), decisionOwner: "", decisionOwnerId: "", decisionOwnerSnapshot: null, evidence: cleanEvidence(evidence), decisionDraft: cleanDraft() };
     return write([...records, record]).find(item => item.id === record.id);
   }
@@ -134,16 +156,19 @@
   function confirm(id, draft) {
     const records = list(); const record = records.find(item => item.id === id);
     if (!record || record.status !== "in_progress") throw new Error("This review is missing or its decision is already recorded.");
+    if (rules.completedReviews(records, record.project.ProjectUUID)[0]?.decision.outcome === "Stop") throw new Error("This investment is stopped. A stale active review cannot record a new decision.");
     if (!app.services.governanceDirectory.eligible(record)) throw new Error("Select an eligible Decision Owner from the prototype governance directory in Assessment. Previously saved owner text is retained for reference.");
     const owner = app.services.governanceDirectory.resolve(record.decisionOwnerId);
     // The assessment's governed owner is authoritative, not an independently edited decision field.
     const decision = { ...cleanDraft(draft), owner: owner.name, ownerId: owner.id, ownerSnapshot: owner };
     // New Stop records cannot schedule another continuation review. Historical records stay untouched.
     if (decision.outcome === "Stop") decision.nextReviewDate = "";
-    const errors = rules.decisionErrors(record, decision);
+    const confirmedAt = new Date().toISOString();
+    const errors = rules.decisionErrors(record, decision, { now: confirmedAt });
     if (errors.length) throw new Error(errors.join(" "));
+    if (!record.investmentContextSnapshot) throw new Error("Open Review Summary to save the investment context before recording this decision.");
     record.status = "decision_recorded";
-    record.decision = { ...decision, timestamp: new Date().toISOString(), assessmentSnapshot: copy(record.assessment), evidenceSnapshot: copy(record.evidence) };
+    record.decision = { ...decision, timestamp: confirmedAt, investmentContextSnapshot: cleanContext(record.investmentContextSnapshot), assessmentSnapshot: copy(record.assessment), evidenceSnapshot: copy(record.evidence) };
     record.decisionDraft = decision;
     return write(records).find(item => item.id === id);
   }
@@ -158,5 +183,5 @@
     if (!reset && !additions.length) return records;
     return write([...records, ...additions]);
   }
-  app.services.reviewStore = { STORAGE_KEY, list, get, start, update, confirm, seedShowcase };
+  app.services.reviewStore = { STORAGE_KEY, list, get, start, update, confirm, captureContext, seedShowcase };
 })();

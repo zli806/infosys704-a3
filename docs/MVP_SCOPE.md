@@ -44,7 +44,7 @@ Five SHOWCASE investments appear first, with SAP SANDBOX projects appended autom
 | Store Technology Infrastructure Refresh | No review or seeded assessment; manual Start Review retains normal defaults |
 | Legacy Reporting Consolidation | Synthetic historical Stop, 2 Sep 2026; 6 historical material findings; excluded from current attention |
 
-Initial metrics derive 3 open / 3 material / 1 gap / 1 recorded decision; chart adds 7 emerging and 1 overdue **at the 15 October reference date**. Do not freeze the clock: more reviews may become overdue later. Explicit fixed seed dates are not actual user-created timestamps. Normal seeds preserve edits/completed decisions. Explicitly confirmed Reset Showcase clears all this app’s local governance records, including SAP Sandbox reviews, and restores the four Showcase baseline records; SAP data/configuration/loaded projects remain untouched. Reviewer judgements are editable while open; no current final decision is seeded or recommended.
+The initial Dashboard counts 3 active investments / 1 investment with material concerns / 1 with an evidence gap / 1 reviewed investment; the material investment has 3 separate material findings. At the 15 October reference date, 1 active investment is overdue. Independent governance-lens percentages overlap; there is no emerging-findings chart. Do not freeze the clock: more reviews may become overdue later. Explicit fixed seed dates are not actual user-created timestamps. Normal seeds preserve edits/completed decisions. Explicitly confirmed Reset Showcase clears all this app’s local governance records, including SAP Sandbox reviews, and restores the four Showcase baseline records; SAP data/configuration/loaded projects remain untouched. Reviewer judgements are editable while open; no current final decision is seeded or recommended.
 
 Showcase-only Investment Context displays approved investment/explicit forecast and derived posted activity, forecast variance/remaining forecast investment, PO-linked activity and not-finally-invoiced amounts. These are not live SAP budgets/forecasts, total project costs or outstanding liabilities. Numerical facts never choose an assessment; this qualitative convention requires DPE governance/pilot calibration before production. See [API Integration](API_INTEGRATION.md) for exact totals and schema checks.
 
@@ -67,3 +67,9 @@ Purchase Requisition, MCP, AI Review Brief, richer shared persistence/audit, aut
 ## Acceptance Principles
 
 Functional end-to-end flow; traceability to A2; transparent SHOWCASE / SAP SANDBOX distinction and technical provenance; no fake live evidence; accountable human decision; defensive joins/currencies/empty states; unchanged live API interpretation; focused teammate PR/review work. See [CONTRIBUTING.md](../CONTRIBUTING.md) and [UI Contract](UI_CONTRACT.md).
+
+## Approved minimal follow-up
+
+Financial Basis exposes stored G/L and PO summaries plus whitelisted investment context, source/as-of/capture time and limitations in Summary and History. No new financial calculation, currency conversion or completeness claim is added. Context is captured once for a new review, or before Summary/Decision for an older active review; confirmation requires a saved context and copies it without fetching newer provider values. Older completed history is never backfilled.
+
+Portfolio/Overview show due-today or overdue manual Next Review checkpoints using UTC dates. This differs from the active-review 14-day decision target and 30-day escalation. No automatic new cycle, notification or Dashboard metric is added.

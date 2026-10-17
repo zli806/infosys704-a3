@@ -110,7 +110,8 @@
       && new Date(value + "T00:00:00Z").toISOString().slice(0, 10) === value;
   }
   function needsActions(outcome) { return ["Continue with Conditions", "Modify", "Pause"].includes(outcome); }
-  function decisionErrors(review, draft) {
+  function utcDateKey(now = new Date()) { return new Date(now).toISOString().slice(0, 10); }
+  function decisionErrors(review, draft, { now = new Date() } = {}) {
     const errors = readiness(review).missing.map(item => `Missing readiness item: ${item}`);
     if (!OUTCOMES.includes(draft.outcome)) errors.push("Select a human governance decision.");
     if (!draft.rationale?.trim()) errors.push("Decision rationale is required.");
@@ -121,14 +122,36 @@
       if (!draft.nextReviewDate) errors.push("Next review date is required for this decision.");
     }
     if (draft.nextReviewDate && !validDate(draft.nextReviewDate)) errors.push("Next review date must be a valid calendar date.");
+    if (draft.nextReviewDate && validDate(draft.nextReviewDate) && draft.nextReviewDate < utcDateKey(now)) errors.push("Next review date must be today or later (UTC), checked when the decision is recorded.");
     return errors;
   }
-  function activeReview(records, uuid) { return records.find(record => record.project.ProjectUUID === uuid && record.status === "in_progress") || null; }
+  function projectKey(projectOrUUID) {
+    const uuid = typeof projectOrUUID === "string" ? projectOrUUID : projectOrUUID?.ProjectUUID;
+    return typeof uuid === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid) ? uuid.toLowerCase() : null;
+  }
+  function sameProject(left, right) { const key = projectKey(left); return key !== null && key === projectKey(right); }
+  function completedReviews(records, uuid) {
+    return records.filter(record => record.status === "decision_recorded" && (uuid === undefined || sameProject(record.project, uuid)))
+      .sort((a, b) => Date.parse(b.decision.timestamp) - Date.parse(a.decision.timestamp) || a.id.localeCompare(b.id));
+  }
+  function followUpDue(records, now = new Date()) {
+    const today = utcDateKey(now), seen = new Set(), result = [];
+    for (const record of completedReviews(records)) {
+      const key = projectKey(record.project);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      const date = record.decision.nextReviewDate;
+      if (activeReview(records, key) || record.decision.outcome === "Stop" || !validDate(date) || date > today) continue;
+      result.push({ projectKey: key, reviewId: record.id, nextReviewDate: date, status: date === today ? "due" : "overdue" });
+    }
+    return result;
+  }
+  function activeReview(records, uuid) { return records.find(record => sameProject(record.project, uuid) && record.status === "in_progress") || null; }
   function latestReview(records, uuid) {
-    return records.filter(record => record.project.ProjectUUID === uuid).sort((a, b) => b.reviewOpenedAt.localeCompare(a.reviewOpenedAt))[0] || null;
+    return records.filter(record => sameProject(record.project, uuid)).sort((a, b) => b.reviewOpenedAt.localeCompare(a.reviewOpenedAt))[0] || null;
   }
   function projectStatus(records, uuid) {
-    return activeReview(records, uuid) ? "Review in progress" : records.some(record => record.project.ProjectUUID === uuid && record.status === "decision_recorded") ? "Decision recorded" : "No active review";
+    return activeReview(records, uuid) ? "Review in progress" : records.some(record => sameProject(record.project, uuid) && record.status === "decision_recorded") ? "Decision recorded" : "No active review";
   }
   function dashboard(records, projectCount, now = new Date()) {
     const open = records.filter(record => record.status === "in_progress");
@@ -136,5 +159,5 @@
     return { projectCount, open, decisions, overdue: open.filter(record => timing(record, now).status !== "Within decision window").length };
   }
   app.reviewRules = { BASIS, normalizeBasis, SIGNAL_RULES, classifyAssessment, signalBreakdown, OUTCOMES, ASSESSMENTS, PROJECT_FIELDS, projectSnapshot, emptyEvidence, defaultAssessment,
-    calendarTarget, timing, readiness, ownerAssigned, needsAttention, reviewSignals, validDate, needsActions, decisionErrors, activeReview, latestReview, projectStatus, dashboard };
+    calendarTarget, timing, readiness, ownerAssigned, needsAttention, reviewSignals, validDate, utcDateKey, needsActions, decisionErrors, projectKey, sameProject, completedReviews, followUpDue, activeReview, latestReview, projectStatus, dashboard };
 })();

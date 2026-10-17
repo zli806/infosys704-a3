@@ -143,7 +143,7 @@ test('summary decision context follows the current review without stale concerns
 
 test('all five human outcomes remain valid with material concerns; every outcome still needs rationale and only the existing three need follow-up', () => {
   for (const outcome of ['Continue', 'Continue with Conditions', 'Modify', 'Pause', 'Stop']) {
-    const w = workspace(), store = w.services.reviewStore; store.seedShowcase();
+    const w = workspace(), store = w.services.reviewStore; store.seedShowcase(); store.captureContext("SHOWCASE-ODP-REVIEW");
     const hero = store.get('SHOWCASE-ODP-REVIEW'); assert.equal(w.reviewRules.reviewSignals(hero).materialConcerns.length, 3);
     assert.throws(() => store.confirm(hero.id, { outcome, rationale: '' }), /Decision rationale is required/);
     const draft = { outcome, rationale: `Accountable explanation for ${outcome}`, requiredAction: '', actionOwner: '', nextReviewDate: '' };
@@ -166,7 +166,7 @@ test('structured findings match the frozen signal convention and never read SAP/
 });
 
 test('Decision Queue stays action-focused while project-specific findings remain in Review Summary', () => {
-  const w = workspace(), ui = w.governanceUI, records = w.services.reviewStore.seedShowcase(); const before = JSON.stringify(records);
+  const w = workspace(), ui = w.governanceUI, records = w.services.reviewStore.seedShowcase(); w.services.reviewStore.captureContext("SHOWCASE-ODP-REVIEW"); const before = JSON.stringify(records);
   ui.renderDashboard(records, w.services.showcase.projects(), () => {});
   const attention = w.elements.get('dashboard-attention'), explanations = byClass(attention, 'flag-explanation');
   assert.equal(explanations.length, 0); assert(!attention.textContent.includes('Why is this flagged?'));
@@ -190,7 +190,7 @@ test('timing-only urgency stays visible without inventing concerns or extra per-
   for (const label of ['Material Concerns', 'Emerging Concerns', 'Evidence Gaps', 'Why is this flagged?']) assert(!queue.textContent.includes(label));
   assert(byClass(w.elements.get('dashboard-attention'), 'queue-signals')[0].textContent.includes('Assessment in progress'));
   ui.renderDashboard([], [], () => {}); assert.equal(byClass(w.elements.get('dashboard-attention'), 'flag-explanation').length, 0);
-  const records = w.services.reviewStore.seedShowcase(); ui.renderDashboard(records, w.services.showcase.projects(), () => {});
+  const records = w.services.reviewStore.seedShowcase(); w.services.reviewStore.captureContext("SHOWCASE-ODP-REVIEW"); ui.renderDashboard(records, w.services.showcase.projects(), () => {});
   ui.renderDashboard(records, w.services.showcase.projects(), () => {}, false); assert.equal(byClass(w.elements.get('dashboard-attention'), 'decision-queue-row').length, 0); assert.match(w.elements.get('dashboard-attention').textContent, /unavailable/);
 });
 

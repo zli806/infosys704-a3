@@ -9,7 +9,7 @@ const choose = (w, outcome) => {
 const draft = outcome => ({ outcome, rationale: 'Accountable test judgement', requiredAction: 'Complete follow-up', actionOwner: 'Unit coordinator', nextReviewDate: '2026-11-17' });
 
 test('an active review suppresses the previous next-review date without changing the stored historical decision', () => {
-  const w = workspace(), store = w.services.reviewStore; store.seedShowcase();
+  const w = workspace(), store = w.services.reviewStore; store.seedShowcase(); store.captureContext("SHOWCASE-ODP-REVIEW");
   const saved = store.confirm('SHOWCASE-ODP-REVIEW', draft('Modify')), snapshot = JSON.stringify(saved);
   let state = w.governanceUI.portfolioState(saved.project, store.list()); assert.equal(state.nextReview, '2026-11-17');
   const active = store.start(saved.project, saved.evidence, { reviewBasis: w.reviewRules.BASIS[0] });
@@ -44,7 +44,7 @@ test('required asterisks mirror conditional native requirements for all five out
 });
 
 test('low-level store.start rejects latest Stop including UUID case variation and leaves records untouched', () => {
-  const w = workspace(), store = w.services.reviewStore; store.seedShowcase();
+  const w = workspace(), store = w.services.reviewStore; store.seedShowcase(); store.captureContext("SHOWCASE-ODP-REVIEW");
   const stopped = store.get('SHOWCASE-LRP-DECISION'), before = w.map.get(store.STORAGE_KEY);
   for (const project of [stopped.project, { ...stopped.project, ProjectUUID: stopped.project.ProjectUUID.toUpperCase() }]) {
     assert.throws(() => store.start(project, stopped.evidence), /investment is stopped/);
@@ -53,7 +53,7 @@ test('low-level store.start rejects latest Stop including UUID case variation an
 });
 
 test('terminal guard uses latest decision timestamp rather than review-open time or any historical Stop', () => {
-  const w = workspace(), store = w.services.reviewStore; store.seedShowcase();
+  const w = workspace(), store = w.services.reviewStore; store.seedShowcase(); store.captureContext("SHOWCASE-ODP-REVIEW");
   const seed = store.get('SHOWCASE-LRP-DECISION');
   const older = { ...seed, id: 'older-continue', reviewOpenedAt: '2026-10-01T00:00:00Z', decision: { ...seed.decision, outcome: 'Continue', timestamp: '2026-08-01T00:00:00Z' } };
   let raw = JSON.parse(w.map.get(store.STORAGE_KEY)); raw.reviews.push(older); w.map.set(store.STORAGE_KEY, JSON.stringify(raw));
@@ -63,7 +63,7 @@ test('terminal guard uses latest decision timestamp rather than review-open time
 });
 
 test('new Stop confirmations omit next review even from a direct service draft; old Stop snapshots are not rewritten', () => {
-  const w = workspace(), store = w.services.reviewStore; store.seedShowcase();
+  const w = workspace(), store = w.services.reviewStore; store.seedShowcase(); store.captureContext("SHOWCASE-ODP-REVIEW");
   const raw = JSON.parse(w.map.get(store.STORAGE_KEY)); raw.reviews.find(r => r.id === 'SHOWCASE-LRP-DECISION').decision.nextReviewDate = '2026-12-01'; w.map.set(store.STORAGE_KEY, JSON.stringify(raw));
   const old = JSON.stringify(store.get('SHOWCASE-LRP-DECISION'));
   const saved = store.confirm('SHOWCASE-ODP-REVIEW', draft('Stop')); assert.equal(saved.decision.nextReviewDate, ''); assert.equal(saved.decisionDraft.nextReviewDate, '');
