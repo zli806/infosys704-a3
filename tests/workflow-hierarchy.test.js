@@ -67,23 +67,24 @@ test('row indexes re-sequence every selected subset while count stays accessible
 
 test('workflow markup has exactly one primary forward action per step and Summary overview is information only', () => {
   const html = readFileSync('index.html', 'utf8'), css = readFileSync('styles.css', 'utf8');
-  assert.match(html, /id="assessment-save-summary"[^>]*>Continue to Review Summary →/);
+  assert.match(html, /id="assessment-save-summary"[^>]*>Review Summary →/);
   const summary = html.slice(html.indexOf('<section id="summary-view"'), html.indexOf('<section id="decision-view"'));
   const strip = summary.match(/<section class="summary-decision-strip"[\s\S]*?<\/section>/)[0]; assert(!strip.includes('<button'));
-  assert.match(summary, /class="form-footer workflow-actions"[\s\S]*id="back-assessment" class="secondary"[^>]*>← Back to Assessment[\s\S]*id="proceed-decision"[^>]*>Continue to Governance Decision →/);
+  assert.match(summary, /class="form-footer workflow-actions"[\s\S]*id="back-assessment" class="secondary"[^>]*>← Assessment[\s\S]*id="proceed-decision"[^>]*>Governance Decision →/);
   assert(!html.includes('id="review-back-investment"')); assert(html.includes('id="workspace-tab-overview"'));
   assert(!html.includes('Make Governance Decision')); assert(!html.includes('Return to Investment'));
   const confirmation = html.slice(html.indexOf('<section id="confirmation-view"'));
   assert(!confirmation.includes('id="return-investment"')); assert.match(html, /id="back-dashboard" type="button">Back to Dashboard/);
 });
 
-test('workspace stepper only permits completed-step navigation and preserves back/continue handlers', () => {
+test('workspace stepper derives availability from readiness and preserves focusable back/continue handlers', () => {
   const w = workspace({ controller: true }), steps = w.document.getElementById('review-steps');
   for (const name of ['assessment', 'summary', 'decision']) { const step = w.document.createElement('li'), button = w.document.getElementById(`review-step-${name}`); button.append(w.document.createElement('span')); step.append(button); steps.append(step); }
-  w.governanceUI.showView('summary'); assert.deepEqual(steps.children.map(step => step.dataset.state), ['complete', 'current', 'future']);
-  assert.equal(steps.children[0].children[0].children[0].textContent, '✓'); assert.equal(steps.children[1].getAttribute('aria-current'), 'step'); assert.equal(w.elements.get('review-step-decision').disabled, true);
-  w.governanceUI.showView('decision'); assert.deepEqual(steps.children.map(step => step.dataset.state), ['complete', 'complete', 'current']);
-  assert.match(readFileSync('index.html', 'utf8'), /id="back-summary"[^>]*>← Back to Review Summary/);
+  const record = w.services.reviewStore.get('SHOWCASE-ODP-REVIEW');
+  w.governanceUI.showView('summary'); w.governanceUI.chrome(record, false); assert.deepEqual(steps.children.map(step => step.dataset.state), ['complete', 'current', 'available']);
+  assert.equal(steps.children[0].children[0].children[0].textContent, '✓'); assert.equal(steps.children[1].getAttribute('aria-current'), 'step'); assert.equal(w.elements.get('review-step-decision').disabled, false);
+  w.governanceUI.showView('decision'); w.governanceUI.chrome(record, false); assert.deepEqual(steps.children.map(step => step.dataset.state), ['complete', 'available', 'current']);
+  assert.match(readFileSync('index.html', 'utf8'), /id="back-summary"[^>]*>← Review Summary/);
   click(w, 'nav-dashboard'); const ready = rows(w).find(row => row.dataset.reviewId === 'SHOWCASE-ODP-REVIEW'); byClass(ready, 'queue-action-button')[0].events.click[0]();
   assert.equal(w.state.view, 'summary'); click(w, 'proceed-decision'); assert.equal(w.state.view, 'decision'); click(w, 'back-summary'); assert.equal(w.state.view, 'summary'); click(w, 'back-assessment'); assert.equal(w.state.view, 'assessment');
 });

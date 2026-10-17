@@ -12,7 +12,7 @@ const submit = (w, form) => w.elements.get(form).events.submit[0]({ preventDefau
 function choose(w, group, value) { for (const radio of w.elements.get(group).querySelectorAll('input')) radio.checked = radio.value === value; }
 async function openInvestment(w, index) {
   click(w, 'nav-investments'); w.elements.get('projects-body').children[index].children[4].children[0].events.click[0]();
-  // Active Portfolio next steps enter the process directly; inspect through its existing Back to Investment control.
+  // Active Portfolio next steps enter Current Review directly; inspect evidence through Overview.
   if (['assessment', 'summary', 'decision', 'confirmation'].includes(w.state.view)) click(w, 'workspace-tab-overview');
   await tick();
 }
@@ -63,7 +63,7 @@ test('SAP refresh is available on Investments but absent throughout the showcase
 
 test('ready hero CTA resumes Summary, exposes five unselected choices, records Modify, persists and resets through controller/DOM events', async () => {
   const w = workspace({ controller: true }); reset(w); await openInvestment(w, 0);
-  assert.equal(w.elements.get('start-review').textContent, 'Open Review');
+  assert.equal(w.elements.get('start-review').textContent, 'Continue Review');
   assert(w.elements.get('detail-review-status').textContent.includes('Ready for decision'));
   click(w, 'start-review'); assert.equal(w.state.view, 'summary');
   assert(w.elements.get('summary-decision-overview').textContent.includes('3 Material · 2 Emerging'));
@@ -91,23 +91,24 @@ test('ready hero CTA resumes Summary, exposes five unselected choices, records M
   assert.equal(reloaded.services.reviewStore.list().length, 4);
 });
 
-test('new Infrastructure review remains at Assessment until trigger, six judgements, owner and evidence are complete', async () => {
+test('new Infrastructure review previews Summary while Decision requires trigger, six judgements, owner and evidence', async () => {
   const w = workspace({ controller: true }); reset(w); await openInvestment(w, 3);
   assert.equal(w.elements.get('start-review').textContent, 'Start Review'); startReview(w); assert.equal(w.state.view, 'assessment');
-  assert.equal(w.elements.get('start-review').textContent, 'Open Review');
-  assert.equal(w.elements.get('proceed-decision').disabled, true);
+  assert.equal(w.elements.get('start-review').textContent, 'Continue Review');
+  assert.equal(w.elements.get('proceed-decision').disabled, false); assert.equal(w.elements.get('proceed-decision').getAttribute('aria-disabled'), 'true');
   click(w, 'proceed-decision'); assert.equal(w.state.view, 'assessment');
-  submit(w, 'assessment-form'); assert.equal(w.state.view, 'assessment'); assert.match(w.elements.get('workflow-message').textContent, /^Complete:/);
+  submit(w, 'assessment-form'); assert.equal(w.state.view, 'summary'); assert.match(w.elements.get('summary-readiness').textContent, /Assessment incomplete/); click(w, 'back-assessment');
   for (const [group, value] of [['assessment-alignment', 'High'], ['assessment-benefits', 'Yes'], ['assessment-delivery', 'On track'], ['assessment-cost', 'Within expectations'], ['assessment-risk', 'Low'], ['assessment-value', 'Positive']]) choose(w, group, value);
-  change(w, 'assessment-form'); submit(w, 'assessment-form'); assert.equal(w.state.view, 'assessment');
+  change(w, 'assessment-form'); submit(w, 'assessment-form'); assert.equal(w.state.view, 'summary'); click(w, 'proceed-decision'); assert.equal(w.state.view, 'summary'); assert(w.elements.get('workflow-message').textContent.includes('Decision Owner')); click(w, 'back-assessment');
   assert.equal(w.services.reviewStore.get(w.state.currentReviewID).reviewBasis, 'Scheduled stage-gate review');
-  submit(w, 'assessment-form'); assert.equal(w.state.view, 'assessment'); assert(w.elements.get('workflow-message').textContent.includes('Decision Owner'));
+  assert(w.reviewRules.readiness(w.services.reviewStore.get(w.state.currentReviewID)).missing.includes('Decision owner'));
   w.elements.get('assessment-owner').value = 'GOV-003'; change(w, 'assessment-form');
   const store = w.services.reviewStore, id = w.state.currentReviewID, completeEvidence = store.get(id).evidence;
   // In-memory failure case only; the immutable showcase payloads are untouched.
   store.update(id, { evidence: { ...completeEvidence, lifecycle: { ...completeEvidence.lifecycle, loaded: false, status: 'error' } } });
-  change(w, 'assessment-form'); submit(w, 'assessment-form'); assert.equal(w.state.view, 'assessment'); assert(w.elements.get('workflow-message').textContent.includes('Project Structure'));
-  store.update(id, { evidence: completeEvidence }); change(w, 'assessment-form'); submit(w, 'assessment-form'); assert.equal(w.state.view, 'summary');
+  w.state.reviews = store.list(); // Normal evidence callbacks also refresh the controller's records.
+  change(w, 'assessment-form'); submit(w, 'assessment-form'); assert.equal(w.state.view, 'summary'); click(w, 'proceed-decision'); assert(w.elements.get('workflow-message').textContent.includes('Project Structure')); click(w, 'back-assessment');
+  store.update(id, { evidence: completeEvidence }); w.state.reviews = store.list(); change(w, 'assessment-form'); submit(w, 'assessment-form'); assert.equal(w.state.view, 'summary');
   click(w, 'proceed-decision'); assert.equal(w.state.view, 'decision'); assert.equal(w.elements.get('decision-rationale-help').hidden, true);
   assert(w.elements.get('decision-outcome').querySelectorAll('input').every(radio => !radio.checked));
   choose(w, 'decision-outcome', 'Continue'); w.elements.get('decision-rationale').value = 'Accountable unit rationale'; change(w, 'decision-form'); submit(w, 'decision-form');
@@ -195,7 +196,7 @@ test('timing-only urgency stays visible without inventing concerns or extra per-
 
 test('static guidance remains progressive and explicit about human judgement, with no classification hints beside assessment inputs', () => {
   const html = readFileSync(join(__dirname, '../index.html'), 'utf8');
-  assert.match(html, /id="proceed-decision"[^>]*>Continue to Governance Decision/);
+  assert.match(html, /id="proceed-decision"[^>]*>Governance Decision/);
   assert(html.includes('Select the continuation outcome.')); assert(!html.includes('id="decision-context-counts"'));
   assert(readFileSync(join(__dirname, '../js/ui/governance.js'), 'utf8').includes('They inform governance judgement but do not determine the decision.'));
   assert(html.includes('This review contains material concerns. Explain how the selected outcome addresses them.'));

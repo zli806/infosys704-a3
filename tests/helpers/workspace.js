@@ -5,7 +5,7 @@ const directoryContext = { window: {} };
 runInNewContext(readFileSync(join(__dirname, '../../js/services/governance-directory.js'), 'utf8'), directoryContext);
 const directory = JSON.parse(JSON.stringify(directoryContext.window.DPEApp.services.governanceDirectory.configuration));
 
-function workspace({ fetchImpl, storage, controller = false, key = '', serviceOverrides = {} } = {}) {
+function workspace({ fetchImpl, storage, controller = false, key = '', serviceOverrides = {}, timers } = {}) {
   const elements = new Map();
   class Element {
     constructor(tag = 'div') { this.tag = tag; this.children = []; this.dataset = {}; this.attributes = {}; this.value = ''; this._text = ''; this.style = {}; this.offsetParent = null; this.events = {}; }
@@ -19,6 +19,7 @@ function workspace({ fetchImpl, storage, controller = false, key = '', serviceOv
     removeAttribute(name) { delete this.attributes[name]; }
      addEventListener(name, callback) { if (typeof callback === 'function') (this.events[name] ||= []).push(callback); }
     focus() { this.focused = true; }
+    contains(element) { return descendants(this).includes(element); }
     scrollIntoView() {}
     closest() { return this.parentElement || new Element('label'); }
     querySelectorAll(selector) {
@@ -41,8 +42,9 @@ function workspace({ fetchImpl, storage, controller = false, key = '', serviceOv
     querySelector() { return this.getElementById('main'); }
   };
   const map = storage || new Map();
+  const windowEvents = {};
   let confirmResult = false;
-  const context = { window: { confirm: () => confirmResult, APP_CONFIG: { SAP_API_KEY: key }, location: { protocol: 'http:' }, scrollTo() {}, crypto: require('node:crypto').webcrypto, localStorage: { getItem: key => map.get(key) ?? null, setItem: (key, value) => map.set(key, value) } }, document, Intl, Date, URL, AbortController, setTimeout, clearTimeout, setInterval() {}, console: { error() {}, info() {}, warn() {} },
+  const context = { window: { addEventListener(name, callback) { (windowEvents[name] ||= []).push(callback); }, removeEventListener(name, callback) { windowEvents[name] = (windowEvents[name] || []).filter(fn => fn !== callback); }, confirm: () => confirmResult, APP_CONFIG: { SAP_API_KEY: key }, location: { protocol: 'http:' }, scrollTo() {}, crypto: require('node:crypto').webcrypto, localStorage: { getItem: key => map.get(key) ?? null, setItem: (key, value) => map.set(key, value) } }, document, Intl, Date, URL, AbortController, setTimeout: timers?.setTimeout || setTimeout, clearTimeout: timers?.clearTimeout || clearTimeout, setInterval() {}, console: { error() {}, info() {}, warn() {} },
      fetch: fetchImpl || (async () => { throw new Error('Tests never call SAP'); }) };
   for (const file of ['api-config.js', 'js/data/showcase-portfolio.js', 'js/core/state.js', 'js/core/utils.js', 'js/core/review-rules.js', 'js/services/sap-http.js', 'js/services/project-service.js', 'js/services/gl-service.js', 'js/services/po-service.js', 'js/services/governance-directory.js', 'js/services/showcase-service.js', 'js/services/review-store.js', 'js/ui/renderers.js', 'js/ui/governance.js']) {
     runInNewContext(readFileSync(join(__dirname, '../..', file), 'utf8'), context, { filename: file });
@@ -51,7 +53,7 @@ function workspace({ fetchImpl, storage, controller = false, key = '', serviceOv
     for (const [name, methods] of Object.entries(serviceOverrides)) Object.assign(context.window.DPEApp.services[name], methods);
     runInNewContext(readFileSync(join(__dirname, '../../app.js'), 'utf8'), context, { filename: 'app.js' });
   } else context.window.DPEApp.governanceUI.bind({ saveDraft() {} });
-  return { ...context.window.DPEApp, elements, document, runtime: context.window.DPEApp, map, directory, fixtures: context.window.DPE_SHOWCASE_PORTFOLIO,
+  return { ...context.window.DPEApp, elements, document, runtime: context.window.DPEApp, windowEvents, map, directory, fixtures: context.window.DPE_SHOWCASE_PORTFOLIO,
     confirmReset(value) { confirmResult = value; } };
 }
 function startReview(w, reviewBasis = 'Scheduled stage-gate review') {

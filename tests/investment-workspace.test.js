@@ -42,26 +42,26 @@ test('unreviewed investment opens Overview; Current Review and History have trut
   assert.equal(w.elements.get('detail-review-status').children[0].textContent, 'Assessment in progress');
 });
 
-test('active incomplete/ready deep links and Current Review re-entry derive the safe stage without forward skipping', async () => {
+test('active incomplete/ready deep links derive safe re-entry while ready stages are freely navigable', async () => {
   const w = workspace({ controller: true }); openPortfolioRow(w, 0); tab(w, 'current'); assert.equal(w.state.view, 'summary');
   const header = w.elements.get('detail-project-name'), identity = header.textContent;
   click(w, 'proceed-decision'); assert.equal(w.state.view, 'decision'); assert.equal(w.elements.get('detail-project-name'), header); assert.equal(header.textContent, identity);
   w.elements.get('decision-rationale').value = 'Draft survives a tab change'; choose(w, 'Modify');
   click(w, 'workspace-tab-history'); tab(w, 'history'); assert.equal(w.services.reviewStore.get('SHOWCASE-ODP-REVIEW').decisionDraft.rationale, 'Draft survives a tab change');
   click(w, 'workspace-tab-current'); tab(w, 'current'); assert.equal(w.state.view, 'summary');
-  click(w, 'back-assessment'); assert.equal(w.state.view, 'assessment'); click(w, 'review-step-decision'); assert.equal(w.state.view, 'assessment');
-  click(w, 'proceed-decision'); assert.equal(w.state.view, 'assessment'); // Hidden upcoming control cannot skip Summary either.
+  click(w, 'back-assessment'); assert.equal(w.state.view, 'assessment'); click(w, 'review-step-decision'); assert.equal(w.state.view, 'decision');
+  click(w, 'review-step-assessment'); assert.equal(w.state.view, 'assessment');
   w.elements.get('assessment-comments').value = 'Assessment draft survives Overview'; click(w, 'workspace-tab-overview'); await tick(); tab(w, 'overview');
   assert.equal(w.services.reviewStore.get('SHOWCASE-ODP-REVIEW').assessment.comments, 'Assessment draft survives Overview');
   click(w, 'workspace-tab-current'); assert.equal(w.state.view, 'summary');
   openPortfolioRow(w, 3); await tick(); startReview(w); click(w, 'workspace-tab-overview'); await tick(); click(w, 'workspace-tab-current'); assert.equal(w.state.view, 'assessment');
 });
 
-test('completed step controls navigate backward only, keeping decision drafts and the same workspace', () => {
-  const w = workspace({ controller: true }); const steps = w.elements.get('review-steps');
+test('ready stages freely navigate while keeping decision drafts and the same workspace', () => {
+  const w = workspace({ controller: true }); const steps = w.document.getElementById('review-steps');
   for (const stage of ['assessment', 'summary', 'decision']) { const row = w.document.createElement('li'), button = w.elements.get(`review-step-${stage}`); button.append(w.document.createElement('span')); row.append(button); steps.append(row); }
-  openPortfolioRow(w, 0); assert.equal(w.elements.get('review-step-assessment').disabled, false); assert.equal(w.elements.get('review-step-decision').disabled, true);
-  click(w, 'review-step-decision'); assert.equal(w.state.view, 'summary'); click(w, 'proceed-decision');
+  openPortfolioRow(w, 0); assert.equal(w.elements.get('review-step-assessment').disabled, false); assert.equal(w.elements.get('review-step-decision').disabled, false);
+  click(w, 'review-step-decision'); assert.equal(w.state.view, 'decision');
   assert.equal(w.elements.get('review-step-summary').disabled, false); choose(w, 'Pause'); w.elements.get('decision-rationale').value = 'Preserved decision draft';
   click(w, 'review-step-assessment'); assert.equal(w.state.view, 'assessment'); tab(w, 'current'); assert.equal(w.services.reviewStore.get('SHOWCASE-ODP-REVIEW').decisionDraft.rationale, 'Preserved decision draft');
   w.elements.get('assessment-form').events.submit[0]({ preventDefault() {} }); assert.equal(w.state.view, 'summary'); click(w, 'proceed-decision'); assert.equal(w.governanceUI.readDecision().outcome, 'Pause');
@@ -73,7 +73,7 @@ test('each completed outcome drives Overview, Current Review empty state and lat
     assert.equal(w.elements.get('workspace-recorded-notice').hidden, false); assert.equal(w.elements.get('confirmation-view').hidden, false); assert.equal(historyRows(w)[0].dataset.reviewId, id);
     assert.equal(buttonIn(historyRows(w)[0]).getAttribute('aria-expanded'), 'true');
     click(w, 'workspace-tab-overview'); await tick(); tab(w, 'overview'); assert.equal(w.elements.get('detail-review-status').children[0].textContent, expected);
-    assert.equal(w.elements.get('start-review').hidden, outcome === 'Stop'); assert.equal(w.elements.get('view-last-decision').textContent, 'View Latest Record');
+    assert.equal(w.elements.get('start-review').hidden, outcome === 'Stop'); assert.equal(w.elements.get('view-last-decision').textContent, 'View Latest Decision');
     if (outcome !== 'Stop') assert.equal(w.elements.get('start-review').textContent, 'Start New Review');
     click(w, 'workspace-tab-current'); assert.match(w.elements.get('current-review-empty').textContent, outcome === 'Stop' ? /investment is stopped/ : /started from Overview/);
     click(w, 'workspace-tab-overview'); await tick(); click(w, 'view-last-decision'); tab(w, 'history'); assert.equal(w.state.currentReviewID, id); assert.equal(w.elements.get('workspace-recorded-notice').hidden, true);
@@ -123,6 +123,7 @@ test('workspace tabs support arrow/Home/End activation and failed draft saves pr
   w.elements.get('workspace-tab-history').events.keydown[0](event('Home')); tab(w, 'overview');
   click(w, 'workspace-tab-current'); click(w, 'proceed-decision');
   const original = w.services.reviewStore.update; w.services.reviewStore.update = () => { throw new Error('Cannot save draft'); };
+  w.elements.get('decision-rationale').value = 'Genuinely unsaved decision draft';
   click(w, 'workspace-tab-history'); tab(w, 'current'); assert.equal(w.state.view, 'decision');
   w.elements.get('workspace-tab-history').focused = false; w.elements.get('workspace-tab-current').events.keydown[0](event('ArrowRight'));
   tab(w, 'current'); assert.equal(w.elements.get('workspace-tab-history').focused, false); w.services.reviewStore.update = original;

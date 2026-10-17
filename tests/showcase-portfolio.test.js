@@ -99,8 +99,8 @@ test('showcase is immediately usable without key/network; live failure does not 
   assert.equal(offline.state.view, 'summary'); offline.elements.get('workspace-tab-overview').events.click[0](); await tick();
   assert.equal(calls, 0); assert.equal(offline.state.glRecords.length, 10); assert.equal(offline.state.poRecords.length, 4);
   const failed = workspace({ controller: true, key: 'unit-only-key', serviceOverrides: { projects: { loadProjects: async () => { throw new Error('Unit outage'); } } } }); await tick();
-  assert.equal(failed.state.projects.length, 5); assert.equal(failed.elements.get('projects-body').children.length, 5); assert.equal(failed.elements.get('project-refresh-error').hidden, false);
-  failed.elements.get('project-diagnostics').events.click[0](); await tick();
+  assert.equal(failed.state.projects.length, 5); assert.equal(failed.elements.get('projects-body').children.length, 5); assert.equal(failed.elements.get('toast-region').hidden, false);
+  failed.document.getElementById('toast-details').events.click[0](); await tick();
   assert.equal(failed.elements.get('investment-technical-details').open, true); assert.equal(failed.elements.get('connection-details').hidden, false);
   assert.equal(failed.state.glRecords.length, 10); // Inspection does not need to fabricate or retry live data.
   const merged = workspace({ controller: true, key: 'unit-only-key', serviceOverrides: { projects: { loadProjects: async () => ({ records: [external, external, { ...offline.services.showcase.projects()[0], ProjectDescription: 'Must not override synthetic source' }], httpStatus: 'HTTP 200 OK' }) } } }); await tick();

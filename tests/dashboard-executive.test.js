@@ -57,7 +57,7 @@ test('fully assessed normal review is still actionable without fabricating a fla
   normal = store.update(normal.id, { reviewBasis: w.reviewRules.BASIS[0], decisionOwnerId: 'GOV-003', assessment: { strategicAlignment: 'High', expectedBenefits: 'Yes', deliveryPerformance: 'On track', costPosition: 'Within expectations', risk: 'Low', futureEconomicValue: 'Positive' } });
   w.governanceUI.renderDashboard([normal], 5, () => {});
   assert.equal(rows(w).length, 1); assert.equal(byClass(rows(w)[0], 'flag-explanation').length, 0);
-  assert(rows(w)[0].textContent.includes('No concerns identified')); assert.equal(byClass(rows(w)[0], 'queue-action')[0].children[1].textContent, 'Open Review');
+  assert(rows(w)[0].textContent.includes('No concerns identified')); assert.equal(byClass(rows(w)[0], 'queue-action')[0].children[1].textContent, 'Continue Review');
   assert.equal(store.get(normal.id).decision, null);
 });
 

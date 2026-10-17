@@ -10,6 +10,13 @@
     return new Intl.DateTimeFormat("en-NZ", { year: "numeric", month: "short", day: "2-digit", timeZone: "UTC" }).format(date);
   }
   let governanceForProject = () => ({ label: "Monitoring", nextStep: "Open Investment" }), openReview = () => {};
+  let projectActions = {};
+  function sourceBadge(element, project) {
+    const synthetic = app.services.showcase?.isShowcase(project);
+    const label = synthetic ? "SHOWCASE" : "SAP SANDBOX";
+    const meaning = synthetic ? "Synthetic SAP-schema-compatible showcase data. Not live SAP or real DPE production data." : "SAP Business Accelerator Hub Sandbox data. Not DPE production data.";
+    element.className = `source ${synthetic ? "showcase" : "sap"}`; element.textContent = label; element.title = meaning; element.setAttribute("aria-label", `${label}: ${meaning}`); return element;
+  }
   const dom = {
     button: document.getElementById("load-projects"),
     connection: document.getElementById("connection-status"),
@@ -42,6 +49,40 @@
     poBody: document.getElementById("po-body"),
     rawPO: document.getElementById("raw-po-response")
   };
+  let toastTimer = null, toastRemaining = 0, toastStarted = 0, toastHovered = false, toastFocused = false;
+  function pauseToast() {
+    if (toastTimer !== null) { clearTimeout(toastTimer); toastTimer = null; toastRemaining = Math.max(0, toastRemaining - (Date.now() - toastStarted)); }
+  }
+  function scheduleToast() {
+    if (document.getElementById("toast-region").hidden || toastHovered || toastFocused) return;
+    pauseToast(); toastStarted = Date.now(); toastTimer = setTimeout(() => dismissToast(), toastRemaining);
+  }
+  function dismissToast(restoreFocus = false) {
+    pauseToast(); document.getElementById("toast-region").hidden = true;
+    if (restoreFocus) document.querySelector('header [aria-current="page"]')?.focus();
+  }
+  function toast({ title, message = "", kind = "issue", duration = 9000, actions = [] }) {
+    dismissToast(); toastRemaining = duration; toastHovered = false; toastFocused = false;
+    const region = document.getElementById("toast-region"), copy = document.getElementById("toast-message"), controls = document.getElementById("toast-actions");
+    const heading = document.createElement("strong"); heading.textContent = title; copy.replaceChildren(heading);
+    if (message) { const text = document.createElement("p"); text.textContent = message; copy.append(text); }
+    controls.replaceChildren();
+    for (const action of actions) {
+      if (typeof action.onClick !== "function") continue;
+      const button = document.createElement("button"); button.type = "button"; button.className = "secondary"; button.textContent = action.label; button.id = action.id;
+      button.addEventListener("click", () => { dismissToast(); action.onClick(); }); controls.append(button);
+    }
+    const dismiss = document.createElement("button"); dismiss.id = "toast-dismiss"; dismiss.type = "button"; dismiss.className = "ghost"; dismiss.textContent = "Dismiss";
+    dismiss.addEventListener("click", () => dismissToast(true)); controls.append(dismiss);
+    region.dataset.kind = kind; region.hidden = false;
+    toastHovered = region.matches?.(":hover") || false; toastFocused = region.contains?.(document.activeElement) || false; scheduleToast();
+  }
+  function connection(state) {
+    const labels = { connected: "Connected", disconnected: "Not connected", refreshing: "Refreshing…", issue: "Connection issue" };
+    dom.connection.textContent = `SAP Sandbox · ${labels[state]}`; dom.connection.dataset.state = state; dom.connection.hidden = false;
+    document.getElementById("connection-issue-details").hidden = state !== "issue";
+    dom.connection.title = state === "disconnected" ? "Add an API key in local configuration to load SAP Sandbox projects. Showcase remains available." : state === "issue" ? "The last SAP project refresh failed. Showcase remains available; retry or inspect Technical Details." : state === "connected" ? "The last project refresh succeeded. SAP Sandbox data is not DPE production data." : "Refreshing the separate SAP Sandbox project source. Showcase remains available.";
+  }
   function message(element, text, kind = "info") {
     element.textContent = text;
     element.dataset.kind = kind;
@@ -94,8 +135,7 @@
         row.children[2].replaceChildren(outcome, date);
       }
       const identity = document.createElement("p"); identity.className = "queue-identity"; identity.textContent = project.Project;
-      const source = document.createElement("span"), synthetic = app.services.showcase?.isShowcase(project);
-      source.className = `source ${synthetic ? "showcase" : "sap"}`; source.textContent = synthetic ? "SHOWCASE" : "SAP SANDBOX"; identity.append(source); row.children[0].append(identity);
+      const source = sourceBadge(document.createElement("span"), project); identity.append(source); row.children[0].append(identity);
       const chip = document.createElement("span"); chip.className = "governance-chip"; chip.textContent = governance.label;
       chip.dataset.state = governance.label.toLowerCase().replace(/ /g, "-");
       row.children[1].replaceChildren(chip);
@@ -107,7 +147,7 @@
       action.textContent = governance.nextStep;
       action.setAttribute("aria-label", `${governance.nextStep} for ${project.Project || "project"}`);
       action.addEventListener("click", () => governance.active ? openReview(governance.active.id)
-        : governance.nextStep === "View Record" && latest ? openReview(latest.id) : onSelect(project));
+        : governance.nextStep === "View Decision" && latest ? openReview(latest.id) : onSelect(project));
       actionCell.append(action);
       row.append(actionCell);
       if (project === selectedProject) row.className = "selected-project";
@@ -212,41 +252,45 @@
     summary(dom.poSummary, lines);
   }
   app.ui = {
-    formatDate,
+    formatDate, sourceBadge, toast, dismissToast,
     configureReviews(callback, onOpen = () => {}) { governanceForProject = callback; openReview = onOpen; },
     renderProjects, resetElements, selectProject, renderElements, resetGL, renderGL, resetPO, renderPO,
     bindEvents(actions) {
+      projectActions = actions;
       dom.glButton.addEventListener("click", actions.loadGL);
       dom.poButton.addEventListener("click", actions.loadPO);
       dom.button.addEventListener("click", actions.loadProjects);
+      document.getElementById("connection-issue-details").addEventListener("click", () => projectActions.projectDetails?.());
+      const region = document.getElementById("toast-region");
+      region.hidden = true;
+      region.addEventListener("mouseenter", () => { toastHovered = true; pauseToast(); });
+      region.addEventListener("mouseleave", () => { toastHovered = false; scheduleToast(); });
+      region.addEventListener("focusin", () => { toastFocused = true; pauseToast(); });
+      region.addEventListener("focusout", event => { toastFocused = region.contains?.(event.relatedTarget) || false; if (!toastFocused) scheduleToast(); });
     },
     projectStart() {
-      document.getElementById("project-refresh-error").hidden = true;
+      dismissToast();
       dom.errorDetails.hidden = true; dom.errorDetails.textContent = "";
-      empty(dom.tableBody, 5, "Refreshing investments…"); dom.rawResponse.textContent = "No response received yet.";
+      dom.rawResponse.textContent = "No response received yet.";
     },
     projectKeyMissing() {
-      empty(dom.tableBody, 5, "Investment data is not configured.");
-      dom.connection.textContent = "Showcase available. SAP Sandbox connection is not configured."; dom.connection.hidden = false;
-      message(dom.message, "Please add your SAP Sandbox API key to config.local.js first.", "error");
+      connection("disconnected"); dom.button.disabled = true;
+      message(dom.message, "SAP Sandbox is not connected. Add an API key in local configuration; Showcase remains available.");
     },
     projectLoading() {
       dom.button.disabled = true; dom.button.textContent = "Loading…";
-      dom.button.setAttribute("aria-busy", "true"); dom.connection.dataset.kind = "loading";
-      dom.connection.textContent = "Refreshing SAP data…"; dom.connection.hidden = false;
+      dom.button.setAttribute("aria-busy", "true"); connection("refreshing");
       message(dom.message, "Requesting up to five Enterprise Projects…");
     },
     projectSuccess(records, selected, onSelect, status, sandboxCount = records.length) {
-      renderProjects(records, selected, onSelect); dom.connection.textContent = ""; dom.connection.hidden = true;
-      dom.connection.dataset.kind = "success";
+      renderProjects(records, selected, onSelect); connection("connected");
       message(dom.message, `Loaded ${sandboxCount} SAP Sandbox projects (${status}); showcase records remain separate.`, "success");
     },
     projectFailure(detail) {
-      dom.connection.textContent = ""; dom.connection.hidden = true;
-      document.getElementById("project-refresh-error").hidden = false;
-      empty(dom.tableBody, 5, "Investment data is unavailable. Please retry."); message(dom.message, detail, "error");
+      connection("issue"); message(dom.message, detail, "error");
+      toast({ title: "Couldn’t refresh SAP Sandbox.", message: "Showcase investments remain available.", actions: [{ id: "toast-retry", label: "Retry", onClick: projectActions.loadProjects }, { id: "toast-details", label: "Details", onClick: projectActions.projectDetails }] });
     },
-    projectFinished() { dom.button.disabled = false; dom.button.textContent = "Refresh SAP Data"; dom.button.removeAttribute("aria-busy"); },
+    projectFinished() { dom.button.disabled = dom.connection.dataset.state === "disconnected"; dom.button.textContent = "Refresh SAP Data"; dom.button.removeAttribute("aria-busy"); },
     projectRaw(context) { dom.rawResponse.textContent = raw(context); },
     projectHTTPError(text) { errorBody(dom.errorDetails, text); },
     elementsRaw(context) { dom.rawElements.textContent = raw(context); },

@@ -6,6 +6,7 @@
   const showcase = services.showcase;
   let freshlyRecordedDecisionID = null;
   let pendingReviewStart = null;
+  let unsavedDraft = false;
   const missingKeyMessage = "Please add your SAP Sandbox API key to config.local.js first.";
   state.evidence = rules.emptyEvidence();
 
@@ -27,7 +28,7 @@
   }
   function resetShowcase() {
     if (!window.confirm("Reset showcase reviews and decisions to the synthetic presentation baseline? All showcase edits and decisions will be removed. Other local reviews and SAP configuration are kept.")) return;
-    if (!saveDraft() || !seedShowcase(true)) return;
+    if (!canLeaveReview() || !seedShowcase(true)) return;
     if (showcase.isShowcase(state.selectedProject)) resetElementSelection();
     state.view = "dashboard"; governance.showView("dashboard"); refreshGovernance();
     ui.renderProjects(state.projects, state.selectedProject, loadProjectElements);
@@ -50,10 +51,11 @@
       state.view === "confirmation" ? state.currentReviewID : null, state.view === "confirmation" && freshlyRecordedDecisionID === state.currentReviewID);
     const record = currentReview();
     if (record && ["assessment", "summary", "decision"].includes(state.view)) {
-      governance.chrome(record, busy());
+      governance.chrome(record, busy(), unsavedDraft || !!state.storageError);
       if (state.view === "summary") governance.reviewSummary(record);
     }
     governance.evidenceButton(!!state.selectedProject && !state.selectedFromSnapshot && !busy());
+    governance.autosaveStatus(unsavedDraft, !!state.storageError);
   }
   function persistEvidence(source, value) {
     state.evidence[source] = value;
@@ -67,22 +69,44 @@
   function attemptedFailure(source, note, unavailable = false) {
     persistEvidence(source, { ...rules.emptyEvidence()[source], attempted: true, status: unavailable ? "unavailable" : "error", note, capturedAt: new Date().toISOString() });
   }
+  function beforeUnsavedUnload(event) { event.preventDefault(); event.returnValue = ""; }
+  function setUnsavedDraft(value) {
+    if (unsavedDraft !== value) {
+      if (value) window.addEventListener?.("beforeunload", beforeUnsavedUnload);
+      else window.removeEventListener?.("beforeunload", beforeUnsavedUnload);
+    }
+    unsavedDraft = value; governance.autosaveStatus(value, !!state.storageError);
+  }
+  function draftChanged(record, patch) {
+    if (patch.assessment) return Object.keys(patch.assessment).some(key => patch.assessment[key] !== record.assessment[key])
+      || Object.hasOwn(patch, "decisionOwnerId") && patch.decisionOwnerId !== record.decisionOwnerId;
+    return ["outcome", "rationale", "requiredAction", "actionOwner", "nextReviewDate"].some(key => patch.decisionDraft[key] !== record.decisionDraft[key]);
+  }
   function saveDraft() {
     const record = currentReview();
-    if (!record || record.status !== "in_progress" || !["assessment", "decision"].includes(state.view)) return true;
+    if (!record || record.status !== "in_progress" || !["assessment", "decision"].includes(state.view)) return !unsavedDraft;
     try {
       const patch = state.view === "assessment" ? governance.readAssessment() : { decisionDraft: governance.readDecision() };
-      store.update(record.id, patch); refreshRecords(); refreshGovernance(); return true;
-    } catch (error) { governance.storageNotice(error.message); governance.error(error.message); return false; }
+      if (!draftChanged(record, patch)) {
+        const recovered = unsavedDraft; setUnsavedDraft(false);
+        if (recovered) refreshGovernance();
+        return true;
+      }
+      store.update(record.id, patch); setUnsavedDraft(false); refreshRecords(); refreshGovernance(); return true;
+    } catch { setUnsavedDraft(true); refreshGovernance(); return false; }
+  }
+  function canLeaveReview() {
+    if (saveDraft()) return true;
+    governance.focusSaveError(); return false;
   }
   function navigate(view, dashboardFilter = "active") {
-    if (!saveDraft()) return;
+    if (!canLeaveReview()) return;
     freshlyRecordedDecisionID = null;
     refreshRecords(); state.view = view; governance.showView(view, dashboardFilter); refreshGovernance();
     if (view === "investments") ui.renderProjects(state.projects, state.selectedProject, loadProjectElements);
   }
   function workspaceTab(tab) {
-    if (!state.selectedProject || !saveDraft()) return false;
+    if (!state.selectedProject || !canLeaveReview()) return false;
     freshlyRecordedDecisionID = null;
     refreshRecords();
     if (tab === "overview") { openOverview(); return true; }
@@ -100,12 +124,12 @@
     openReview(id);
   }
   function refreshProjects() {
-    if (state.projectsRefreshing || !saveDraft()) return;
+    if (state.projectsRefreshing || !canLeaveReview()) return;
     if (!["dashboard", "investments"].includes(state.view)) {
       state.view = "investments"; governance.showView("investments");
     }
     resetElementSelection();
-    return loadProjects();
+    return loadProjects(true);
   }
   function validationMissing(record) {
     const labels = { "SAP project context": "Project context", "Project Elements / lifecycle evidence loaded": "Project Structure",
@@ -127,7 +151,7 @@
     } catch (error) { governance.storageNotice(error.message); }
   }
   function setLegacyReviewTrigger() {
-    if (!saveDraft() || !refreshRecords()) return;
+    if (!canLeaveReview() || !refreshRecords()) return;
     const record = rules.activeReview(state.reviews, state.selectedProject?.ProjectUUID);
     if (!record || rules.normalizeBasis(record.reviewBasis)) return;
     pendingReviewStart = { projectUUID: record.project.ProjectUUID, recordID: record.id };
@@ -151,7 +175,7 @@
     } catch (error) { governance.reviewStartError(error.message); }
   }
   function openReview(id) {
-    if (!saveDraft() || !refreshRecords()) return;
+    if (!canLeaveReview() || !refreshRecords()) return;
     freshlyRecordedDecisionID = null;
     const record = state.reviews.find(item => item.id === id); if (!record) return;
     if (state.selectedProject?.ProjectUUID !== record.project.ProjectUUID) {
@@ -167,18 +191,23 @@
   }
   function resumeReview(record) { showReviewStep(rules.readiness(record).ready ? "summary" : "assessment", false); }
   function showReviewStep(view, save = true) {
-    if (save && !saveDraft()) return;
+    if (save && !canLeaveReview()) return;
     const record = currentReview(); if (!record || record.status !== "in_progress") return;
-    if (save && ["assessment", "summary", "decision"].indexOf(view) > ["assessment", "summary", "decision"].indexOf(state.view) + 1) return;
-    if (view === "summary" && state.view === "assessment" && validationMissing(record).length) { governance.incompleteAssessment(validationMissing(record)); return; }
-    if (view === "decision" && (!rules.readiness(record).ready || busy())) { governance.error("Complete the readiness items and finish evidence loading before proceeding to Decision."); return; }
+    if (view === "decision") {
+      const missing = validationMissing(record).filter(item => item !== "Evidence refresh");
+      if (!services.governanceDirectory.eligible(record) && !missing.includes("Decision Owner")) missing.push("Decision Owner");
+      if (missing.length) { governance.workflowGate(`Complete Assessment before entering Governance Decision: ${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} still required.`); return; }
+      if (busy()) { governance.workflowGate("Finish the current evidence refresh before entering Governance Decision."); return; }
+      if (state.storageError) { governance.workflowGate("Governance storage is unavailable. Restore storage before entering Governance Decision."); return; }
+    }
+    if (view === state.view) { refreshGovernance(); return; }
     state.view = view; governance.showView(view);
     if (view === "assessment") governance.assessment(record);
     if (view === "decision") governance.decision(record);
     refreshGovernance();
   }
   function confirmDecision() {
-    if (!saveDraft()) return;
+    if (!canLeaveReview()) return;
     const record = currentReview(); if (!record) return;
     if (busy()) { governance.error("Finish current SAP evidence requests before recording a decision."); return; }
     const errors = rules.decisionErrors(record, governance.readDecision());
@@ -188,7 +217,7 @@
       freshlyRecordedDecisionID = saved.id;
       refreshRecords(); state.view = "confirmation"; governance.showView("confirmation"); governance.confirmation(saved); refreshGovernance(); document.getElementById("workspace-recorded-notice").focus();
       ui.renderProjects(state.projects, state.selectedProject, loadProjectElements);
-    } catch (error) { governance.error(error.message); }
+    } catch (error) { governance.incompleteDecision([`Couldn’t record decision. ${error.message}`], { recordFailure: true }); }
   }
   function openOverview() {
     freshlyRecordedDecisionID = null;
@@ -199,6 +228,13 @@
     if (!state.selectedProject || state.selectedFromSnapshot || busy()) return;
     await loadProjectElements(state.selectedProject, true);
   }
+  function technicalDetails() {
+    if (!canLeaveReview()) return;
+    const project = state.selectedProject || state.projects[0];
+    if (project && !state.selectedFromSnapshot && (!state.selectedProject || !state.elementsLoaded)) void loadProjectElements(project, true);
+    else { state.view = "detail"; governance.showView("detail"); refreshGovernance(); }
+    governance.openTechnical();
+  }
 
   function resetFinancialEvidence() { state.resetFinancialEvidence(); ui.resetGL(); }
   function resetProcurementEvidence() { state.resetProcurementEvidence(); ui.resetPO(); }
@@ -207,7 +243,7 @@
     state.resetElementSelection(); ui.resetElements(); state.evidence = rules.emptyEvidence(); state.currentReviewID = null;
   }
 
-  async function loadProjects() {
+  async function loadProjects(manual = false) {
     if (state.projectsRefreshing) return;
     state.sandboxRefreshError = false;
     const key = http.apiKey();
@@ -224,6 +260,7 @@
       state.projects = mergeProjects(result.records);
       ui.projectSuccess(state.projects, state.selectedProject, loadProjectElements, result.httpStatus, result.records.length);
       refreshGovernance();
+      if (manual) ui.toast({ title: "SAP Sandbox refreshed", duration: 3500, kind: "neutral" });
     } catch (error) {
       const context = error.sap || {};
       let detail;
@@ -235,14 +272,14 @@
       } else { detail = utils.redact(error.message, key); }
       state.sandboxRefreshError = true;
       ui.projectFailure(detail);
-      console.error("SAP Enterprise Project connection test failed", {
+      console.warn("SAP Enterprise Project refresh unavailable", {
         url: services.projects.projectURL().href, status: context.response?.status ?? "unavailable", diagnostic: detail
       });
     } finally { state.projectsRefreshing = false; ui.projectFinished(); ui.renderProjects(state.projects, state.selectedProject, loadProjectElements); refreshGovernance(); }
   }
 
   async function loadProjectElements(project, preserveReview = false) {
-    if (!preserveReview && !saveDraft()) return;
+    if (!preserveReview && !canLeaveReview()) return;
     resetFinancialEvidence(); resetProcurementEvidence();
     state.evidence = rules.emptyEvidence();
     if (!preserveReview) state.currentReviewID = null;
@@ -401,21 +438,13 @@
 
   ui.configureReviews(project => governance.portfolioState(project, state.reviews, !state.storageError), openReview);
   ui.bindEvents({ loadGL: loadFinancialEvidence, loadPO: loadPurchaseOrderEvidence,
-    loadProjects: refreshProjects });
-  governance.bind({ navigate, workspaceTab, startReview, confirmReviewStart, cancelReviewStart, setLegacyReviewTrigger, saveDraft, summary: () => showReviewStep("summary"), reviewStep: showReviewStep,
+    loadProjects: refreshProjects, projectDetails: technicalDetails });
+  governance.bind({ navigate, workspaceTab, startReview, confirmReviewStart, cancelReviewStart, setLegacyReviewTrigger, saveDraft, retrySave: saveDraft, summary: () => showReviewStep("summary"), reviewStep: showReviewStep,
     viewEvidence: () => { if (workspaceTab("overview") !== false) governance.focusEvidence(); },
     backDashboard: () => navigate("dashboard", state.view === "confirmation" && freshlyRecordedDecisionID === state.currentReviewID ? "recorded" : "active"),
     confirm: confirmDecision, loadEvidence: loadReviewEvidence,
     reloadLifecycle: loadReviewEvidence,
-    retryProjects: refreshProjects,
     resetShowcase,
-    technicalDetails: () => {
-      if (!saveDraft()) return;
-      const project = state.selectedProject || state.projects[0];
-      if (project && !state.selectedFromSnapshot && (!state.selectedProject || !state.elementsLoaded)) void loadProjectElements(project, true);
-      else { state.view = "detail"; governance.showView("detail"); refreshGovernance(); }
-      governance.openTechnical();
-    },
     lastDecision: () => {
       const record = governance.completedReviews(state.reviews, state.selectedProject?.ProjectUUID)[0];
       if (record) openReview(record.id);

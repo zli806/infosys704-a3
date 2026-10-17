@@ -58,7 +58,7 @@ test('recorded rows are compact historical records, not findings, urgency or exp
   assert.equal(row.dataset.urgent, 'false'); assert.equal(row.dataset.timing, undefined); assert.equal(row.children[0].children.length, 5);
   assert(row.textContent.includes('Legacy Reporting Consolidation')); assert(row.textContent.includes('SHOWCASE')); assert(row.textContent.includes('Stop')); assert(row.textContent.includes(w.ui.formatDate(record.decision.timestamp)));
   assert(!row.textContent.includes(record.decision.rationale)); assert(!row.textContent.includes('Decision overdue')); assert(!all(row).some(el => el.className === 'queue-signals'));
-  const action = buttonIn(row); assert.equal(action.textContent, 'View Record'); assert.match(action.getAttribute('aria-label'), /Legacy Reporting Consolidation/);
+  const action = buttonIn(row); assert.equal(action.textContent, 'View Decision'); assert.match(action.getAttribute('aria-label'), /Legacy Reporting Consolidation/);
   action.events.click[0](); assert.equal(w.state.view, 'confirmation'); assert.equal(w.state.currentReviewID, record.id);
   click(w, 'back-dashboard'); assert.deepEqual(selected(w), ['active']); // A historical visit is not a newly recorded decision.
 });

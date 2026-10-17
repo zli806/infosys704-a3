@@ -62,7 +62,7 @@ test('legacy missing trigger is explicitly recovered without resetting review ID
   const source = workspace(), store = source.services.reviewStore; store.seedShowcase(); const raw = JSON.parse(source.map.get(store.STORAGE_KEY)); raw.reviews.find(r => r.id === 'SHOWCASE-ODP-REVIEW').reviewBasis = ''; source.map.set(store.STORAGE_KEY, JSON.stringify(raw));
   const w = workspace({ controller: true, storage: source.map }), before = w.services.reviewStore.get('SHOWCASE-ODP-REVIEW'), history = JSON.stringify(w.services.reviewStore.get('SHOWCASE-LRP-DECISION'));
   click(w, 'nav-investments'); w.elements.get('projects-body').children[0].children[4].children[0].events.click[0](); assert.equal(w.state.view, 'assessment'); assert.equal(w.elements.get('review-trigger').hidden, false);
-  submit(w, 'assessment-form'); assert.equal(w.state.view, 'assessment'); assert.match(w.elements.get('workflow-message').textContent, /Review Trigger/);
+  submit(w, 'assessment-form'); assert.equal(w.state.view, 'summary'); click(w, 'review-step-decision'); assert.equal(w.state.view, 'summary'); assert.match(w.elements.get('workflow-message').textContent, /Review Trigger/);
   click(w, 'set-review-trigger'); assert.equal(w.elements.get('review-start-title').textContent, 'Set Review Trigger'); chooseTrigger(w, 'Material trigger'); submit(w, 'review-start-form');
   const after = w.services.reviewStore.get(before.id); assert.equal(after.id, before.id); assert.equal(after.reviewOpenedAt, before.reviewOpenedAt); assert.equal(after.reviewBasis, 'Material trigger'); assert.equal(w.state.view, 'summary'); assert.equal(w.elements.get('review-trigger').hidden, true);
   assert.equal(JSON.stringify(w.services.reviewStore.get('SHOWCASE-LRP-DECISION')), history);

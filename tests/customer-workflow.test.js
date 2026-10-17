@@ -26,21 +26,21 @@ test('startup auto-loads projects without leaving Dashboard; owner options are i
   const w = workspace({ controller: true, key: 'unit-only-key', serviceOverrides: s.overrides, fetchImpl: async () => { fetches++; throw new Error('No network in unit tests'); } });
   assert.equal(w.state.view, 'dashboard'); assert.deepEqual(s.calls, ['projects']);
   assert.equal(w.elements.get('assessment-owner').children.length, 4);
-  assert.equal(w.elements.get('connection-status').textContent, 'Refreshing SAP data…');
+  assert.equal(w.elements.get('connection-status').textContent, 'SAP Sandbox · Refreshing…');
   assert.equal(w.state.projects.length, 5); // Showcase is available before the live response.
-  await tick(); assert.equal(w.state.projects.length, 6); assert.equal(w.elements.get('connection-status').hidden, true);
+  await tick(); assert.equal(w.state.projects.length, 6); assert.equal(w.elements.get('connection-status').textContent, 'SAP Sandbox · Connected');
   assert.equal(fetches, 0); assert.equal(w.state.view, 'dashboard');
 });
 
 test('missing key makes no project request; project failure is concise and retries only on explicit action', async () => {
   const s = services({ failProjects: true });
   const missing = workspace({ controller: true, serviceOverrides: s.overrides }); await tick(); assert.equal(s.calls.length, 0);
-  assert(missing.elements.get('connection-status').textContent.includes('not configured'));
+  assert.equal(missing.elements.get('connection-status').textContent, 'SAP Sandbox · Not connected'); assert.equal(missing.elements.get('toast-region').hidden, true);
   assert(!missing.elements.get('projects-body').textContent.includes('Refreshing'));
   const w = workspace({ controller: true, key: 'unit-only-key', serviceOverrides: s.overrides }); await tick();
-  assert.equal(w.elements.get('project-refresh-error').hidden, false); assert.equal(w.elements.get('connection-status').hidden, true);
+  assert.equal(w.elements.get('toast-region').hidden, false); assert.equal(w.elements.get('connection-status').textContent, 'SAP Sandbox · Connection issue');
   assert.equal(s.calls.length, 1); await tick(); assert.equal(s.calls.length, 1);
-  w.elements.get('retry-projects').events.click[0](); await tick(); assert.equal(s.calls.length, 2);
+  w.document.getElementById('toast-retry').events.click[0](); await tick(); assert.equal(s.calls.length, 2); w.ui.dismissToast();
 });
 
 test('opening an investment automatically loads structure then financial and procurement evidence with exact IDs', async () => {
