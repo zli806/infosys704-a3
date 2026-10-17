@@ -29,7 +29,7 @@
     <header class="app-header">
       <div class="app-header-inner">
         <div class="brand"><img class="brand-mark" src="assets/dpe-mark.svg" width="36" height="40" alt="" aria-hidden="true"><div class="brand-lockup"><span class="brand-name">DPE</span><h1>IT Investment Governance Hub</h1></div></div>
-        <nav class="app-nav" aria-label="Main navigation"><button id="nav-dashboard" type="button">Dashboard</button><button id="nav-investments" type="button">Portfolio</button><button id="nav-reviews" type="button">Decisions</button></nav>
+        <nav class="app-nav" aria-label="Main navigation"><button id="nav-dashboard" type="button">Dashboard</button><button id="nav-investments" type="button">Portfolio</button></nav>
       </div>
     </header>
     <main>
@@ -39,26 +39,25 @@
       <p id="storage-notice" class="status-message" role="alert" hidden></p>
 
       <section id="dashboard-view" aria-label="Dashboard">
-        <section class="portfolio-pulse" aria-label="Review status filters"><div id="dashboard-cards" class="pulse-metrics" role="group" aria-label="Filter active reviews by status"></div></section>
+        <section class="portfolio-pulse" aria-label="Governance lenses"><div id="dashboard-cards" class="pulse-metrics" role="group" aria-label="View current reviews or recorded decisions"></div></section>
         <section class="decision-queue" aria-labelledby="decision-queue-title">
           <header class="decision-queue-header"><div class="dashboard-list-heading" role="status" aria-live="polite" aria-atomic="true"><h3 id="decision-queue-title">Active Reviews</h3><p id="dashboard-filter-count" class="dashboard-filter-count"></p></div>
             <div id="queue-help" class="queue-help">
-              <button id="queue-help-trigger" class="help-trigger" type="button" aria-label="How review signals work" aria-describedby="signals-help" aria-expanded="false">?</button>
+              <button id="queue-help-trigger" class="help-trigger" type="button" aria-label="How governance lenses and findings work" aria-describedby="signals-help" aria-expanded="false">?</button>
               <div id="signals-help" class="queue-help-text" role="tooltip" hidden>
               <h4>Material Concern</h4><p>A serious adverse assessment that may call continued investment justification into question and requires formal management attention.</p>
               <h4>Emerging Concern</h4><p>A deteriorating or uncertain assessment that warrants attention or monitoring, but is not currently classified as material.</p>
               <h4>Evidence Gap</h4><p>The reviewer has assessed the area, but information is insufficient for a reliable conclusion.</p>
               <p>Timing urgency is separate from signal severity: due, overdue and escalation states can make a review more urgent.</p>
                <p>Review Trigger explains why the review began. Concerns are findings from the review assessment.</p>
-               <p>These filters are overlapping review lenses; one investment may appear in more than one category.</p>
+               <p>Active Reviews, Overdue, Material Concerns and Evidence Gaps are overlapping current-review lenses; one investment may appear in several categories. Recorded Decisions shows completed outcomes from previous review cycles. A long-lived investment may appear in both current and historical views across different cycles.</p>
               <p>These are transparent prototype conventions. Production criteria and thresholds would be calibrated with DPE during governance design and pilot.</p>
               </div>
             </div>
           </header>
-          <div class="queue-columns queue-grid" aria-hidden="true"><span>Investment</span><span>Review Trigger</span><span>Findings</span><span>Decision Timing</span><span>Next Step</span></div>
+          <div id="dashboard-columns" class="queue-columns queue-grid" aria-hidden="true"><span>Investment</span><span>Review Trigger</span><span>Findings</span><span>Decision Timing</span><span>Next Step</span></div>
           <div id="dashboard-attention" class="decision-queue-list" role="list" aria-labelledby="decision-queue-title"></div>
         </section>
-        <section class="recent-decisions" aria-labelledby="recent-decisions-title"><h3 id="recent-decisions-title">Recent Decisions</h3><div id="dashboard-decisions" class="recent-decision-list"></div></section>
       </section>
 
       <section id="investments-view" aria-label="Portfolio" hidden>
@@ -92,7 +91,6 @@
         </details>
       </section>
 
-      <section id="reviews-view" aria-label="Decisions" hidden><div class="governance-surface"><table class="governance-table decision-register"><caption class="sr-only">Immutable completed decisions, newest first</caption><thead><tr><th scope="col">Investment</th><th scope="col">Review Trigger</th><th scope="col">Decision</th><th scope="col">Decision Date</th><th scope="col">Decision Owner</th><th scope="col">Next Review</th><th scope="col">Next Step</th></tr></thead><tbody id="reviews-body"></tbody></table></div></section>
       <div class="review-layout customer-review">
         <section id="review-chrome" hidden><header class="review-header"><p id="current-review-project"></p><ol id="review-steps" class="steps"><li><span>1</span> Assessment</li><li><span>2</span> Summary</li><li><span>3</span> Decision</li></ol><div id="review-trigger" class="compact-context"></div><p id="workflow-message" class="status-message" role="alert" tabindex="-1" hidden></p><button id="review-back-investment" class="ghost" type="button">Back to Investment</button></header></section>
         <section id="assessment-view" aria-label="Assessment" hidden>

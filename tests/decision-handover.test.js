@@ -6,7 +6,7 @@ const { workspace } = require('./helpers/workspace');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const descendants = el => [el, ...el.children.flatMap(descendants)];
 const byClass = (el, name) => descendants(el).filter(child => (child.className || '').split(' ').includes(name));
-const click = (w, id) => w.elements.get(id).events.click.forEach(callback => callback());
+const click = (w, id) => w.document.getElementById(id).events.click.forEach(callback => callback());
 const change = (w, form) => w.elements.get(form).events.change.forEach(callback => callback());
 const submit = (w, form) => w.elements.get(form).events.submit[0]({ preventDefault() {} });
 function choose(w, group, value) { for (const radio of w.elements.get(group).querySelectorAll('input')) radio.checked = radio.value === value; }
@@ -81,13 +81,13 @@ test('ready hero CTA resumes Summary, exposes five unselected choices, records M
   change(w, 'decision-form'); submit(w, 'decision-form'); assert.equal(w.state.view, 'confirmation');
   assert.equal(w.elements.get('confirmation-outcome').textContent.toUpperCase(), 'MODIFY');
   assert(w.elements.get('confirmation-record').textContent.includes('Alex Lee')); assert(w.elements.get('confirmation-record').textContent.includes('Technology Portfolio Lead'));
-  click(w, 'back-dashboard'); assert(!w.elements.get('dashboard-attention').textContent.includes('Digital Ordering Platform Modernisation'));
-  assert.deepEqual(byClass(w.elements.get('dashboard-cards'), 'pulse-metric').map(metric => metric.children[1].textContent), ['2', String(w.reviewRules.dashboard(w.state.reviews, w.state.projects.length).overdue), '0', '1']);
+  click(w, 'back-dashboard'); assert.equal(w.elements.get('decision-queue-title').textContent, 'Recorded Decisions'); assert(w.elements.get('dashboard-attention').textContent.includes('Digital Ordering Platform Modernisation'));
+  assert.deepEqual(byClass(w.elements.get('dashboard-cards'), 'pulse-metric').map(metric => metric.children[1].textContent), ['2', String(w.reviewRules.dashboard(w.state.reviews, w.state.projects.length).overdue), '0', '1', '2']);
   const reloaded = workspace({ controller: true, storage: w.map });
   assert.equal(reloaded.services.reviewStore.get('SHOWCASE-ODP-REVIEW').decision.outcome, 'Modify');
-  click(reloaded, 'nav-reviews');
-  const row = reloaded.elements.get('reviews-body').children.find(row => row.children[0].textContent.includes('DPE-IT-ODP-01'));
-  row.children[6].children[0].events.click[0](); assert.equal(reloaded.state.view, 'confirmation');
+  click(reloaded, 'dashboard-filter-recorded');
+  const row = reloaded.elements.get('dashboard-attention').children.find(row => row.textContent.includes('DPE-IT-ODP-01'));
+  byClass(row, 'queue-action-button')[0].events.click[0](); assert.equal(reloaded.state.view, 'confirmation');
   reset(reloaded); assert.equal(reloaded.services.reviewStore.get('SHOWCASE-ODP-REVIEW').status, 'in_progress');
   assert.equal(reloaded.services.reviewStore.list().length, 4);
 });

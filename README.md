@@ -21,7 +21,9 @@ Reviews/decisions are browser/origin-local. Owners come from an explicitly ficti
 
 **Dashboard / Portfolio → Investment → Review → Assessment → Summary → Decision → immutable Decision Record**
 
-An investment is a long-lived portfolio object with **0..N reviews**, but only one active review at a time. Dashboard manages current attention through overlapping review lenses; Portfolio shows all loaded investments and their derived governance state; **Decisions** is the completed, read-only decision register. Ready reviews use **Review & Decide** to resume Summary; incomplete ones use **Continue Assessment**.
+Top navigation is **Dashboard | Portfolio**. Dashboard combines current governance attention with portfolio-wide **Recorded Decisions** in one shared list. The first four lenses may overlap; Recorded Decisions counts completed review records, not distinct investments. Portfolio retains all loaded investments, including those with no reviews or decisions.
+
+An investment has **0..N reviews**, but only one active review at a time. Investment Detail provides evidence/current state and investment-specific Review History. Review is a workflow, not a navigation destination. Ready reviews use **Review & Decide** to resume Summary; incomplete ones use **Continue Assessment**. After recording, **Back to Dashboard** opens Recorded Decisions once; ordinary Dashboard navigation defaults to Active Reviews.
 
 Inspect an investment before **Start Review**. After a non-Stop decision, a future stage gate or material trigger may warrant **Start New Review**: a new cycle, never an edit or reopening of the old decision. Investment **Review History** preserves completed cycles. Stop has no normal restart path. A recorded Next Review is a human checkpoint, not an automatic review-creation timer.
 

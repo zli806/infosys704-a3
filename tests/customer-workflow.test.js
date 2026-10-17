@@ -81,7 +81,7 @@ test('executive pulse uses real open-review counts, includes escalated overdue d
   const records = [review('a', { risk: 'High', deliveryPerformance: 'At risk', costPosition: 'Insufficient information' }, '2020-01-01T00:00:00Z'), review('b', { risk: 'High' }), { ...review('c', { risk: 'High' }), status: 'decision_recorded', decision: { timestamp: new Date().toISOString(), outcome: 'Stop' } }];
   const before = JSON.stringify(records); w.governanceUI.renderDashboard(records, 5, () => {});
   const metrics = classes(w.elements.get('dashboard-cards'), 'pulse-metric');
-  assert.deepEqual(metrics.map(metric => metric.children[1].textContent), ['2', '1', '1', '1']);
+  assert.deepEqual(metrics.map(metric => metric.children[1].textContent), ['2', '1', '1', '1', '1']);
   assert.equal(JSON.stringify(records), before); assert.equal(classes(w.elements.get('dashboard-attention'), 'decision-queue-row').length, 2);
   w.governanceUI.renderDashboard([], 0, () => {}); assert.equal(classes(w.elements.get('dashboard-attention'), 'decision-queue-row').length, 0); assert.match(w.elements.get('dashboard-attention').textContent, /No active reviews/);
   w.governanceUI.renderDashboard(records, 5, () => {}, false); assert(classes(w.elements.get('dashboard-cards'), 'pulse-metric').every(metric => metric.children[1].textContent === 'Unavailable'));

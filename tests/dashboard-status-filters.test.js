@@ -19,14 +19,14 @@ test('default Active Reviews and every selected metric show exactly their matchi
   const w = workspace(), records = w.services.reviewStore.seedShowcase(); const before = JSON.stringify(records);
   w.governanceUI.showView('dashboard'); w.governanceUI.renderDashboard(records, 10, () => {});
   assert.deepEqual(selected(w), ['active']); assert.equal(rows(w).length, 3);
-  assert.deepEqual(buttons(w).map(b => b.children[0].textContent), ['Active Reviews', 'Overdue', 'Material Concerns', 'Evidence Gaps']);
+  assert.deepEqual(buttons(w).map(b => b.children[0].textContent), ['Active Reviews', 'Overdue', 'Material Concerns', 'Evidence Gaps', 'Recorded Decisions']);
   assert(buttons(w).every(b => b.tag === 'button' && b.type === 'button' && b.getAttribute('aria-controls') === 'dashboard-attention'));
   const list = w.elements.get('dashboard-attention');
-  for (const [key, heading, noun] of [['active', 'Active Reviews', 'reviews'], ['overdue', 'Overdue Decisions', 'review'], ['material', 'Investments with Material Concerns', 'investment'], ['gap', 'Investments with Evidence Gaps', 'investment']]) {
+  for (const [key, heading, noun] of [['active', 'Active Reviews', 'reviews'], ['overdue', 'Overdue Decisions', 'review'], ['material', 'Investments with Material Concerns', 'investment'], ['gap', 'Investments with Evidence Gaps', 'investment'], ['recorded', 'Recorded Decisions', 'decision']]) {
     select(w, key); assert.deepEqual(selected(w), [key]); assert.equal(w.elements.get('dashboard-attention'), list);
     assert.equal(rows(w).length, count(w, key)); assert.equal(w.elements.get('decision-queue-title').textContent, heading);
     const n = rows(w).length; assert.equal(w.elements.get('dashboard-filter-count').textContent, `${n} ${key === 'active' ? noun : n === 1 ? noun : noun + 's'}`);
-    assert(rows(w).every(row => row.dataset.reviewId !== 'SHOWCASE-LRP-DECISION'));
+    assert(rows(w).every(row => key === 'recorded' ? row.dataset.reviewId === 'SHOWCASE-LRP-DECISION' : row.dataset.reviewId !== 'SHOWCASE-LRP-DECISION'));
   }
   select(w, 'gap'); assert.deepEqual(selected(w), ['gap']); // Selecting the active control cannot leave the group unselected.
   assert.equal(JSON.stringify(records), before); assert.equal(w.state.view, 'dashboard');
@@ -81,12 +81,11 @@ test('selection persists through help interactions and data refresh; empty filte
   assert.match(w.elements.get('dashboard-attention').textContent, /No active investments with evidence gaps/); assert.equal(button(w, 'gap').disabled, false);
 });
 
-test('returning from another page defaults to Active Reviews; Recent Decisions stays independent of filter clicks', () => {
-  const w = workspace({ controller: true }); const recent = w.elements.get('dashboard-decisions').children[0], before = w.map.get(w.services.reviewStore.STORAGE_KEY);
-  for (const key of ['material', 'gap', 'overdue', 'active']) { select(w, key); assert.equal(w.elements.get('dashboard-decisions').children[0], recent); }
+test('returning from Portfolio defaults to Active Reviews and browsing all lenses never changes persisted records', () => {
+  const w = workspace({ controller: true }); const before = w.map.get(w.services.reviewStore.STORAGE_KEY);
+  for (const key of ['material', 'gap', 'overdue', 'recorded', 'active']) { select(w, key); assert.equal(w.map.get(w.services.reviewStore.STORAGE_KEY), before); }
   select(w, 'gap'); w.elements.get('nav-investments').events.click[0](); assert.equal(w.state.view, 'investments');
   assert.equal(w.elements.get('projects-body').children.length, w.state.projects.length); assert.equal(w.elements.get('page-eyebrow').hidden, false);
-  w.elements.get('nav-reviews').events.click[0](); assert.equal(w.state.view, 'reviews');
   w.elements.get('nav-dashboard').events.click[0](); assert.equal(w.state.view, 'dashboard'); assert.deepEqual(selected(w), ['active']); assert.equal(rows(w).length, 3); assert.equal(w.elements.get('page-eyebrow').hidden, true);
   assert.equal(w.map.get(w.services.reviewStore.STORAGE_KEY), before);
 });

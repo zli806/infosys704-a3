@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const { workspace } = require('./helpers/workspace');
 const tick = () => new Promise(resolve => setImmediate(resolve));
-const click = (w, id) => w.elements.get(id).events.click[0]();
+const click = (w, id) => w.document.getElementById(id).events.click[0]();
 const descendants = el => [el, ...el.children.flatMap(descendants)];
 const buttonIn = el => descendants(el).find(el => el.tag === 'button');
 const rows = (w, id) => w.elements.get(id).children.filter(row => row.dataset.reviewId);
@@ -18,13 +18,12 @@ const draft = outcome => ({ outcome, rationale: 'Accountable unit judgement', re
 
 test('navigation and Dashboard orientation use customer terminology without changing the four attention lenses', () => {
   const html = readFileSync('index.html', 'utf8');
-  assert.match(html, /id="nav-dashboard"[^>]*>Dashboard/); assert.match(html, /id="nav-investments"[^>]*>Portfolio/); assert.match(html, /id="nav-reviews"[^>]*>Decisions/);
+  assert.match(html, /id="nav-dashboard"[^>]*>Dashboard/); assert.match(html, /id="nav-investments"[^>]*>Portfolio/); assert(!html.includes('nav-reviews'));
   assert.match(html, /class="queue-columns queue-grid"[^>]*><span>Investment<\/span><span>Review Trigger<\/span><span>Findings<\/span><span>Decision Timing<\/span><span>Next Step/);
-  assert(html.includes('These filters are overlapping review lenses; one investment may appear in more than one category.'));
+  assert(html.includes('overlapping current-review lenses')); assert(html.includes('both current and historical views across different cycles'));
   assert(!html.includes('Why is this flagged?'));
   const w = workspace({ controller: true });
-  click(w, 'nav-reviews'); assert.equal(w.elements.get('page-title').textContent, 'Decisions'); assert.equal(w.elements.get('nav-reviews').getAttribute('aria-current'), 'page');
-  click(w, 'nav-investments'); assert.equal(w.elements.get('nav-investments').getAttribute('aria-current'), 'page'); assert.equal(w.elements.get('nav-reviews').getAttribute('aria-current'), null);
+  click(w, 'nav-investments'); assert.equal(w.elements.get('nav-investments').getAttribute('aria-current'), 'page'); assert.equal(w.elements.get('nav-dashboard').getAttribute('aria-current'), null);
   buttonIn(w.elements.get('projects-body').children[0]).events.click[0](); assert.equal(w.state.view, 'summary'); assert.equal(w.elements.get('nav-investments').getAttribute('aria-current'), 'page');
 });
 
@@ -76,7 +75,7 @@ test('non-Stop decision stays immutable while Start New Review creates a fresh s
   assert.equal(JSON.stringify(store.get(oldID)), old); click(w, 'review-back-investment'); await tick();
   assert.equal(w.elements.get('start-review').textContent, 'Continue Assessment'); assert.deepEqual(rows(w, 'investment-history-body').map(row => row.dataset.reviewId), [oldID]);
   click(w, 'nav-investments'); const portfolio = w.elements.get('projects-body').children[0]; assert(portfolio.textContent.includes('Assessment in progress')); assert(portfolio.textContent.includes('Modify')); assert.equal(buttonIn(portfolio).textContent, 'Continue Assessment');
-  click(w, 'nav-reviews'); assert(rows(w, 'reviews-body').some(row => row.dataset.reviewId === oldID)); assert(!rows(w, 'reviews-body').some(row => row.dataset.reviewId === id));
+  click(w, 'nav-dashboard'); click(w, 'dashboard-filter-recorded'); assert(rows(w, 'dashboard-attention').some(row => row.dataset.reviewId === oldID)); assert(!rows(w, 'dashboard-attention').some(row => row.dataset.reviewId === id));
   click(w, 'nav-dashboard'); const metric = w.elements.get('dashboard-cards').children[0]; assert.equal(metric.children[1].textContent, '3'); assert(w.elements.get('dashboard-attention').textContent.includes(fresh.project.ProjectDescription));
   const reloaded = workspace({ controller: true, storage: w.map }); assert.equal(reloaded.services.reviewStore.list().filter(r => r.project.ProjectUUID === fresh.project.ProjectUUID).length, 2); assert.equal(JSON.stringify(reloaded.services.reviewStore.get(oldID)), old);
 });
@@ -98,30 +97,30 @@ test('Stop controller guard prevents accidental restart even if the hidden start
   const before = w.map.get(w.services.reviewStore.STORAGE_KEY); click(w, 'start-review'); assert.equal(w.state.view, 'confirmation'); assert.equal(w.map.get(w.services.reviewStore.STORAGE_KEY), before);
 });
 
-test('Decision Register and investment history sort completed decisions by timestamp, not review-open time, with deterministic ties', () => {
+test('Dashboard recorded decisions and investment history sort by decision timestamp, not review-open time, with deterministic ties', () => {
   const w = workspace(), ready = w.services.showcase.seededReviews()[0], other = w.services.showcase.seededReviews()[1];
   const make = (id, timestamp, opened, project = ready.project) => ({ ...ready, id, project, reviewOpenedAt: opened, status: 'decision_recorded', decision: { ...draft('Continue'), timestamp, owner: 'Unit owner' } });
   const older = make('old', '2026-09-01T10:00:00Z', '2026-08-28T10:00:00Z'), latest = make('latest', '2026-10-17T10:00:00Z', '2026-08-01T10:00:00Z');
   const tie = { ...latest, id: 'tie' }, unrelated = make('unrelated', '2026-10-10T10:00:00Z', '2026-10-01T10:00:00Z', other.project);
   const input = [ready, older, unrelated, tie, latest], before = JSON.stringify(input); let opened;
-  w.governanceUI.renderReviews(input, id => { opened = id; }); assert.deepEqual(rows(w, 'reviews-body').map(row => row.dataset.reviewId), ['latest', 'tie', 'unrelated', 'old']);
-  for (const row of rows(w, 'reviews-body')) { assert.equal(row.children.length, 7); buttonIn(row).events.click[0](); assert.equal(opened, row.dataset.reviewId); }
+  w.governanceUI.renderDashboard(input, 2, id => { opened = id; }); click(w, 'dashboard-filter-recorded'); assert.deepEqual(rows(w, 'dashboard-attention').map(row => row.dataset.reviewId), ['latest', 'tie', 'unrelated', 'old']);
+  for (const row of rows(w, 'dashboard-attention')) { assert.equal(row.children[0].children.length, 5); buttonIn(row).events.click[0](); assert.equal(opened, row.dataset.reviewId); }
   w.governanceUI.details(ready.project, ready.evidence, input, false, true, id => { opened = id; });
   assert.deepEqual(rows(w, 'investment-history-body').map(row => row.dataset.reviewId), ['latest', 'tie', 'old']);
   for (const row of rows(w, 'investment-history-body')) { assert.equal(row.children.length, 6); buttonIn(row).events.click[0](); assert.equal(opened, row.dataset.reviewId); }
   assert.equal(w.governanceUI.portfolioState(ready.project, input).latest.id, 'latest'); assert.equal(JSON.stringify(input), before);
   const differentOffset = make('offset', '2026-10-17T23:30:00-10:00', '2026-08-01T10:00:00Z');
   assert.equal(w.governanceUI.completedReviews([latest, differentOffset])[0].id, 'offset');
-  w.governanceUI.renderReviews([ready], () => {}); assert.match(w.elements.get('reviews-body').textContent, /No decisions recorded yet/);
+  w.governanceUI.renderDashboard([ready], 1, () => {}); assert.match(w.elements.get('dashboard-attention').textContent, /No decisions recorded yet/);
   w.governanceUI.details(other.project, other.evidence, [ready]); assert.match(w.elements.get('investment-history-body').textContent, /No completed reviews/);
 });
 
-test('historical investment missing from live portfolio remains readable through register and history callbacks', async () => {
+test('historical investment missing from live portfolio remains readable through Dashboard and history callbacks', async () => {
   const source = workspace(), store = source.services.reviewStore; store.seedShowcase();
   const original = store.get('SHOWCASE-LRP-DECISION'), missing = JSON.parse(JSON.stringify(original)); missing.id = 'missing-history';
   missing.project = { ...original.project, ProjectUUID: '11111111-2222-3333-4444-555555555555', Project: 'HISTORICAL-ONLY', ProjectDescription: 'Historical snapshot' };
   const raw = JSON.parse(source.map.get(store.STORAGE_KEY)); raw.reviews.push(missing); source.map.set(store.STORAGE_KEY, JSON.stringify(raw));
-  const w = workspace({ controller: true, storage: source.map }); click(w, 'nav-reviews'); buttonIn(rows(w, 'reviews-body').find(row => row.dataset.reviewId === missing.id)).events.click[0]();
+  const w = workspace({ controller: true, storage: source.map }); click(w, 'dashboard-filter-recorded'); buttonIn(rows(w, 'dashboard-attention').find(row => row.dataset.reviewId === missing.id)).events.click[0]();
   assert.equal(w.state.view, 'confirmation'); assert.equal(w.state.currentReviewID, missing.id); assert.equal(w.state.selectedFromSnapshot, true); assert(w.elements.get('confirmation-record').textContent.includes('HISTORICAL-ONLY'));
   click(w, 'return-investment'); await tick(); assert.equal(w.state.view, 'detail'); assert.deepEqual(rows(w, 'investment-history-body').map(row => row.dataset.reviewId), [missing.id]);
   buttonIn(rows(w, 'investment-history-body')[0]).events.click[0](); assert.equal(w.state.currentReviewID, missing.id); assert.equal(w.state.view, 'confirmation');
@@ -133,7 +132,7 @@ test('unavailable storage never claims Monitoring or empty history and cannot cr
   assert.equal(w.elements.get('projects-body').children.length, 5); assert(w.elements.get('projects-body').textContent.includes('Governance unavailable'));
   buttonIn(w.elements.get('projects-body').children[3]).events.click[0](); await tick(); assert.equal(w.state.view, 'detail');
   assert.equal(w.elements.get('start-review').disabled, true); assert.equal(w.elements.get('view-last-decision').hidden, true); assert.match(w.elements.get('investment-history-body').textContent, /storage unavailable/);
-  click(w, 'start-review'); assert.equal(w.state.view, 'detail'); click(w, 'nav-reviews'); assert.match(w.elements.get('reviews-body').textContent, /storage unavailable/);
+  click(w, 'start-review'); assert.equal(w.state.view, 'detail'); click(w, 'nav-dashboard'); w.governanceUI.showView('dashboard', 'recorded'); assert.match(w.elements.get('dashboard-attention').textContent, /storage unavailable/);
 });
 
 test('a past recorded Next Review checkpoint does not automatically create another review', () => {

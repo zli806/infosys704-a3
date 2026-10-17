@@ -22,9 +22,9 @@ test('dashboard pulse distinguishes investments from signals and keeps queue act
   let opened;
   w.governanceUI.renderDashboard([first, second, completed], 5, id => { opened = id; });
   const metrics = byClass(w.elements.get('dashboard-cards'), 'pulse-metric');
-  assert.deepEqual(metrics.map(metric => metric.children[0].textContent), ['Active Reviews', 'Overdue', 'Material Concerns', 'Evidence Gaps']);
+  assert.deepEqual(metrics.map(metric => metric.children[0].textContent), ['Active Reviews', 'Overdue', 'Material Concerns', 'Evidence Gaps', 'Recorded Decisions']);
   // Both open test records share one project identity; two material findings do not mean two investments.
-  assert.deepEqual(metrics.map(metric => metric.children[1].textContent), ['2', '2', '1', '1']);
+  assert.deepEqual(metrics.map(metric => metric.children[1].textContent), ['2', '2', '1', '1', '1']);
   assert.equal(w.elements.get('dashboard-portfolio-count').textContent, '5 investments monitored');
   const items = byClass(w.elements.get('dashboard-attention'), 'decision-queue-row'); assert.equal(items.length, 2);
   assert.equal(byClass(items[0], 'queue-signal').length, 1);

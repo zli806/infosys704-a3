@@ -16,7 +16,7 @@ function record(rules, id, days, assessment = {}) {
 test('showcase pulse counts one material investment, not its three adverse signals; monitored count is dynamic', () => {
   const w = workspace(), records = w.services.reviewStore.seedShowcase();
   w.governanceUI.renderDashboard(records, 12, () => {});
-  assert.deepEqual(pulse(w), ['3', String(w.reviewRules.dashboard(records, 12).overdue), '1', '1']);
+  assert.deepEqual(pulse(w), ['3', String(w.reviewRules.dashboard(records, 12).overdue), '1', '1', '1']);
   assert.equal(w.elements.get('dashboard-portfolio-count').textContent, '12 investments monitored');
   const hero = rows(w).find(row => row.dataset.reviewId === 'SHOWCASE-ODP-REVIEW');
   assert.deepEqual(byClass(hero, 'queue-signal').map(signal => signal.textContent), ['3 Material', '2 Emerging']);
@@ -32,7 +32,7 @@ test('pulse independently counts active records, overdue reviews, distinct mater
   const completed = { ...material, id: 'closed', status: 'decision_recorded', decision: { outcome: 'Modify', timestamp: new Date().toISOString() } };
   const records = [material, another, gap, unassessed, completed], before = JSON.stringify(records);
   w.governanceUI.renderDashboard(records, 8, () => {});
-  assert.deepEqual(pulse(w), ['4', '2', '1', '1']); assert.equal(JSON.stringify(records), before);
+  assert.deepEqual(pulse(w), ['4', '2', '1', '1', '1']); assert.equal(JSON.stringify(records), before);
   assert.equal(rows(w).length, 4); assert(rows(w).some(row => row.dataset.reviewId === 'unassessed'));
 });
 
@@ -63,11 +63,13 @@ test('fully assessed normal review is still actionable without fabricating a fla
 
 test('empty and unavailable queues/decisions are truthful, with no fabricated counts or stale rows', () => {
   const w = workspace(); w.governanceUI.renderDashboard([], 0, () => {});
-  assert.deepEqual(pulse(w), ['0', '0', '0', '0']); assert.match(w.elements.get('dashboard-attention').textContent, /No active reviews/);
-  assert.match(w.elements.get('dashboard-decisions').textContent, /No decisions recorded/);
+  assert.deepEqual(pulse(w), ['0', '0', '0', '0', '0']); assert.match(w.elements.get('dashboard-attention').textContent, /No active reviews/);
+  w.document.getElementById('dashboard-filter-recorded').events.click[0](); assert.match(w.elements.get('dashboard-attention').textContent, /No decisions recorded/);
+  w.document.getElementById('dashboard-filter-active').events.click[0]();
   const records = w.services.reviewStore.seedShowcase(); w.governanceUI.renderDashboard(records, 5, () => {}); assert.equal(rows(w).length, 3);
-  w.governanceUI.renderDashboard(records, 5, () => {}, false); assert.deepEqual(pulse(w), ['Unavailable', 'Unavailable', 'Unavailable', 'Unavailable']); assert.equal(rows(w).length, 0);
-  assert.match(w.elements.get('dashboard-attention').textContent, /unavailable/); assert.match(w.elements.get('dashboard-decisions').textContent, /could not be read/);
+  w.governanceUI.renderDashboard(records, 5, () => {}, false); assert.deepEqual(pulse(w), ['Unavailable', 'Unavailable', 'Unavailable', 'Unavailable', 'Unavailable']); assert.equal(rows(w).length, 0);
+  assert.match(w.elements.get('dashboard-attention').textContent, /unavailable/);
+  w.governanceUI.showView('dashboard', 'recorded'); assert.match(w.elements.get('dashboard-attention').textContent, /unavailable/); assert.equal(rows(w).length, 0);
 });
 
 test('question help opens on hover and focus, stays hoverable, is dismissible with Escape, supports touch and closes on navigation', () => {
@@ -80,17 +82,17 @@ test('question help opens on hover and focus, stays hoverable, is dismissible wi
   assert(dismissed); assert.equal(text.hidden, true); trigger.events.blur[0]();
   // A real pointer/touch click can focus the button before click fires; it must not immediately close the help.
   trigger.events.focus[0](); trigger.events.click[0](); assert.equal(text.hidden, false); trigger.events.click[0](); assert.equal(text.hidden, true);
-  wrapper.events.mouseenter[0](); assert.equal(text.hidden, false); w.governanceUI.showView('reviews'); assert.equal(text.hidden, true);
+  wrapper.events.mouseenter[0](); assert.equal(text.hidden, false); w.governanceUI.showView('investments'); assert.equal(text.hidden, true);
   w.governanceUI.showView('investments'); assert.equal(w.elements.get('page-title').textContent, 'Portfolio'); assert.equal(w.elements.get('nav-investments').getAttribute('aria-current'), 'page'); assert.equal(w.elements.get('dashboard-portfolio-count').hidden, true);
   w.governanceUI.showView('dashboard'); assert.equal(w.elements.get('page-title').textContent, 'Portfolio Governance'); assert.equal(w.elements.get('dashboard-portfolio-count').hidden, false);
 });
 
-test('recent recorded outcome/date/action uses the normal callback without duplicating a portfolio CTA', () => {
+test('recorded outcome/date/action reuses the shared queue with the normal historical callback', () => {
   const w = workspace(), records = w.services.reviewStore.seedShowcase(); let selected;
   w.governanceUI.renderDashboard(records, 5, id => { selected = id; });
-  const recent = byClass(w.elements.get('dashboard-decisions'), 'recent-decision-row'); assert.equal(recent.length, 1);
-  assert(recent[0].textContent.includes('Legacy Reporting Consolidation')); assert.equal(byClass(recent[0], 'recent-outcome')[0].textContent, 'Stop');
-  assert.equal(recent[0].children[2].dateTime, '2026-09-02T12:00:00.000Z'); recent[0].children[3].events.click[0](); assert.equal(selected, 'SHOWCASE-LRP-DECISION');
+  w.document.getElementById('dashboard-filter-recorded').events.click[0](); const recorded = rows(w); assert.equal(recorded.length, 1);
+  assert(recorded[0].textContent.includes('Legacy Reporting Consolidation')); assert.equal(byClass(recorded[0], 'governance-chip')[0].textContent, 'Stop');
+  assert.equal(byClass(recorded[0], 'queue-timing')[0].children[1].dateTime, '2026-09-02T12:00:00.000Z'); byClass(recorded[0], 'queue-action-button')[0].events.click[0](); assert.equal(selected, 'SHOWCASE-LRP-DECISION');
 });
 
 test('all row actions share the same style while timing retains urgency and callbacks', () => {
@@ -113,7 +115,8 @@ test('shared shell and Dashboard contain only the requested navigation, regions 
   assert.match(html, /id="queue-help-trigger"[^>]*aria-label="[^"]+"[^>]*aria-describedby="signals-help"/); assert.match(html, /id="signals-help"[^>]*role="tooltip"[^>]*hidden/);
   const dashboard = html.slice(html.indexOf('<section id="dashboard-view"'), html.indexOf('<section id="investments-view"'));
   assert(!dashboard.includes('Decisions Recorded')); assert(!dashboard.includes('Governance Attention Profile')); assert(!dashboard.includes('Needs Attention'));
-  for (const label of ['Active Reviews', 'Recent Decisions', 'Material Concern', 'Emerging Concern', 'Evidence Gap', 'calibrated with DPE']) assert(dashboard.includes(label));
+  for (const label of ['Active Reviews', 'Recorded Decisions', 'Material Concern', 'Emerging Concern', 'Evidence Gap', 'calibrated with DPE']) assert(dashboard.includes(label));
+  for (const retired of ['Recent Decisions', 'dashboard-decisions', 'recent-decisions-title', 'nav-reviews', 'reviews-view', 'reviews-body']) assert(!html.includes(retired));
   assert(!dashboard.includes('Portfolio Pulse')); assert(dashboard.includes('class="queue-columns queue-grid"'));
   const w = workspace(); w.governanceUI.renderDashboard(w.services.reviewStore.seedShowcase(), 5, () => {});
   assert(!w.elements.get('dashboard-attention').textContent.includes('Why is this flagged?')); assert(!css.includes('.flag-explanation'));
