@@ -14,7 +14,7 @@ REQUIRED_IDS = (
     "raw-gl-response", "gl-diagnostic", "raw-gl-diagnostic",
     "po-panel", "load-po-evidence", "po-project", "po-message", "po-error", "po-summary", "po-body", "raw-po-response",
     "skip-link", "nav-dashboard", "nav-investments", "nav-how-it-works", "how-it-works-view", "how-dashboard", "how-portfolio", "page-title", "storage-notice", "investment-history-title", "investment-history-body",
-    "dashboard-view", "dashboard-cards", "dashboard-columns", "page-eyebrow", "decision-queue-title", "dashboard-filter-count",
+    "dashboard-view", "dashboard-cards", "dashboard-columns", "decision-queue-title", "dashboard-filter-count",
     "investments-view", "detail-view", "investment-context", "detail-review-status", "start-review", "view-last-decision",
     "detail-lifecycle-overview", "reload-lifecycle", "load-review-evidence", "detail-financial-overview", "detail-procurement-overview",
     "workspace-view", "workspace-current", "workspace-history", "workspace-tab-overview", "workspace-tab-current", "workspace-tab-history",

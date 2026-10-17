@@ -27,7 +27,7 @@ test('ten-investment fixture produces independent investment-level 40/10/30/10/2
     const button = metric(w, key), ring = button.children[2];
     assert.equal(ring.getAttribute('aria-hidden'), 'true'); assert.equal(ring.hidden, false); assert(!all(ring).some(el => el.tag === 'button'));
     assert.match(button.getAttribute('aria-label'), new RegExp(`${counts(w)[index]} investment.*${shares(w)[index].slice(0, -1)} percent of the current investment universe`));
-    assert.match(button.title, /overlap.*do not sum to 100%/); assert.match(ring.children[0].style.background, /conic-gradient\(var\(--metric-tone\)/);
+    assert(!button.title); assert.match(ring.children[0].style.background, /conic-gradient\(var\(--metric-tone\)/);
     click(w, `dashboard-filter-${key}`); assert.equal(rows(w).length, Number(counts(w)[index]));
   }
   assert.equal(JSON.stringify({ projects, records }), before);
@@ -107,5 +107,7 @@ test('normal autosave is silent and takes no layout row; failure recovery, indep
   assert.equal(w.elements.get('review-save-status').textContent, ''); assert.equal(w.elements.get('review-save-status').dataset.state, 'saved');
   assert.match(html, /id="review-save-status" class="sr-only"[^>]*><\/p>/); assert(html.includes('Your edits are still on this screen. Retry before leaving this review.')); assert(!html.includes('✓ Saved'));
   assert.match(html, /Independent percentages may overlap and do not sum to 100 percent/);
-  assert.match(css, /mask:radial-gradient\(farthest-side,transparent calc\(100% - 3px\),#000 0\)/); assert.match(css, /@media \(forced-colors:active\)\s*\{[\s\S]*\.pulse-ring-arc \{ display:none; \}/); assert.match(css, /pulse-metric\[aria-pressed="true"\] \{ outline:2px solid Highlight/); assert.match(css, /\.brand \{ background:#fff; forced-color-adjust:none; \}/);
+  assert.match(css, /\.pulse-ring \{[^}]*width:62px; height:62px/); assert.match(css, /\.pulse-ring \{ width:50px; height:50px/);
+  assert.match(css, /mask:radial-gradient\(farthest-side,transparent calc\(100% - 5px\),#000 0\)/); assert.match(css, /@media \(forced-colors:active\)\s*\{[\s\S]*\.pulse-ring-arc \{ display:none; \}/); assert.match(css, /pulse-metric\[aria-pressed="true"\] \{ outline:2px solid Highlight/); assert.match(css, /\.brand \{ background:#fff; forced-color-adjust:none; \}/);
+  assert(!html.includes('page-eyebrow')); assert(!readFileSync('js/ui/governance.js', 'utf8').includes('Independent share of the represented investment universe.'));
 });

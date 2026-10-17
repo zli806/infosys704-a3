@@ -85,8 +85,8 @@ test('returning from Portfolio defaults to Active Reviews and browsing all lense
   const w = workspace({ controller: true }); const before = w.map.get(w.services.reviewStore.STORAGE_KEY);
   for (const key of ['material', 'gap', 'overdue', 'recorded', 'active']) { select(w, key); assert.equal(w.map.get(w.services.reviewStore.STORAGE_KEY), before); }
   select(w, 'gap'); w.elements.get('nav-investments').events.click[0](); assert.equal(w.state.view, 'investments');
-  assert.equal(w.elements.get('projects-body').children.length, w.state.projects.length); assert.equal(w.elements.get('page-eyebrow').hidden, false);
-  w.elements.get('nav-dashboard').events.click[0](); assert.equal(w.state.view, 'dashboard'); assert.deepEqual(selected(w), ['active']); assert.equal(rows(w).length, 3); assert.equal(w.elements.get('page-eyebrow').hidden, true);
+  assert.equal(w.elements.get('projects-body').children.length, w.state.projects.length); assert.equal(w.elements.get('page-title').textContent, 'Portfolio'); assert(!w.elements.has('page-eyebrow'));
+  w.elements.get('nav-dashboard').events.click[0](); assert.equal(w.state.view, 'dashboard'); assert.deepEqual(selected(w), ['active']); assert.equal(rows(w).length, 3); assert(!w.elements.has('page-eyebrow'));
   assert.equal(w.map.get(w.services.reviewStore.STORAGE_KEY), before);
 });
 

@@ -248,7 +248,6 @@
       metric.disabled = !storageAvailable;
       const percentage = universe.size ? Math.max(0, Math.min(100, Math.round(value / universe.size * 100))) : 0;
       metric.setAttribute("aria-label", `${filter.label}: ${storageAvailable ? `${countLabel(value, "investment")}, ${percentage} percent of the current investment universe` : "Unavailable"}. ${filter.description}.`);
-      metric.title = "Independent share of the represented investment universe. Lenses may overlap; percentages do not sum to 100%.";
       metric.children[1].textContent = storageAvailable ? value : "Unavailable";
       const ring = metric.children[2]; ring.hidden = !storageAvailable;
       ring.children[0].style.background = storageAvailable ? `conic-gradient(var(--metric-tone) ${percentage}%, transparent 0)` : "none";
@@ -570,7 +569,6 @@
     if (view === "detail") el("investment-technical-details").open = false;
     if (!inWorkspace) { el("page-title").textContent = titles[view]; el("page-title").focus(); }
     else { const target = stages.includes(view) ? el(`${view}-view`) : el("detail-project-name"); target.setAttribute("tabindex", "-1"); target.focus({ preventScroll: true }); }
-    el("page-eyebrow").hidden = view !== "investments";
     for (const name of ["dashboard", "investments"]) {
       const active = view === name || name === "investments" && inWorkspace;
       if (active) el(`nav-${name}`).setAttribute("aria-current", "page"); else el(`nav-${name}`).removeAttribute("aria-current");
