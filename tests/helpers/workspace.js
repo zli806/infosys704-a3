@@ -29,6 +29,8 @@ function workspace({ fetchImpl, storage, controller = false, key = '', serviceOv
   }
   function descendants(element) { return [element, ...element.children.flatMap(descendants)]; }
   const document = {
+    events: {},
+    addEventListener(name, callback) { (this.events[name] ||= []).push(callback); },
     getElementById(id) {
       const existing = [...elements.values()].flatMap(descendants).find(element => element.id === id);
       if (existing) return existing;
@@ -49,7 +51,7 @@ function workspace({ fetchImpl, storage, controller = false, key = '', serviceOv
     for (const [name, methods] of Object.entries(serviceOverrides)) Object.assign(context.window.DPEApp.services[name], methods);
     runInNewContext(readFileSync(join(__dirname, '../../app.js'), 'utf8'), context, { filename: 'app.js' });
   } else context.window.DPEApp.governanceUI.bind({ saveDraft() {} });
-  return { ...context.window.DPEApp, elements, runtime: context.window.DPEApp, map, directory, fixtures: context.window.DPE_SHOWCASE_PORTFOLIO,
+  return { ...context.window.DPEApp, elements, document, runtime: context.window.DPEApp, map, directory, fixtures: context.window.DPE_SHOWCASE_PORTFOLIO,
     confirmReset(value) { confirmResult = value; } };
 }
 module.exports = { workspace, directory };

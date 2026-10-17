@@ -76,7 +76,7 @@ test('ready hero CTA resumes Summary, exposes five unselected choices, records M
   assert.equal(w.elements.get('confirmation-outcome').textContent.toUpperCase(), 'MODIFY');
   assert(w.elements.get('confirmation-record').textContent.includes('Alex Lee')); assert(w.elements.get('confirmation-record').textContent.includes('Technology Portfolio Lead'));
   click(w, 'back-dashboard'); assert(!w.elements.get('dashboard-attention').textContent.includes('Digital Ordering Platform Modernisation'));
-  assert.deepEqual(byClass(w.elements.get('dashboard-cards'), 'metric').map(card => card.children[1].textContent), ['2', '0', '1', '2']);
+  assert.deepEqual(byClass(w.elements.get('dashboard-cards'), 'pulse-metric').map(metric => metric.children[1].textContent), ['2', String(w.reviewRules.dashboard(w.state.reviews, w.state.projects.length).overdue), '0', '1']);
   const reloaded = workspace({ controller: true, storage: w.map });
   assert.equal(reloaded.services.reviewStore.get('SHOWCASE-ODP-REVIEW').decision.outcome, 'Modify');
   click(reloaded, 'nav-reviews');
@@ -159,35 +159,30 @@ test('structured findings match the frozen signal convention and never read SAP/
   assert.equal(r.signalBreakdown({ assessment: r.defaultAssessment() }).length, 0);
 });
 
-test('Dashboard reveals exact dimensional reasons, four native category drill-downs and truthful signal-versus-review counts without navigation', () => {
+test('Decision Queue stays action-focused while project-specific findings remain in Review Summary', () => {
   const w = workspace(), ui = w.governanceUI, records = w.services.reviewStore.seedShowcase(); const before = JSON.stringify(records);
   ui.renderDashboard(records, 5, () => {});
   const attention = w.elements.get('dashboard-attention'), explanations = byClass(attention, 'flag-explanation');
-  assert.equal(explanations.length, 3); assert(explanations.every(details => !details.open));
-  assert(explanations[0].textContent.includes('Delivery Performance — Off track')); assert(explanations[0].textContent.includes('Cost Position — Material variance')); assert(explanations[0].textContent.includes('Risk — High'));
-  explanations[0].open = true; ui.renderDashboard(records, 5, () => {}); assert.equal(byClass(attention, 'flag-explanation')[0].open, true);
-  const buttons = byClass(w.elements.get('attention-profile'), 'chart-select'); assert(buttons.every(button => button.tag === 'button' && button.type === 'button' && button.getAttribute('aria-controls') === 'attention-breakdown'));
-  const target = w.elements.get('attention-breakdown'); assert.equal(target.hidden, true);
-  for (const [category, expected] of [['material', '3 assessment signals across 1 open review'], ['emerging', '7 assessment signals across 3 open reviews'], ['gap', '1 assessment signal across 1 open review'], ['overdue', 'Decision due']]) {
-    const button = buttons.find(button => button.dataset.category === category); assert(!button.disabled); button.events.click[0]();
-    assert.equal(target.hidden, false); assert(target.textContent.includes(expected)); assert.equal(button.getAttribute('aria-expanded'), 'true');
-    assert(!target.textContent.includes('Legacy Reporting Consolidation')); assert(!target.textContent.includes('Store Technology Infrastructure Refresh'));
-  }
-  const close = descendants(target).find(el => el.tag === 'button'); close.events.click[0](); assert.equal(target.hidden, true); assert.equal(buttons.find(button => button.dataset.category === 'overdue').focused, true);
+  assert.equal(explanations.length, 0); assert(!attention.textContent.includes('Why is this flagged?'));
+  const rows = byClass(attention, 'decision-queue-row');
+  assert.deepEqual(rows.map(row => byClass(row, 'queue-signals')[0].children[1].children.map(signal => signal.textContent)), [['3 Material', '2 Emerging'], ['4 Emerging'], ['1 Emerging', '1 Evidence Gap']]);
+  ui.reviewSummary(records.find(record => record.id === 'SHOWCASE-ODP-REVIEW'));
+  for (const finding of ['Delivery is off track', 'Cost position assessed as Material variance', 'High project risk']) assert(w.elements.get('review-summary').textContent.includes(finding));
+  ui.reviewSummary(records.find(record => record.id === 'SHOWCASE-DAT-REVIEW')); assert(w.elements.get('review-summary').textContent.includes('Cost position cannot yet be fully assessed'));
+  assert(!attention.textContent.includes('Legacy Reporting Consolidation')); assert(!attention.textContent.includes('Store Technology Infrastructure Refresh'));
   assert.equal(w.state.view, 'dashboard'); assert.equal(JSON.stringify(records), before);
 });
 
-test('timing-only flags do not invent concerns; zero categories are disabled and refreshed data clears stale explanations', () => {
+test('timing-only urgency stays visible without inventing concerns or extra per-row explanation controls', () => {
   const w = workspace(), r = w.reviewRules, ui = w.governanceUI;
   const record = { id: 'timing-only', project: { Project: 'Unit timing context' }, status: 'in_progress', reviewOpenedAt: '2020-01-01T00:00:00Z', assessment: r.defaultAssessment() };
   ui.renderDashboard([record], 1, () => {});
-  const why = byClass(w.elements.get('dashboard-attention'), 'flag-explanation')[0]; assert(why.textContent.includes('Timing requires attention')); assert(why.textContent.includes('Escalation threshold reached'));
-  for (const label of ['Material Concerns', 'Emerging Concerns', 'Evidence Gaps']) assert(!why.textContent.includes(label));
-  const buttons = byClass(w.elements.get('attention-profile'), 'chart-select'); assert(buttons.filter(button => button.disabled).length === 3);
-  buttons.find(button => button.dataset.category === 'overdue').events.click[0](); assert.equal(w.elements.get('attention-breakdown').hidden, false);
-  ui.renderDashboard([], 0, () => {}); assert.equal(w.elements.get('attention-breakdown').hidden, true); assert.equal(w.elements.get('attention-breakdown').textContent, '');
-  const records = w.services.reviewStore.seedShowcase(); ui.renderDashboard(records, 5, () => {}); byClass(w.elements.get('attention-profile'), 'chart-select')[0].events.click[0]();
-  ui.renderDashboard(records, 5, () => {}, false); assert.equal(w.elements.get('attention-breakdown').hidden, true);
+  const queue = w.elements.get('dashboard-attention'); assert.equal(byClass(queue, 'flag-explanation').length, 0); assert(queue.textContent.includes('Escalation threshold reached'));
+  for (const label of ['Material Concerns', 'Emerging Concerns', 'Evidence Gaps', 'Why is this flagged?']) assert(!queue.textContent.includes(label));
+  assert(byClass(w.elements.get('dashboard-attention'), 'queue-signals')[0].textContent.includes('Assessment in progress'));
+  ui.renderDashboard([], 0, () => {}); assert.equal(byClass(w.elements.get('dashboard-attention'), 'flag-explanation').length, 0);
+  const records = w.services.reviewStore.seedShowcase(); ui.renderDashboard(records, 5, () => {});
+  ui.renderDashboard(records, 5, () => {}, false); assert.equal(byClass(w.elements.get('dashboard-attention'), 'decision-queue-row').length, 0); assert.match(w.elements.get('dashboard-attention').textContent, /unavailable/);
 });
 
 test('static guidance remains progressive and explicit about human judgement, with no classification hints beside assessment inputs', () => {
@@ -196,7 +191,7 @@ test('static guidance remains progressive and explicit about human judgement, wi
   assert(html.includes('Select one outcome. Assessment signals inform this decision but do not determine it.'));
   assert(html.includes('These signals support governance judgement; they do not automatically select an outcome.'));
   assert(html.includes('This review contains material concerns. Explain how the selected outcome addresses them.'));
-  assert.match(html, /<details id="signals-help"[^>]*><summary>How signals work/); assert(!html.match(/<details id="signals-help"[^>]*\bopen\b/));
+  assert.match(html, /id="queue-help-trigger"[^>]*aria-describedby="signals-help"/); assert.match(html, /<div id="signals-help"[^>]*role="tooltip"[^>]*hidden/);
   const assessment = html.slice(html.indexOf('<section id="assessment-view"'), html.indexOf('<section id="summary-view"'));
   assert(!assessment.includes('SIGNAL_RULES')); assert(!assessment.includes('Material Concern')); assert(!assessment.includes('Emerging Concern'));
   for (const word of ['Recommended outcome', 'Suggested decision', 'Auto-decision', 'Override decision']) assert(!html.includes(word));

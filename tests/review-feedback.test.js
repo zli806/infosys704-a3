@@ -94,10 +94,11 @@ test('session project count explains saved records after refresh without loading
   const { reviewRules: rules, governanceUI: ui, elements } = workspace();
   const reviews = [record(rules)]; const before = JSON.stringify(reviews);
   ui.renderDashboard(reviews, 0, () => {});
-  assert(elements.get('dashboard-cards').textContent.includes('0 investments available'));
+  assert.equal(elements.get('dashboard-portfolio-count').textContent, '0 investments monitored');
   assert(!elements.get('dashboard-cards').textContent.includes('Load SAP Projects'));
   assert.equal(JSON.stringify(reviews), before);
   ui.renderDashboard(reviews, 5, () => {});
+  assert.equal(elements.get('dashboard-portfolio-count').textContent, '5 investments monitored');
   assert(!elements.get('dashboard-cards').textContent.includes('refresh the current portfolio view'));
   ui.renderDashboard([], 0, () => {});
   assert(!elements.get('dashboard-cards').textContent.includes('refresh the current portfolio view'));

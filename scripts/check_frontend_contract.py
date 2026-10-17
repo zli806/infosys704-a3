@@ -14,7 +14,7 @@ REQUIRED_IDS = (
     "raw-gl-response", "gl-diagnostic", "raw-gl-diagnostic",
     "po-panel", "load-po-evidence", "po-project", "po-message", "po-error", "po-summary", "po-body", "raw-po-response",
     "nav-dashboard", "nav-investments", "nav-reviews", "page-title", "storage-notice",
-    "dashboard-view", "dashboard-cards", "dashboard-view-investments", "dashboard-open-reviews", "dashboard-decisions",
+    "dashboard-view", "dashboard-cards", "dashboard-decisions", "dashboard-portfolio-count", "page-eyebrow", "decision-queue-title", "dashboard-filter-count", "queue-help", "queue-help-trigger", "recent-decisions-title",
     "investments-view", "detail-view", "investment-context", "detail-review-status", "start-review", "view-last-decision",
     "detail-lifecycle-overview", "reload-lifecycle", "load-review-evidence", "detail-financial-overview", "detail-procurement-overview",
     "reviews-view", "reviews-body", "review-chrome", "current-review-project", "review-steps",
@@ -26,9 +26,9 @@ REQUIRED_IDS = (
     "decision-next-date", "back-summary", "confirm-decision", "confirmation-view", "confirmation-record", "return-investment", "back-dashboard",
     "dashboard-attention", "review-trigger", "governance-directory-status", "decision-owner-help",
     "decision-follow-up", "decision-follow-up-title", "confirmation-outcome",
-    "attention-profile", "project-refresh-error", "retry-projects", "project-diagnostics", "investment-technical-details", "technical-evidence-context", "decision-incomplete",
+    "project-refresh-error", "retry-projects", "project-diagnostics", "investment-technical-details", "technical-evidence-context", "decision-incomplete",
     "detail-source", "showcase-investment-context", "technical-source", "showcase-project-payload", "raw-showcase-project", "reset-showcase",
-    "attention-breakdown", "signals-help", "decision-context-title", "decision-context-counts", "decision-rationale-help",
+    "signals-help", "decision-context-title", "decision-context-counts", "decision-rationale-help",
     "summary-decision-overview", "decision-next-date-help",
 )
 REQUIRED_SCRIPTS = (

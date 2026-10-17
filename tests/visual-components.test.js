@@ -15,20 +15,21 @@ function record(rules, assessment = {}) {
     decisionDraft: { outcome: '', rationale: '', requiredAction: '', actionOwner: '', nextReviewDate: '' } };
 }
 
-test('dashboard uses governance metrics, separate session context and actionable attention anatomy', () => {
+test('dashboard pulse distinguishes investments from signals and keeps queue actions functional', () => {
   const w = workspace(); const first = record(w.reviewRules, { risk: 'High' });
   const second = { ...record(w.reviewRules, { costPosition: 'Insufficient information', futureEconomicValue: 'Negative' }), id: 'second' };
   const completed = { ...first, id: 'closed', status: 'decision_recorded', decision: { outcome: 'Modify', timestamp: '2026-01-02T00:00:00Z' } };
   let opened;
   w.governanceUI.renderDashboard([first, second, completed], 5, id => { opened = id; });
-  const cards = byClass(w.elements.get('dashboard-cards'), 'status-card');
-  assert.deepEqual(cards.map(card => card.children[0].textContent), ['Open Reviews', 'Material Concerns', 'Evidence Gaps', 'Decisions Recorded']);
-  assert.deepEqual(cards.map(card => card.children[1].textContent), ['2', '2', '1', '1']);
-  assert.equal(byClass(w.elements.get('dashboard-cards'), 'session-context').length, 1);
-  const items = byClass(w.elements.get('dashboard-attention'), 'attention-item'); assert.equal(items.length, 2);
-  assert.equal(byClass(items[0], 'attention-count').length, 1);
-  assert(items[0].textContent.includes(first.reviewBasis) && items[0].textContent.includes('days overdue'));
-  byClass(items[0], 'attention-action')[0].events.click[0](); assert.equal(opened, first.id);
+  const metrics = byClass(w.elements.get('dashboard-cards'), 'pulse-metric');
+  assert.deepEqual(metrics.map(metric => metric.children[0].textContent), ['Active Reviews', 'Overdue', 'Material Concerns', 'Evidence Gaps']);
+  // Both open test records share one project identity; two material findings do not mean two investments.
+  assert.deepEqual(metrics.map(metric => metric.children[1].textContent), ['2', '2', '1', '1']);
+  assert.equal(w.elements.get('dashboard-portfolio-count').textContent, '5 investments monitored');
+  const items = byClass(w.elements.get('dashboard-attention'), 'decision-queue-row'); assert.equal(items.length, 2);
+  assert.equal(byClass(items[0], 'queue-signal').length, 1);
+  assert(items[0].textContent.includes(first.reviewBasis) && items[0].textContent.includes(w.reviewRules.timing(first).status));
+  byClass(items[0], 'queue-action')[0].children[0].events.click[0](); assert.equal(opened, first.id);
 });
 
 test('six-dimension matrix uses explicit input and existing categorical signals, not numeric scoring', () => {

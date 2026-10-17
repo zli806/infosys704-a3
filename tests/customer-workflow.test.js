@@ -75,17 +75,16 @@ test('switching projects ignores late structure responses and starts dependent r
   assert.deepEqual(s.calls, [['financial', 'CURRENT-EXACT-ID'], ['procurement', 'CURRENT-EXACT-ID']]);
 });
 
-test('attention chart uses real open-review counts including escalation, excluding recorded decisions and empty fake bars', () => {
+test('executive pulse uses real open-review counts, includes escalated overdue decisions and excludes recorded reviews', () => {
   const w = workspace(); const r = w.reviewRules;
   const review = (id, assessment, opened = new Date().toISOString()) => ({ id, project, status: 'in_progress', reviewOpenedAt: opened, reviewBasis: r.BASIS[1], assessment });
   const records = [review('a', { risk: 'High', deliveryPerformance: 'At risk', costPosition: 'Insufficient information' }, '2020-01-01T00:00:00Z'), review('b', { risk: 'High' }), { ...review('c', { risk: 'High' }), status: 'decision_recorded', decision: { timestamp: new Date().toISOString(), outcome: 'Stop' } }];
   const before = JSON.stringify(records); w.governanceUI.renderDashboard(records, 5, () => {});
-  const rows = classes(w.elements.get('attention-profile'), 'chart-row');
-  assert.deepEqual(rows.map(row => row.children[2].textContent), ['2', '1', '1', '1']);
-  assert.deepEqual(rows.map(row => row.children[1].children[0].style.width), ['100%', '50%', '50%', '50%']);
-  assert.equal(JSON.stringify(records), before); assert(!w.elements.get('dashboard-open-reviews').textContent.includes(project.Project));
-  w.governanceUI.renderDashboard([], 0, () => {}); assert.equal(classes(w.elements.get('attention-profile'), 'chart-bar').length, 0); assert.equal(w.elements.get('attention-profile').textContent, 'No active review signals yet.');
-  w.governanceUI.renderDashboard(records, 5, () => {}, false); assert.equal(classes(w.elements.get('attention-profile'), 'chart-bar').length, 0);
+  const metrics = classes(w.elements.get('dashboard-cards'), 'pulse-metric');
+  assert.deepEqual(metrics.map(metric => metric.children[1].textContent), ['2', '1', '1', '1']);
+  assert.equal(JSON.stringify(records), before); assert.equal(classes(w.elements.get('dashboard-attention'), 'decision-queue-row').length, 2);
+  w.governanceUI.renderDashboard([], 0, () => {}); assert.equal(classes(w.elements.get('dashboard-attention'), 'decision-queue-row').length, 0); assert.match(w.elements.get('dashboard-attention').textContent, /No active reviews/);
+  w.governanceUI.renderDashboard(records, 5, () => {}, false); assert(classes(w.elements.get('dashboard-cards'), 'pulse-metric').every(metric => metric.children[1].textContent === 'Unavailable'));
 });
 
 test('simplified form reports missing items only on request, retains human outcomes and store validation', () => {

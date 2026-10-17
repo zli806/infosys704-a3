@@ -19,9 +19,9 @@ Reviews/decisions are browser/origin-local. Owners come from an explicitly ficti
 
 ## MVP Flow
 
-**Dashboard → Investments → Investment Details → Continuation Review → Summary → Decision → Confirmation**
+**Dashboard → Portfolio → Investment Details → Continuation Review → Summary → Decision → Confirmation**
 
-Ready reviews resume at Summary; incomplete ones resume Assessment. **Make Governance Decision** exposes five human choices: Continue, Continue with Conditions, Modify, Pause or Stop—never a system recommendation. Rationale is required; signals inform, not determine, the outcome. Dashboard categories and collapsed explanations show why reviews are flagged. Review-open time drives the 14/30-day controls; saved evidence is a snapshot, not a fresh SAP call or complete-cost/liability claim.
+Ready reviews resume at Summary; incomplete ones resume Assessment. **Make Governance Decision** exposes five human choices: Continue, Continue with Conditions, Modify, Pause or Stop—never a system recommendation. Rationale is required; signals inform, not determine, the outcome. Dashboard status metrics filter the active-review list; Portfolio retains all investments. Review-open time drives the 14/30-day controls; saved evidence is a snapshot, not a fresh SAP call or complete-cost/liability claim.
 
 ## Team Working Rule
 

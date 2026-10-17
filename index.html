@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DPE IT Investment Governance Hub</title>
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="styles.css">
   <script src="config.local.js" defer></script>
   <script src="api-config.js" defer></script>
@@ -25,37 +26,40 @@
 <body>
   <a class="skip-link" href="#page-title">Skip to main content</a>
   <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand"><span class="brand-mark">DPE</span><h1>IT Investment<span>Governance Hub</span></h1></div>
-      <nav aria-label="Main navigation"><button id="nav-dashboard" type="button">Dashboard</button><button id="nav-investments" type="button">Investments</button><button id="nav-reviews" type="button">Reviews</button></nav>
-      <p class="sidebar-note">Evidence. Judgement.<br>Accountable decisions.</p>
-    </aside>
+    <header class="app-header">
+      <div class="app-header-inner">
+        <div class="brand"><img class="brand-mark" src="assets/dpe-mark.svg" width="36" height="40" alt="" aria-hidden="true"><div class="brand-lockup"><span class="brand-name">DPE</span><h1>IT Investment Governance Hub</h1></div></div>
+        <nav class="app-nav" aria-label="Main navigation"><button id="nav-dashboard" type="button">Dashboard</button><button id="nav-investments" type="button">Portfolio</button><button id="nav-reviews" type="button">Reviews</button></nav>
+      </div>
+    </header>
     <main>
-      <header class="page-header"><div><p class="eyebrow">Investment Governance</p><h2 id="page-title" tabindex="-1">Dashboard</h2></div><button id="load-projects" class="ghost" type="button" title="Refresh the live SAP Sandbox project list; showcase investments are unchanged" hidden>Refresh SAP Projects</button></header>
+      <header class="page-header"><div><p id="page-eyebrow" class="eyebrow" hidden>Investment Governance</p><h2 id="page-title" tabindex="-1">Portfolio Governance</h2><p id="dashboard-portfolio-count" class="page-context"></p></div><button id="load-projects" class="ghost" type="button" title="Refresh the live SAP Sandbox project list; showcase investments are unchanged" hidden>Refresh SAP Projects</button></header>
       <p id="connection-status" class="refresh-status" role="status" hidden></p>
       <div id="project-refresh-error" class="customer-error" role="alert" hidden><span>Could not refresh SAP project data.</span><button id="retry-projects" class="secondary" type="button">Retry</button><button id="project-diagnostics" class="ghost" type="button">Technical details</button></div>
       <p id="storage-notice" class="status-message" role="alert" hidden></p>
 
       <section id="dashboard-view" aria-label="Dashboard">
-        <div id="dashboard-cards" class="cards"></div>
-        <div class="dashboard-columns">
-          <section class="panel attention-panel"><h3>Needs Attention</h3><div id="dashboard-attention" class="attention-list"></div><details class="other-reviews"><summary>Other open reviews</summary><div id="dashboard-open-reviews"></div></details></section>
-          <section class="panel"><h3>Governance Attention Profile</h3><p class="hint">Counts of assessment signals across current open reviews. One review may contribute more than one signal. Overdue reviews counts reviews.</p><div id="attention-profile"></div>
-            <div id="attention-breakdown" class="signal-breakdown" role="region" aria-label="Governance attention breakdown" aria-live="polite" hidden></div>
-            <details id="signals-help" class="signal-help"><summary>How signals work</summary>
-              <h4>Material Concern</h4><p>A serious adverse assessment that may call the continued justification of the investment into question and therefore requires formal management attention.</p>
-              <h4>Emerging Concern</h4><p>A deteriorating or uncertain assessment that warrants management attention or monitoring but is not currently classified as material.</p>
-              <h4>Evidence Gap</h4><p>The reviewer has assessed the area, but available information is insufficient for a reliable conclusion.</p>
-              <p>Signal severity is separate from timing urgency. A review may become more urgent when its decision is due, overdue or reaches escalation.</p>
+        <section class="portfolio-pulse" aria-label="Review status filters"><div id="dashboard-cards" class="pulse-metrics" role="group" aria-label="Filter active reviews by status"></div></section>
+        <section class="decision-queue" aria-labelledby="decision-queue-title">
+          <header class="decision-queue-header"><div class="dashboard-list-heading" role="status" aria-live="polite" aria-atomic="true"><h3 id="decision-queue-title">Active Reviews</h3><p id="dashboard-filter-count" class="dashboard-filter-count"></p></div>
+            <div id="queue-help" class="queue-help">
+              <button id="queue-help-trigger" class="help-trigger" type="button" aria-label="How review signals work" aria-describedby="signals-help" aria-expanded="false">?</button>
+              <div id="signals-help" class="queue-help-text" role="tooltip" hidden>
+              <h4>Material Concern</h4><p>A serious adverse assessment that may call continued investment justification into question and requires formal management attention.</p>
+              <h4>Emerging Concern</h4><p>A deteriorating or uncertain assessment that warrants attention or monitoring, but is not currently classified as material.</p>
+              <h4>Evidence Gap</h4><p>The reviewer has assessed the area, but information is insufficient for a reliable conclusion.</p>
+              <p>Timing urgency is separate from signal severity: due, overdue and escalation states can make a review more urgent.</p>
               <p>Review Trigger explains why the review began. Concerns are findings from the review assessment.</p>
-              <p>These classifications are transparent prototype governance conventions. Production criteria and thresholds would be calibrated with DPE during governance design and pilot.</p>
-            </details>
-          </section>
-        </div>
-        <section class="panel"><div class="section-header"><h3>Recent Decisions</h3><button id="dashboard-view-investments" class="secondary" type="button">View Investments</button></div><div id="dashboard-decisions"></div></section>
+              <p>These are transparent prototype conventions. Production criteria and thresholds would be calibrated with DPE during governance design and pilot.</p>
+              </div>
+            </div>
+          </header>
+          <div id="dashboard-attention" class="decision-queue-list" role="list" aria-labelledby="decision-queue-title"></div>
+        </section>
+        <section class="recent-decisions" aria-labelledby="recent-decisions-title"><h3 id="recent-decisions-title">Recent Decisions</h3><div id="dashboard-decisions" class="recent-decision-list"></div></section>
       </section>
 
-      <section id="investments-view" aria-label="Investments" hidden>
+      <section id="investments-view" aria-label="Portfolio" hidden>
         <p class="view-intro">Select an investment to review its evidence and continuation case.</p>
         <div class="panel"><div class="table-scroll" tabindex="0" role="region" aria-label="Investments"><table><caption class="sr-only">Investments and review status</caption>
           <thead><tr><th scope="col">Project</th><th scope="col">Investment</th><th scope="col">Start</th><th scope="col">End</th><th scope="col">Review Status</th><th scope="col">Action</th></tr></thead>
