@@ -27,6 +27,8 @@ An investment has **0..N reviews**, but only one active review at a time. Invest
 
 Inspect an investment before **Start Review**. After a non-Stop decision, a future stage gate or material trigger may warrant **Start New Review**: a new cycle, never an edit or reopening of the old decision. Investment **Review History** preserves completed cycles. Stop has no normal restart path. A recorded Next Review is a human checkpoint, not an automatic review-creation timer.
 
+An active review supersedes the previous cycle’s Next Review date in current governance views (shown as — in Portfolio). Stop does not schedule a next review; the store also rejects starting a normal review after the latest Stop. Historical decision records remain unchanged.
+
 **Make Governance Decision** exposes five human choices: Continue, Continue with Conditions, Modify, Pause or Stop—never a system recommendation. Rationale is always required; existing conditional follow-up requirements and 14/30-day controls remain. Assessment/evidence snapshots are historical, not fresh SAP calls or complete-cost/liability claims.
 
 ## Team Working Rule

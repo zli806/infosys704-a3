@@ -29,7 +29,8 @@ REQUIRED_IDS = (
     "project-refresh-error", "retry-projects", "project-diagnostics", "investment-technical-details", "technical-evidence-context", "decision-incomplete",
     "detail-source", "showcase-investment-context", "technical-source", "showcase-project-payload", "raw-showcase-project", "reset-showcase",
     "signals-help", "decision-context-title", "decision-context-counts", "decision-rationale-help",
-    "summary-decision-overview", "decision-next-date-help",
+    "summary-decision-overview", "decision-next-date-help", "decision-next-review-field",
+    "decision-action-required", "decision-action-owner-required", "decision-next-date-required",
 )
 REQUIRED_SCRIPTS = (
     "config.local.js", "api-config.js", "js/data/showcase-portfolio.js", "js/core/state.js", "js/core/utils.js", "js/core/review-rules.js",

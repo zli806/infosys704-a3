@@ -91,6 +91,7 @@
       const source = document.createElement("span"), synthetic = app.services.showcase?.isShowcase(project);
       source.className = `source ${synthetic ? "showcase" : "sap"}`; source.textContent = synthetic ? "SHOWCASE" : "SAP SANDBOX"; identity.append(source); row.children[0].append(identity);
       const chip = document.createElement("span"); chip.className = "governance-chip"; chip.textContent = governance.label;
+      chip.dataset.state = governance.label.toLowerCase().replace(/ /g, "-");
       row.children[1].replaceChildren(chip);
       const actionCell = document.createElement("td");
       actionCell.dataset.label = "Next Step";

@@ -63,6 +63,7 @@
     values.forEach((value, index) => {
       const label = node("label", undefined, "choice-card"); const input = node("input");
       input.type = "radio"; input.name = id; input.value = value; input.id = `${id}-choice-${index}`;
+      input.required = true;
       const copy = node("span", undefined, "choice-copy"); copy.append(node("strong", value));
       if (id === "decision-outcome") copy.append(node("small", decisionDescriptions[value], "choice-description"));
       const selected = node("span", "Selected", "choice-selected"); selected.setAttribute("aria-hidden", "true"); copy.append(selected);
@@ -168,7 +169,7 @@
     const outcome = latest?.decision.outcome;
     const label = active ? (rules.readiness(active).ready ? "Ready for decision" : "Assessment in progress")
       : outcome === "Stop" ? "Stopped" : outcome === "Pause" ? "Paused" : ["Modify", "Continue with Conditions"].includes(outcome) ? "Follow-up" : "Monitoring";
-    return { label, active, latest, nextReview: outcome === "Stop" ? null : latest?.decision.nextReviewDate || null,
+    return { label, active, latest, nextReview: active || outcome === "Stop" ? null : latest?.decision.nextReviewDate || null,
       nextStep: active ? resumeLabel(active) : outcome === "Stop" ? "View Decision" : "View Investment" };
   }
   const dashboardFilters = [
@@ -364,7 +365,7 @@
   }
   function readDecision() {
     return { outcome: choiceValue("decision-outcome"), rationale: el("decision-rationale").value, owner: ownerRecord.decisionOwner,
-      requiredAction: el("decision-action").value, actionOwner: el("decision-action-owner").value, nextReviewDate: el("decision-next-date").value };
+      requiredAction: el("decision-action").value, actionOwner: el("decision-action-owner").value, nextReviewDate: choiceValue("decision-outcome") === "Stop" ? "" : el("decision-next-date").value };
   }
   function decisionRequirements() {
     const outcome = choiceValue("decision-outcome"); const required = rules.needsActions(outcome);
@@ -372,10 +373,16 @@
     if (followUp.dataset.outcome !== outcome) followUp.open = required;
     followUp.dataset.outcome = outcome;
     el("decision-follow-up-title").textContent = required ? "Required follow-up action" : outcome ? "Optional follow-up action" : "Follow-up action";
-    el("decision-requirements").textContent = required ? "Required action, action owner and next review date are required for this outcome." : outcome
-      ? "Action, action owner and next review date are optional for Continue / Stop. Rationale and decision owner remain required."
+    el("decision-requirements").textContent = required ? "Required action, action owner and next review date are required for this outcome." : outcome === "Stop"
+      ? "Stop ends the continuation path; no next review is scheduled. Closure actions are optional. Rationale and decision owner remain required." : outcome
+      ? "Action, action owner and next review date are optional for Continue. Rationale and decision owner remain required."
       : "Select a decision to see its follow-up requirements. Continue with Conditions, Modify and Pause require an action, action owner and next review date.";
-    for (const id of ["decision-action", "decision-action-owner", "decision-next-date"]) el(id).required = required;
+    for (const id of ["decision-action", "decision-action-owner", "decision-next-date"]) {
+      el(id).required = required;
+      el(`${id}-required`).hidden = !required;
+    }
+    el("decision-next-review-field").hidden = outcome === "Stop";
+    el("decision-next-date").disabled = outcome === "Stop";
     const date = el("decision-next-date").value;
     el("decision-next-date-help").textContent = rules.validDate(date)
       ? `Selected date: ${shortDate(date)}. Use the calendar to change it.`
