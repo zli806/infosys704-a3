@@ -15,7 +15,7 @@ Showcase cases are synthetic records shaped to the downloaded SAP API specificat
 
 Reviews/decisions are browser/origin-local. Owners come from an explicitly fictional prototype governance directory, not SAP/DPE staff. Keep the same preview address to resume records. Empty SAP joins and storage failures remain visible.
 
-**Reset Showcase** in the footer restores the presentation baseline after confirmation, removing only showcase reviews/decisions—not other local records or SAP configuration. Normal refresh preserves your decisions. Fixed scenario dates are historical; overdue counts use the real clock (the initial 3/7/1 signal profile has one overdue review on 15 October 2026).
+**Reset Showcase** restores the presentation baseline after explicit confirmation: it clears **all this app’s local reviews, drafts and decisions, including SAP Sandbox reviews**, then restores **3 active Showcase reviews and 1 historical Stop decision**. This cannot be undone. SAP data, loaded projects, API configuration and other browser-storage keys are unchanged. Normal refresh still preserves your decisions. Scenario dates are historical; overdue counts use the real clock.
 
 ## MVP Flow
 

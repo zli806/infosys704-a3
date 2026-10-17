@@ -151,7 +151,8 @@
     const showcase = app.services.showcase;
     const seeds = showcase.seededReviews();
     const existing = list(); // Malformed/unavailable storage must never be erased.
-    const records = reset ? existing.filter(record => !showcase.isShowcase(record.project)) : existing;
+    // Explicit prototype reset clears all local governance cycles, not SAP data or other storage keys.
+    const records = reset ? [] : existing;
     const additions = seeds.filter(seed => !records.some(record => record.id === seed.id)
       && !(seed.status === "in_progress" && rules.activeReview(records, seed.project.ProjectUUID)));
     if (!reset && !additions.length) return records;

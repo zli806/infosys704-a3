@@ -23,15 +23,17 @@
     return result;
   }
   function seedShowcase(reset = false) {
-    try { store.seedShowcase({ reset }); refreshRecords(); return true; }
+    try { store.seedShowcase({ reset }); return refreshRecords(); }
     catch (error) { state.storageError = error.message; governance.storageNotice(error.message); return false; }
   }
   function resetShowcase() {
-    if (!window.confirm("Reset showcase reviews and decisions to the synthetic presentation baseline? All showcase edits and decisions will be removed. Other local reviews and SAP configuration are kept.")) return;
+    if (!window.confirm("Reset all local reviews and decision records (Showcase and SAP Sandbox)? This cannot be undone. The default Showcase baseline will be restored: 3 active reviews and 1 historical decision. SAP data, loaded projects and API key will not change.")) return;
     if (!canLeaveReview() || !seedShowcase(true)) return;
-    if (showcase.isShowcase(state.selectedProject)) resetElementSelection();
+    freshlyRecordedDecisionID = null; pendingReviewStart = null;
+    resetElementSelection();
     state.view = "dashboard"; governance.showView("dashboard"); refreshGovernance();
     ui.renderProjects(state.projects, state.selectedProject, loadProjectElements);
+    ui.toast({ title: "Showcase reset", message: "All local reviews and decisions reset. Default showcase restored.", kind: "neutral", duration: 4500 });
   }
   function currentReview() { return state.reviews.find(record => record.id === state.currentReviewID) || null; }
   function busy() { return !!(state.elementController || state.glController || state.poController); }
