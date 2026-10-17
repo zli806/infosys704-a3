@@ -10,7 +10,7 @@
   let directoryError = "";
   let ownerRecord = { decisionOwner: "", decisionOwnerId: "", decisionOwnerSnapshot: null };
   const dateTime = value => value && !Number.isNaN(Date.parse(value)) ? new Intl.DateTimeFormat("en-NZ", { year: "numeric", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(new Date(value)) + " UTC" : "—";
-  const shortDate = value => value && !Number.isNaN(Date.parse(value)) ? new Intl.DateTimeFormat("en-NZ", { year: "numeric", month: "short", day: "2-digit", timeZone: "UTC" }).format(new Date(value)) : "—";
+  const shortDate = value => app.ui.formatDate(value);
   function node(tag, text, className) { const result = document.createElement(tag); if (text !== undefined) result.textContent = String(text); if (className) result.className = className; return result; }
   function pairs(container, entries) {
     const list = node("dl", undefined, "key-values");
@@ -35,18 +35,20 @@
     container.hidden = !synthetic; container.replaceChildren(); if (!synthetic) return;
     const context = app.services.showcase.financialContext(project);
     container.append(node("p", "SHOWCASE CONTEXT", "component-eyebrow"), node("h3", "Investment Context"), node("p", context.stageLabel, "hint"));
-    const grid = node("div", undefined, "investment-metrics");
+    const primary = node("div", undefined, "investment-metrics investment-primary");
+    const supporting = node("div", undefined, "investment-metrics investment-supporting");
     const variance = context.forecastVariance === null ? "Not validated" : `${compactAmount(context.forecastVariance, true)} (${Number(context.variancePercent) > 0 ? "+" : ""}${context.variancePercent}%)`;
-    for (const [label, amount, display] of [["Approved Investment", context.approvedInvestment], ["Posted Financial Activity", context.postedFinancialActivity],
-      [context.historical ? "Forecast before Stop" : "Forecast at Completion", context.forecastAtCompletion], ["Forecast Variance", context.forecastVariance, variance],
-      [context.historical ? "Remaining Forecast Investment before Stop" : "Remaining Forecast Investment", context.remainingForecastInvestment],
-      ["PO-linked Procurement Activity", context.procurementActivity], ["Not-finally-invoiced PO-linked amount", context.notFinallyInvoiced]]) {
+    for (const [label, amount, display, target] of [["Approved Investment", context.approvedInvestment, null, primary],
+      [context.historical ? "Forecast before Stop" : "Forecast at Completion", context.forecastAtCompletion, null, primary], ["Forecast Variance", context.forecastVariance, variance, primary],
+      ["Posted Financial Activity", context.postedFinancialActivity, null, supporting],
+      [context.historical ? "Remaining Forecast Investment before Stop" : "Remaining Forecast Investment", context.remainingForecastInvestment, null, supporting],
+      ["PO-linked Procurement Activity", context.procurementActivity, null, supporting], ["Not-finally-invoiced PO-linked amount", context.notFinallyInvoiced, null, supporting]]) {
       const metric = node("div"); const value = node("strong", display || compactAmount(amount));
       value.title = amount === null ? "Not validated; no numeric forecast inferred" : `AUD ${amount}`;
-      metric.append(node("p", label), value); grid.append(metric);
+      metric.append(node("p", label), value); target.append(metric);
     }
     const dates = node("p", `Planned completion ${shortDate(context.plannedCompletion)} · Forecast completion ${context.forecastCompletion ? shortDate(context.forecastCompletion) : "Not validated"}`, "hint");
-    container.append(grid, dates, node("p", context.reviewReason, "context-reason"));
+    container.append(node("p", context.reviewReason, "context-reason"), primary, dates, supporting);
     if (context.historical) container.append(node("small", "Synthetic pre-Stop position, not a current continuation plan."));
   }
   const decisionDescriptions = {
@@ -112,7 +114,7 @@
         else if (item.status !== "success") guidance = "Waiting for project structure.";
         if (guidance) container.append(node("p", guidance, "evidence-note"));
         if (item.status === "success" && item.linkedRecordCount === 0) container.append(node("small", key === "po" ? "This does not establish that procurement exposure is zero." : "This does not establish that project cost is zero.", "evidence-note"));
-        if (key === "gl" && item.linkedRecordCount > 0) container.append(node("small", "Recorded activity, not complete project cost.", "evidence-note"));
+        if (key === "gl" && item.linkedRecordCount > 0) container.append(node("small", "Recorded activity, not complete project cost. Reviewers assess separately whether information is sufficient.", "evidence-note"));
       }
       if (sourceDetails) for (const line of evidenceLines(key, evidence)) container.append(node("p", line));
       if (item.hasMore) container.append(node("p", "Additional pages are available. This is a partial snapshot.", "evidence-note"));
@@ -359,9 +361,15 @@
     const followUp = el("decision-follow-up");
     if (followUp.dataset.outcome !== outcome) followUp.open = required;
     followUp.dataset.outcome = outcome;
-    el("decision-follow-up-title").textContent = required ? "Required follow-up action" : "Optional follow-up action";
-    el("decision-requirements").textContent = required ? "Required action, action owner and next review date are required for this outcome." : "Action, action owner and next review date are optional for Continue / Stop. Rationale and decision owner remain required.";
+    el("decision-follow-up-title").textContent = required ? "Required follow-up action" : outcome ? "Optional follow-up action" : "Follow-up action";
+    el("decision-requirements").textContent = required ? "Required action, action owner and next review date are required for this outcome." : outcome
+      ? "Action, action owner and next review date are optional for Continue / Stop. Rationale and decision owner remain required."
+      : "Select a decision to see its follow-up requirements. Continue with Conditions, Modify and Pause require an action, action owner and next review date.";
     for (const id of ["decision-action", "decision-action-owner", "decision-next-date"]) el(id).required = required;
+    const date = el("decision-next-date").value;
+    el("decision-next-date-help").textContent = rules.validDate(date)
+      ? `Selected date: ${shortDate(date)}. Use the calendar to change it.`
+      : "Use the calendar to choose a date, or enter it in your browser’s date format.";
   }
   function chrome(record, busy) {
     ownerRecord = record;
@@ -412,9 +420,17 @@
   }
   function reviewSummary(record) {
     const target = el("review-summary"); target.replaceChildren();
+    const signals = rules.reviewSignals(record), control = rules.timing(record);
+    const decisionOverview = el("summary-decision-overview");
+    decisionOverview.dataset.tone = signals.materialConcerns.length ? "material" : signals.evidenceGaps.length ? "gap" : signals.attentionItems.length ? "emerging" : "neutral";
+    decisionOverview.replaceChildren(node("p", signals.materialConcerns.length ? "Management Attention Required" : "Review Findings", "summary-context-label"),
+      node("p", [countLabel(signals.materialConcerns.length, "material concern"), countLabel(signals.attentionItems.length, "emerging concern"), countLabel(signals.evidenceGaps.length, "evidence gap")].join(" · "), "summary-signal-counts"),
+      node("p", `${control.status} · Decision due ${shortDate(control.decisionTarget)}`, "summary-deadline"),
+      node("p", `Decision Owner: ${record.decisionOwnerSnapshot?.name || record.decisionOwner || "Not selected"}${record.decisionOwnerSnapshot?.role ? ` · ${record.decisionOwnerSnapshot.role}` : ""}`, "summary-owner"));
     executiveSnapshot(target, record);
     renderTiming(section(target, "Governance Timeline"), record);
     const evidence = section(target, "Evidence Reviewed");
+    evidence.append(node("p", "Evidence availability describes retrieved records. Evidence Gap reflects the reviewer’s assessment of whether information is sufficient.", "hint"));
     for (const [key, title] of [["lifecycle", "Project Structure"], ["gl", "Financial Activity"], ["po", "Procurement Activity"]]) {
       const row = node("div", undefined, "evidence-row"); row.append(node("h4", title));
       const state = node("div"); overview(state, key, record.evidence, false, false);
@@ -440,7 +456,7 @@
       const followUp = section(target, "Follow-up"); const fields = node("div", undefined, "record-actions");
       for (const [title, value] of [["Required Action", decision.requiredAction], ["Action Owner", decision.actionOwner], ["Next Review", decision.nextReviewDate]]) {
         if (!value) continue;
-        const field = node("section"); field.append(node("h4", title), node("p", value)); fields.append(field);
+        const field = node("section"); field.append(node("h4", title), node("p", title === "Next Review" ? shortDate(value) : value)); fields.append(field);
       }
       followUp.append(fields);
     }
@@ -468,7 +484,7 @@
     el("workflow-message").hidden = true;
     el("decision-incomplete").hidden = true;
     document.querySelector("main").dataset.view = view;
-    el("load-projects").hidden = !["dashboard", "investments"].includes(view);
+    el("load-projects").hidden = view !== "investments";
     window.scrollTo({ top: 0, behavior: "instant" });
   }
   function growTextareas() { for (const input of document.querySelectorAll("textarea")) { if (input.offsetParent !== null) { input.style.height = "auto"; input.style.height = Math.max(110, input.scrollHeight + 2) + "px"; } } }

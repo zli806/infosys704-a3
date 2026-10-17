@@ -1,12 +1,12 @@
 # Frontend UI Contract
 
-This contract covers the customer workflow and retained SAP diagnostics. `js/ui/renderers.js` owns evidence tables/status; `js/ui/governance.js` owns navigation/forms/summaries. The checker requires 116 IDs. Implementation, contract and checks must change together.
+This contract covers the customer workflow and retained SAP diagnostics. `js/ui/renderers.js` owns evidence tables/status; `js/ui/governance.js` owns navigation/forms/summaries. The checker requires 118 IDs. Implementation, contract and checks must change together.
 
 ## Functional Hooks
 
 | Area | ID | Role / expected element behaviour |
 | --- | --- | --- |
-| Projects | `load-projects` | Secondary live Refresh SAP Data; showcase renders/seeds immediately, then live projects auto-load with a key without leaving Dashboard. Failures keep showcase available. |
+| Projects | `load-projects` | Secondary live Refresh SAP Projects on Investments only; showcase renders/seeds immediately, then live projects auto-load with a key without leaving Dashboard. Failures keep showcase available. |
 | Projects | `connection-status` | Connection status text. |
 | Projects | `message` | Status text and `data-kind` styling. |
 | Projects | `error-details` | Safe error body text; supports `hidden`. |
@@ -51,7 +51,7 @@ All of these are functional IDs (in addition to the SAP hooks above):
 | Reviews | `reviews-view`, `reviews-body` | Local-record list with six-column rows and resume/view actions. |
 | Shared review context | `review-chrome`, `current-review-project`, `review-steps`, `workflow-message`, `review-back-investment` | Step indicator, compact trigger/due date, submit-only missing-fields message and back navigation. No persistent control rail. |
 | Assessment | `assessment-view`, `assessment-form`, `review-basis`, `assessment-alignment`, `assessment-benefits`, `assessment-delivery`, `assessment-financial-evidence`, `assessment-cost`, `assessment-risk`, `assessment-value`, `assessment-comments`, `assessment-dependencies`, `assessment-owner`, `assessment-save-summary` | Review Trigger select, six radio fieldsets, directory-owner dropdown, reviewer text and local save/summary. |
-| Summary | `summary-view`, `review-summary`, `back-assessment`, `proceed-decision` | Review evidence/assessment/control pack; decision progression only when READY and no request pending. |
+| Summary | `summary-view`, `review-summary`, `summary-decision-overview`, `back-assessment`, `proceed-decision` | Decision overview beside the single top-of-summary action; review evidence/assessment/control pack; decision progression only when READY and no request pending. |
 | Decision | `decision-view`, `decision-form`, `decision-outcome`, `decision-rationale`, `decision-owner`, `decision-requirements`, `decision-action`, `decision-action-owner`, `decision-next-date`, `back-summary`, `confirm-decision` | No initial outcome selection; required human decision fields and conditional actions; store revalidates on confirmation. |
 | Confirmation | `confirmation-view`, `confirmation-record`, `return-investment`, `back-dashboard` | Saved immutable prototype record/snapshots and return actions. |
 
@@ -120,7 +120,7 @@ Canonical UI owners:
 
 | Capability | Canonical owner | Source of truth | Allowed variants | Verification |
 | --- | --- | --- | --- | --- |
-| Choices / owner select | Native radios in governance.js; Trigger/owner selects in index.html | Existing enums / validated prototype directory | Visible cards, platform-owned select popup | Defaults / keyboard / requirements / owner carry-through |
+| Select/Listbox | Native radios in governance.js; Trigger/owner selects in index.html | Existing enums / validated prototype directory | Visible cards, platform-owned select popup | Defaults / keyboard / requirements / owner carry-through |
 | Date | Native date input / UI English formatter | Existing UTC date and rules contract | Browser/OS picker; en-NZ UTC display | UTC presentation test / date entry |
 | Form | Rule/store validation and governance.js binding | review-rules.js / review-store.js | Assessment / decision | Missing readiness / conditional decision / retained input |
 | Scrollbar | Global styles.css baseline | DESIGN.md / styles.css | Table horizontal overflow; raw-data bounded scroller | Narrow layout / keyboard scroll |
@@ -133,3 +133,33 @@ Technical evidence tables retain all columns and the existing bounded API retrie
 Zero matches/partial results are Limited evidence; errors, unavailable/unrequested and loading retain truthful states and explanatory copy. Pending requests supersede saved success badges; readiness still checks attempts, not evidence sufficiency. No scoring/recommendations are added. Comments/dependencies are optional disclosures whose input persists through local drafts; textareas grow. A concise submit-time message replaces permanent readiness/touched-field lists. Source/amount qualifications and raw technical tables remain available in the consolidated disclosure.
 
 Local save feedback reflects visible storage errors. Normal navigation attempts to save drafts and refuses navigation after a failed save. Completed records remain immutable under normal store APIs. The only reset is the explicitly confirmed showcase-scoped prototype action; malformed storage is never silently repaired/erased. No authentication or unsaved-data modal workflow is introduced.
+
+## Final UI refinement (15 October 2026)
+
+Dashboard places Needs Attention first in both DOM and visual order, with the existing count chart secondary. Existing categories, deadlines, disclosures and handlers retain their meaning. Chips use text plus shared semantic surfaces; timing urgency stays separate from assessment concerns.
+
+`summary-decision-overview` is presentation only: current concern/gap counts, decision target/status and the selected owner. It refreshes from the current record whenever Summary renders. The original `proceed-decision` button is moved beside this overview, not duplicated; its controller callback and readiness/owner/pending-request guard remain unchanged. Trigger context remains above; the duplicate trigger-header date is visually omitted on Summary because the same target appears in the overview. The six-dimension matrix uses three desktop columns, two at intermediate narrow widths and one on small phones. Management Attention, the full timeline and qualified evidence remain in the page below.
+
+Showcase context groups approved investment, explicit forecast and calculated variance as primary figures, followed by dates and smaller posted/remaining/procurement figures. The same provider values and qualifications are used; unknown forecasts remain Not validated, negative variance is not reclassified, historical Stop figures keep their pre-Stop labels, and no context figures are added to live SAP projects.
+
+Decision Record uses a small green saved acknowledgement with a neutral outcome heading, so a successful save does not make Modify/Pause/Stop appear to be a positive investment recommendation. Document scrolling, native fields, source badges, raw diagnostics and local record boundaries remain authoritative.
+
+Validation for this refinement: 55 credential-free Node tests, the 117-ID script/HTML contract and application JavaScript syntax pass. Official DESIGN.md lint reports zero errors/warnings. Browser checks on an exact credential-free source copy covered the initial portfolio, a complete keyboard-selected Modify with required follow-up and persistence after reload, rejected empty decision submission, incomplete new review, owner changes carried into Summary, and the Data & Analytics evidence-gap case. At 1280×800 the single Summary action was visible at y357–401; 800px and 390px detail/Summary layouts had no page overflow. A browser-only UI fixture confirmed red overdue-gap / grey current-gap / red current-material borders after a specificity fix. No real SAP requests were run for these presentation changes; this is not a formal cross-browser or WCAG certification. Reset Showcase retains its existing native confirmation and is covered by the controller/store tests, not newly certified through this preview tool.
+
+The supplemental premium strict scanner is not green: 20 literal-button findings do not resolve the existing external event bindings, and four textarea findings do not resolve the shared `textarea { resize:none; }` rule. These remain explicitly reported static limitations; the workflow checks above do not claim every control or accessibility case was independently exercised. The canonical-map naming mismatch was corrected in documentation without changing native control ownership.
+
+
+## Team feedback refinement — 16 October 2026
+
+Harneet’s BA/PO and Dhruv’s first-time-user feedback is addressed without changing the workflow or decision rules:
+
+- Before a decision is selected, Follow-up action explains the conditional requirements without calling them optional. Selecting Continue with Conditions, Modify or Pause expands the existing fields and marks all three required; Continue/Stop remain optional. Switching outcomes preserves the draft.
+- `decision-next-date-help` is an associated calendar/input hint that displays the selected date in the shared English format. The native date picker remains browser/OS-owned; no custom calendar, default date or new date restriction is introduced.
+- The confirmation’s Next Review uses `app.ui.formatDate()`, as do governance date-only displays. Saved and exported ISO values are unchanged, and event timestamps retain explicit UTC times.
+- Refresh SAP Projects is available only on Investments, with its existing request/busy/error behavior. It refreshes live SAP projects; the showcase presentation path has no global refresh action. Automatic configured-key loading and retry remain unchanged.
+- Financial activity still does not imply complete project expenditure. Evidence Reviewed distinguishes retrieved-record availability from the reviewer-assessed Evidence Gap category. No new assessment or financial rules are introduced.
+
+Recommended demonstration path: Dashboard → Investments → View Investment → Review Summary → Governance Decision → Decision Confirmation → Dashboard. Existing direct Summary shortcuts remain available.
+
+
+Validation for this follow-up: 58 credential-free Node tests and the 118-ID frontend contract pass; application JavaScript syntax, Python parse, diff whitespace and official DESIGN.md lint pass (zero lint errors/warnings). New regression tests were observed failing before the fixes and passing afterward. Real-browser checks covered neutral/no-selection guidance, all five outcome labels, rejected empty Modify submission, retained drafts, calendar-date entry and the formatted preview, saved/reloaded Next Review, the Data & Analytics gap case, Investments-only SAP refresh visibility, and 390px form/record layouts without page overflow. Desktop evidence is captured at 1280px. Screenshots under `docs/ui-review/` use synthetic showcase data; the mobile saved record is explicitly UI QA only. The native calendar popup itself and other browser engines were not certified. No live SAP requests were made. The same 24 supplemental strict-scanner findings described above remain; they are not reported as a passing audit.
