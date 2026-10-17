@@ -15,17 +15,17 @@ function review(r, id, days, assessment = {}) {
     reviewOpenedAt: openedAgo(days), assessment: { ...r.defaultAssessment(), ...assessment }, evidence: r.emptyEvidence() };
 }
 
-test('default Active Reviews and every selected metric show exactly their matching record count in one shared list', () => {
+test('default Active Reviews and every selected metric show exactly their matching investment count in one shared list', () => {
   const w = workspace(), records = w.services.reviewStore.seedShowcase(); const before = JSON.stringify(records);
-  w.governanceUI.showView('dashboard'); w.governanceUI.renderDashboard(records, 10, () => {});
+  w.governanceUI.showView('dashboard'); w.governanceUI.renderDashboard(records, w.services.showcase.projects(), () => {});
   assert.deepEqual(selected(w), ['active']); assert.equal(rows(w).length, 3);
-  assert.deepEqual(buttons(w).map(b => b.children[0].textContent), ['Active Reviews', 'Overdue', 'Material Concerns', 'Evidence Gaps', 'Recorded Decisions']);
+  assert.deepEqual(buttons(w).map(b => b.children[0].textContent), ['Active Reviews', 'Overdue', 'Material Concerns', 'Evidence Gaps', 'Reviewed Investments']);
   assert(buttons(w).every(b => b.tag === 'button' && b.type === 'button' && b.getAttribute('aria-controls') === 'dashboard-attention'));
   const list = w.elements.get('dashboard-attention');
-  for (const [key, heading, noun] of [['active', 'Active Reviews', 'reviews'], ['overdue', 'Overdue Decisions', 'review'], ['material', 'Investments with Material Concerns', 'investment'], ['gap', 'Investments with Evidence Gaps', 'investment'], ['recorded', 'Recorded Decisions', 'decision']]) {
+  for (const [key, heading] of [['active', 'Active Reviews'], ['overdue', 'Overdue Decisions'], ['material', 'Investments with Material Concerns'], ['gap', 'Investments with Evidence Gaps'], ['recorded', 'Reviewed Investments']]) {
     select(w, key); assert.deepEqual(selected(w), [key]); assert.equal(w.elements.get('dashboard-attention'), list);
     assert.equal(rows(w).length, count(w, key)); assert.equal(w.elements.get('decision-queue-title').textContent, heading);
-    const n = rows(w).length; assert.equal(w.elements.get('dashboard-filter-count').textContent, `${n} ${key === 'active' ? noun : n === 1 ? noun : noun + 's'}`);
+    const n = rows(w).length; assert.equal(w.elements.get('dashboard-filter-count').textContent, `${n} investment${n === 1 ? '' : 's'}`);
     assert(rows(w).every(row => key === 'recorded' ? row.dataset.reviewId === 'SHOWCASE-LRP-DECISION' : row.dataset.reviewId !== 'SHOWCASE-LRP-DECISION'));
   }
   select(w, 'gap'); assert.deepEqual(selected(w), ['gap']); // Selecting the active control cannot leave the group unselected.
@@ -36,8 +36,8 @@ test('several material signals and even duplicate investment references count as
   const w = workspace(), r = w.reviewRules;
   const material = review(r, 'first', 20, { risk: 'High', costPosition: 'Material variance', deliveryPerformance: 'Off track' });
   const duplicate = { ...review(r, 'duplicate', 1, { risk: 'High' }), project: material.project };
-  w.governanceUI.renderDashboard([duplicate, material], 2, () => {});
-  assert.equal(count(w, 'active'), 2); assert.equal(count(w, 'material'), 1);
+  w.governanceUI.renderDashboard([duplicate, material], [], () => {});
+  assert.equal(count(w, 'active'), 1); assert.equal(count(w, 'overdue'), 1); assert.equal(count(w, 'material'), 1);
   select(w, 'material'); assert.equal(rows(w).length, 1); assert.equal(rows(w)[0].dataset.reviewId, material.id);
   assert(byClass(rows(w)[0], 'queue-signals')[0].textContent.includes('3 Material'));
 });
@@ -50,7 +50,7 @@ test('multiple evidence-gap signals still produce one gap investment, while the 
   const gap = review(r, 'gap', 2, { costPosition: 'Insufficient information' });
   const duplicate = { ...gap, id: 'duplicate-gap' };
   const unassessed = review(r, 'unassessed', 0);
-  w.governanceUI.renderDashboard([duplicate, unassessed, gap], 3, () => {});
+  w.governanceUI.renderDashboard([duplicate, unassessed, gap], [], () => {});
   assert.equal(count(w, 'gap'), 1); select(w, 'gap'); assert.equal(rows(w).length, 1);
   assert(byClass(rows(w)[0], 'queue-signals')[0].textContent.includes('2 Evidence Gaps'));
   assert(!w.elements.get('dashboard-attention').textContent.includes('Unit unassessed'));
@@ -62,7 +62,7 @@ test('all filters preserve escalation/overdue/nearest-due ordering with determin
   const tie = review(r, 'tie', 10, assessment); tie.reviewOpenedAt = due.reviewOpenedAt; tie.project.Project = due.project.Project;
   const closed = { ...overdue, id: 'closed', status: 'decision_recorded', decision: { outcome: 'Stop', timestamp: new Date().toISOString() } };
   const input = [fresh, tie, closed, overdue, due, escalation], before = JSON.stringify(input);
-  w.governanceUI.renderDashboard(input, 6, () => {});
+  w.governanceUI.renderDashboard(input, [], () => {});
   for (const key of ['active', 'material', 'gap']) {
     select(w, key); assert.deepEqual(rows(w).map(row => row.dataset.reviewId), ['escalation', 'overdue', 'due', 'tie', 'fresh']); assert.equal(count(w, key), 5);
   }
@@ -72,11 +72,11 @@ test('all filters preserve escalation/overdue/nearest-due ordering with determin
 
 test('selection persists through help interactions and data refresh; empty filters stay selected rather than showing unrelated records', () => {
   const w = workspace(), records = w.services.reviewStore.seedShowcase(); w.governanceUI.showView('dashboard');
-  w.governanceUI.renderDashboard(records, 5, () => {}); select(w, 'gap');
+  w.governanceUI.renderDashboard(records, w.services.showcase.projects(), () => {}); select(w, 'gap');
   const help = w.document.getElementById('metric-help-gap'); help.events.focus[0](); help.events.blur[0](); assert.deepEqual(selected(w), ['gap']);
   w.document.activeElement = button(w, 'gap');
-  const focused = button(w, 'gap'); w.governanceUI.renderDashboard(records, 10, () => {}); assert.deepEqual(selected(w), ['gap']); assert.equal(button(w, 'gap'), focused); assert.equal(rows(w).length, 1);
-  const withoutGap = records.filter(record => record.id !== 'SHOWCASE-DAT-REVIEW'); w.governanceUI.renderDashboard(withoutGap, 10, () => {});
+  const focused = button(w, 'gap'); w.governanceUI.renderDashboard(records, w.services.showcase.projects(), () => {}); assert.deepEqual(selected(w), ['gap']); assert.equal(button(w, 'gap'), focused); assert.equal(rows(w).length, 1);
+  const withoutGap = records.filter(record => record.id !== 'SHOWCASE-DAT-REVIEW'); w.governanceUI.renderDashboard(withoutGap, w.services.showcase.projects(), () => {});
   assert.deepEqual(selected(w), ['gap']); assert.equal(count(w, 'gap'), 0); assert.equal(rows(w).length, 0); assert.equal(w.elements.get('dashboard-filter-count').textContent, '0 investments');
   assert.match(w.elements.get('dashboard-attention').textContent, /No active investments with evidence gaps/); assert.equal(button(w, 'gap').disabled, false);
 });
@@ -91,7 +91,7 @@ test('returning from Portfolio defaults to Active Reviews and browsing all lense
 });
 
 test('storage failure shows unavailable metrics with one selected state, without claiming a zero-match result', () => {
-  const w = workspace(); w.governanceUI.renderDashboard([], 5, () => {}, false);
+  const w = workspace(); w.governanceUI.renderDashboard([], w.services.showcase.projects(), () => {}, false);
   assert.deepEqual(selected(w), ['active']); assert(buttons(w).every(b => b.disabled && b.children[1].textContent === 'Unavailable'));
   assert.equal(rows(w).length, 0); assert.equal(w.elements.get('dashboard-filter-count').textContent, 'Records unavailable');
 });

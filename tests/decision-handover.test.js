@@ -80,7 +80,7 @@ test('ready hero CTA resumes Summary, exposes five unselected choices, records M
   change(w, 'decision-form'); submit(w, 'decision-form'); assert.equal(w.state.view, 'confirmation');
   assert.equal(w.elements.get('confirmation-outcome').textContent.toUpperCase(), 'MODIFY');
   assert(w.elements.get('confirmation-record').textContent.includes('Alex Lee')); assert(w.elements.get('confirmation-record').textContent.includes('Technology Portfolio Lead'));
-  click(w, 'back-dashboard'); assert.equal(w.elements.get('decision-queue-title').textContent, 'Recorded Decisions'); assert(w.elements.get('dashboard-attention').textContent.includes('Digital Ordering Platform Modernisation'));
+  click(w, 'back-dashboard'); assert.equal(w.elements.get('decision-queue-title').textContent, 'Reviewed Investments'); assert(w.elements.get('dashboard-attention').textContent.includes('Digital Ordering Platform Modernisation'));
   assert.deepEqual(byClass(w.elements.get('dashboard-cards'), 'pulse-metric').map(metric => metric.children[1].textContent), ['2', String(w.reviewRules.dashboard(w.state.reviews, w.state.projects.length).overdue), '0', '1', '2']);
   const reloaded = workspace({ controller: true, storage: w.map });
   assert.equal(reloaded.services.reviewStore.get('SHOWCASE-ODP-REVIEW').decision.outcome, 'Modify');
@@ -167,7 +167,7 @@ test('structured findings match the frozen signal convention and never read SAP/
 
 test('Decision Queue stays action-focused while project-specific findings remain in Review Summary', () => {
   const w = workspace(), ui = w.governanceUI, records = w.services.reviewStore.seedShowcase(); const before = JSON.stringify(records);
-  ui.renderDashboard(records, 5, () => {});
+  ui.renderDashboard(records, w.services.showcase.projects(), () => {});
   const attention = w.elements.get('dashboard-attention'), explanations = byClass(attention, 'flag-explanation');
   assert.equal(explanations.length, 0); assert(!attention.textContent.includes('Why is this flagged?'));
   const rows = byClass(attention, 'decision-queue-row');
@@ -185,13 +185,13 @@ test('Decision Queue stays action-focused while project-specific findings remain
 test('timing-only urgency stays visible without inventing concerns or extra per-row explanation controls', () => {
   const w = workspace(), r = w.reviewRules, ui = w.governanceUI;
   const record = { id: 'timing-only', project: { Project: 'Unit timing context' }, status: 'in_progress', reviewOpenedAt: '2020-01-01T00:00:00Z', assessment: r.defaultAssessment() };
-  ui.renderDashboard([record], 1, () => {});
+  ui.renderDashboard([record], [], () => {});
   const queue = w.elements.get('dashboard-attention'); assert.equal(byClass(queue, 'flag-explanation').length, 0); assert(queue.textContent.includes('Escalation threshold reached'));
   for (const label of ['Material Concerns', 'Emerging Concerns', 'Evidence Gaps', 'Why is this flagged?']) assert(!queue.textContent.includes(label));
   assert(byClass(w.elements.get('dashboard-attention'), 'queue-signals')[0].textContent.includes('Assessment in progress'));
-  ui.renderDashboard([], 0, () => {}); assert.equal(byClass(w.elements.get('dashboard-attention'), 'flag-explanation').length, 0);
-  const records = w.services.reviewStore.seedShowcase(); ui.renderDashboard(records, 5, () => {});
-  ui.renderDashboard(records, 5, () => {}, false); assert.equal(byClass(w.elements.get('dashboard-attention'), 'decision-queue-row').length, 0); assert.match(w.elements.get('dashboard-attention').textContent, /unavailable/);
+  ui.renderDashboard([], [], () => {}); assert.equal(byClass(w.elements.get('dashboard-attention'), 'flag-explanation').length, 0);
+  const records = w.services.reviewStore.seedShowcase(); ui.renderDashboard(records, w.services.showcase.projects(), () => {});
+  ui.renderDashboard(records, w.services.showcase.projects(), () => {}, false); assert.equal(byClass(w.elements.get('dashboard-attention'), 'decision-queue-row').length, 0); assert.match(w.elements.get('dashboard-attention').textContent, /unavailable/);
 });
 
 test('static guidance remains progressive and explicit about human judgement, with no classification hints beside assessment inputs', () => {

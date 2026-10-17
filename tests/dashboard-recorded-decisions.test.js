@@ -25,13 +25,13 @@ test('five native metrics share one selected state and switch current/recorded c
   for (const key of ['recorded', 'gap', 'overdue', 'material', 'active', 'recorded']) {
     const button = metric(w, key); assert.equal(button.tag, 'button'); assert.equal(button.type, 'button'); assert.equal(button.getAttribute('aria-controls'), 'dashboard-attention'); assert(button.getAttribute('aria-label'));
     click(w, `dashboard-filter-${key}`); assert.deepEqual(selected(w), [key]); assert.equal(w.elements.get('dashboard-attention'), container); assert.equal(rows(w).length, count(w, key));
-    assert.deepEqual(columns(w), ['Investment', 'Review Trigger', key === 'recorded' ? 'Decision' : 'Findings', key === 'recorded' ? 'Decision Date' : 'Decision Timing', 'Next Step']);
+    assert.deepEqual(columns(w), ['Investment', 'Review Trigger', key === 'recorded' ? 'Latest Decision' : 'Findings', key === 'recorded' ? 'Decision Date' : 'Decision Timing', 'Next Step']);
   }
-  assert.equal(w.elements.get('decision-queue-title').textContent, 'Recorded Decisions'); assert.equal(w.elements.get('dashboard-filter-count').textContent, '1 decision'); assert.equal(container.dataset.mode, 'recorded');
-  assert.match(metric(w, 'recorded').getAttribute('aria-label'), /completed decision records from all review cycles/);
+  assert.equal(w.elements.get('decision-queue-title').textContent, 'Reviewed Investments'); assert.equal(w.elements.get('dashboard-filter-count').textContent, '1 investment'); assert.equal(container.dataset.mode, 'recorded');
+  assert.match(metric(w, 'recorded').getAttribute('aria-label'), /latest completed decision/);
 });
 
-test('one investment with three completed cycles contributes three records, alongside its separate current active review', () => {
+test('one investment with three completed cycles contributes one reviewed investment and latest decision, alongside its active review', () => {
   const w = workspace(), active = w.services.showcase.seededReviews()[0];
   const completed = [
     { ...active, id: 'feb', status: 'decision_recorded', reviewOpenedAt: '2026-02-01T00:00:00Z', decision: { outcome: 'Continue', timestamp: '2026-02-10T00:00:00Z' } },
@@ -39,18 +39,20 @@ test('one investment with three completed cycles contributes three records, alon
     { ...active, id: 'oct', status: 'decision_recorded', reviewOpenedAt: '2025-12-01T00:00:00Z', decision: { outcome: 'Continue with Conditions', timestamp: '2026-10-10T00:00:00Z' } }
   ];
   const input = [completed[1], active, completed[0], completed[2]], before = JSON.stringify(input); let opened;
-  w.governanceUI.renderDashboard(input, 1, id => { opened = id; }); assert.equal(count(w, 'recorded'), 3); assert.equal(count(w, 'active'), 1);
-  click(w, 'dashboard-filter-recorded'); assert.deepEqual(rows(w).map(row => row.dataset.reviewId), ['oct', 'jun', 'feb']); assert.equal(w.elements.get('dashboard-filter-count').textContent, '3 decisions');
+  w.governanceUI.renderDashboard(input, [active.project], id => { opened = id; }); assert.equal(count(w, 'recorded'), 1); assert.equal(count(w, 'active'), 1);
+  click(w, 'dashboard-filter-recorded'); assert.deepEqual(rows(w).map(row => row.dataset.reviewId), ['oct']); assert.equal(w.elements.get('dashboard-filter-count').textContent, '1 investment'); assert(rows(w)[0].textContent.includes('Continue with Conditions'));
   for (const row of rows(w)) { assert(row.textContent.includes(active.project.ProjectDescription)); buttonIn(row).events.click[0](); assert.equal(opened, row.dataset.reviewId); }
   click(w, 'dashboard-filter-active'); assert.deepEqual(rows(w).map(row => row.dataset.reviewId), [active.id]); assert.equal(JSON.stringify(input), before);
+  w.governanceUI.details(active.project, active.evidence, input); assert.deepEqual(w.elements.get('investment-history-body').children.map(row => row.dataset.reviewId), ['oct', 'jun', 'feb']);
 });
 
-test('recorded list includes all completed records without the old five-record cap and resolves timestamp ties deterministically', () => {
+test('reviewed list includes every distinct investment without a cap and resolves latest decision timestamp ties deterministically', () => {
   const w = workspace(), seed = w.services.showcase.seededReviews()[3];
-  const input = Array.from({ length: 8 }, (_, i) => ({ ...seed, id: `history-${i}`, decision: { ...seed.decision, timestamp: i > 5 ? '2026-10-17T00:00:00Z' : `2026-09-0${i + 1}T00:00:00Z` } }));
-  w.governanceUI.renderDashboard(input.slice().reverse(), 1, () => {}); click(w, 'dashboard-filter-recorded');
+  const input = Array.from({ length: 8 }, (_, i) => ({ ...seed, id: `history-${i}`, project: { ...seed.project, ProjectUUID: `unit-${i}` }, decision: { ...seed.decision, timestamp: i > 5 ? '2026-10-17T00:00:00Z' : `2026-09-0${i + 1}T00:00:00Z` } }));
+  input.push({ ...input[6], id: 'history-6-z' }); // Same investment and timestamp: lower record ID wins.
+  w.governanceUI.renderDashboard(input.slice().reverse(), [], () => {}); click(w, 'dashboard-filter-recorded');
   assert.equal(count(w, 'recorded'), 8); assert.equal(rows(w).length, 8); assert.deepEqual(rows(w).slice(0, 2).map(row => row.dataset.reviewId), ['history-6', 'history-7']);
-  w.governanceUI.renderDashboard(input, 1, () => {}); assert.deepEqual(rows(w).slice(0, 2).map(row => row.dataset.reviewId), ['history-6', 'history-7']);
+  w.governanceUI.renderDashboard(input, [], () => {}); assert.deepEqual(rows(w).slice(0, 2).map(row => row.dataset.reviewId), ['history-6', 'history-7']);
 });
 
 test('recorded rows are compact historical records, not findings, urgency or expanded rationale', () => {
@@ -68,7 +70,7 @@ test('new decision updates both counts and Back to Dashboard selects recorded on
   recordModify(w); const id = w.state.currentReviewID, snapshot = JSON.stringify(w.services.reviewStore.get(id));
   assert.equal(count(w, 'active'), before.active - 1); assert.equal(count(w, 'recorded'), before.recorded + 1);
   click(w, 'back-dashboard'); assert.deepEqual(selected(w), ['recorded']); assert.equal(rows(w)[0].dataset.reviewId, id); assert(rows(w)[0].textContent.includes('Modify'));
-  w.governanceUI.renderDashboard(w.state.reviews, w.state.projects.length, () => {}); assert.deepEqual(selected(w), ['recorded']);
+  w.governanceUI.renderDashboard(w.state.reviews, w.state.projects, () => {}); assert.deepEqual(selected(w), ['recorded']);
   click(w, 'nav-dashboard'); assert.deepEqual(selected(w), ['active']); assert(!rows(w).some(row => row.dataset.reviewId === id));
   click(w, 'dashboard-filter-recorded'); click(w, 'nav-dashboard'); assert.deepEqual(selected(w), ['active']);
   click(w, 'dashboard-filter-recorded'); buttonIn(rows(w).find(row => row.dataset.reviewId === id)).events.click[0]();

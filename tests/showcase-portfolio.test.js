@@ -87,7 +87,7 @@ test('showcase cards, financial context, source badges, seeded controls and hist
   const gap = s.projects()[2]; w.governanceUI.details(gap, s.evidence(gap), records); assert(w.elements.get('showcase-investment-context').textContent.includes('Not validated'));
   w.governanceUI.details(external, w.reviewRules.emptyEvidence(), records); assert.equal(w.elements.get('showcase-investment-context').hidden, true); assert.equal(w.elements.get('showcase-investment-context').textContent, ''); assert.equal(w.elements.get('detail-source').textContent, 'SAP SANDBOX');
   w.governanceUI.confirmation(records.find(r => r.id === 'SHOWCASE-LRP-DECISION')); assert(w.elements.get('confirmation-record').textContent.includes('Synthetic historical showcase decision'));
-  w.governanceUI.renderDashboard(records, 5, () => {}); assert(!w.elements.get('dashboard-attention').textContent.includes('Legacy Reporting Consolidation'));
+  w.governanceUI.renderDashboard(records, w.services.showcase.projects(), () => {}); assert(!w.elements.get('dashboard-attention').textContent.includes('Legacy Reporting Consolidation'));
   w.document.getElementById('dashboard-filter-recorded').events.click[0](); assert(w.elements.get('dashboard-attention').textContent.includes('Legacy Reporting Consolidation'));
 });
 

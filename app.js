@@ -46,7 +46,7 @@
   }
   function refreshGovernance() {
     if (state.view === "investments") ui.renderProjects(state.projects, state.selectedProject, loadProjectElements);
-    governance.renderDashboard(state.reviews, state.projects.length, openReview, !state.storageError);
+    governance.renderDashboard(state.reviews, state.projects, openReview, !state.storageError);
     if (state.selectedProject) governance.details(state.selectedProject, evidenceForSelected(), state.reviews, !!state.selectedFromSnapshot, !state.storageError, selectHistoryRecord,
       state.view === "confirmation" ? state.currentReviewID : null, state.view === "confirmation" && freshlyRecordedDecisionID === state.currentReviewID);
     const record = currentReview();

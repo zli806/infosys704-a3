@@ -9,11 +9,11 @@ const click = (w, id) => w.document.getElementById(id).events.click[0]();
 const selected = w => byClass(w.elements.get('dashboard-cards'), 'pulse-metric').filter(b => b.getAttribute('aria-pressed') === 'true').map(b => b.dataset.filter);
 const rows = w => byClass(w.elements.get('dashboard-attention'), 'decision-queue-row');
 const helpCopy = [
-  'Open review cycles awaiting assessment completion or a governance decision. Current-review lenses may overlap.',
-  'Active reviews past the 14-day decision target, including reviews that have reached the 30-day escalation threshold.',
+  'Distinct investments with an active continuation review awaiting assessment completion or a governance decision. Lenses may overlap; percentages are independent and do not sum to 100%.',
+  'Investments whose active review is past the 14-day decision target, including reviews that have reached the 30-day escalation threshold.',
   'Active investments with at least one Material Concern identified during assessment. This number counts investments, not individual findings.',
   'Active investments where at least one assessment area has insufficient evidence for a reliable conclusion. This number counts investments, not individual gaps.',
-  'Completed, immutable governance decisions. One investment may appear more than once when it has completed multiple review cycles.'
+  'Investments with at least one completed governance decision. Each investment is counted once; full review-cycle history remains available in the investment History tab.'
 ];
 
 test('five concise independent helps are sibling controls, never nested in a metric button', () => {
@@ -43,7 +43,7 @@ test('every help supports hover, focus, tap pinning and Escape without selecting
 
 test('help focus/pinning survives metric data refresh and opening another help or leaving Dashboard dismisses it', () => {
   const w = workspace({ controller: true }), help = w.document.getElementById('metric-help-gap'), tip = w.document.getElementById('metric-tip-gap');
-  help.events.focus[0](); help.events.click[0](); w.governanceUI.renderDashboard(w.state.reviews, 10, () => {});
+  help.events.focus[0](); help.events.click[0](); w.governanceUI.renderDashboard(w.state.reviews, w.state.projects, () => {});
   assert.equal(w.document.getElementById('metric-help-gap'), help); assert.equal(tip.hidden, false);
   w.document.getElementById('metric-help-recorded').events.focus[0](); assert.equal(tip.hidden, true);
   assert.equal(w.document.getElementById('metric-tip-recorded').hidden, false); click(w, 'nav-investments'); assert.equal(w.document.getElementById('metric-tip-recorded').hidden, true);

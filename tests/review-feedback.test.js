@@ -91,17 +91,17 @@ test('stored Review Trigger is visible in compact header and historical record w
   for (const label of ['Review Trigger (REVIEWER INPUT)', review.reviewBasis, 'Decision (REVIEWER INPUT)', 'Rationale (REVIEWER INPUT)', 'Decision owner (REVIEWER INPUT)', 'Required action (REVIEWER INPUT)', 'Action owner (REVIEWER INPUT)', 'Next review date (REVIEWER INPUT)']) assert(text.includes(label), label);
 });
 
-test('session project count explains saved records after refresh without loading or clearing anything', () => {
+test('saved-only investments remain represented in percentages without a monitored sentence or data mutation', () => {
   const { reviewRules: rules, governanceUI: ui, elements } = workspace();
   const reviews = [record(rules)]; const before = JSON.stringify(reviews);
-  ui.renderDashboard(reviews, 0, () => {});
-  assert.equal(elements.get('dashboard-portfolio-count').textContent, '0 investments monitored');
+  ui.renderDashboard(reviews, [], () => {});
+  assert.equal(descendants(elements.get('dashboard-cards')).find(el => el.id === 'dashboard-filter-active').children[2].children[1].textContent, '100%');
   assert(!elements.get('dashboard-cards').textContent.includes('Load SAP Projects'));
   assert.equal(JSON.stringify(reviews), before);
-  ui.renderDashboard(reviews, 5, () => {});
-  assert.equal(elements.get('dashboard-portfolio-count').textContent, '5 investments monitored');
+  ui.renderDashboard(reviews, Array.from({ length: 5 }, (_, i) => ({ ProjectUUID: `other-${i}` })), () => {});
+  assert.equal(descendants(elements.get('dashboard-cards')).find(el => el.id === 'dashboard-filter-active').children[2].children[1].textContent, '17%');
   assert(!elements.get('dashboard-cards').textContent.includes('refresh the current portfolio view'));
-  ui.renderDashboard([], 0, () => {});
+  ui.renderDashboard([], [], () => {});
   assert(!elements.get('dashboard-cards').textContent.includes('refresh the current portfolio view'));
 });
 

@@ -117,7 +117,7 @@ test('Needs Attention derives only open explicit signals/timing, never completed
   const list = [mild, gap, overdue, escalated, complete, unassessed]; const before = JSON.stringify(list);
   const items = r.needsAttention(list, now); assert.deepEqual(new Set(Array.from(items, item => item.review.id)), new Set(['mild', 'gap', 'overdue', 'escalated']));
   assert.equal(items[0].timing.status, 'Escalation threshold reached'); assert.equal(JSON.stringify(list), before);
-  w.governanceUI.renderDashboard([model(r, { risk: 'High' })], 0, () => {}); assert(w.elements.get('dashboard-attention').textContent.includes('1 Material')); assert(w.elements.get('dashboard-attention').textContent.includes(r.BASIS[1]));
-  w.governanceUI.renderDashboard([], 0, () => {}); assert(w.elements.get('dashboard-attention').textContent.includes('No active reviews'));
-  w.governanceUI.renderDashboard([], 0, () => {}, false); assert(w.elements.get('dashboard-attention').textContent.includes('unavailable'));
+  w.governanceUI.renderDashboard([model(r, { risk: 'High' })], [], () => {}); assert(w.elements.get('dashboard-attention').textContent.includes('1 Material')); assert(w.elements.get('dashboard-attention').textContent.includes(r.BASIS[1]));
+  w.governanceUI.renderDashboard([], [], () => {}); assert(w.elements.get('dashboard-attention').textContent.includes('No active reviews'));
+  w.governanceUI.renderDashboard([], [], () => {}, false); assert(w.elements.get('dashboard-attention').textContent.includes('unavailable'));
 });

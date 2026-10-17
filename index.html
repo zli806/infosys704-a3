@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DPE IT Investment Governance Hub</title>
+  <title>Domino’s Investment Governance Hub</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="styles.css">
   <script src="config.local.js" defer></script>
@@ -28,16 +28,16 @@
   <div class="app-shell">
     <header class="app-header">
       <div class="app-header-inner">
-        <div class="brand"><img class="brand-mark" src="assets/dpe-mark.svg" width="36" height="40" alt="" aria-hidden="true"><div class="brand-lockup"><span class="brand-name">DPE</span><h1>IT Investment Governance Hub</h1></div></div>
+        <h1 class="brand"><img class="brand-logo" src="logo.png" width="2172" height="724" alt="Domino’s Investment Governance Hub"></h1>
         <div class="header-navigation"><nav class="app-nav" aria-label="Main navigation"><button id="nav-dashboard" type="button">Dashboard</button><button id="nav-investments" type="button">Portfolio</button></nav><nav class="utility-nav" aria-label="Product help"><button id="nav-how-it-works" type="button">How It Works</button></nav></div>
       </div>
     </header>
     <main>
-      <header id="global-page-header" class="page-header"><div><p id="page-eyebrow" class="eyebrow" hidden>Investment Governance</p><h2 id="page-title" tabindex="-1">Portfolio Governance</h2><p id="dashboard-portfolio-count" class="page-context"></p></div><div id="portfolio-tools" class="portfolio-tools" hidden><span id="connection-status" class="sap-connection" role="status"></span><button id="connection-issue-details" class="ghost" type="button" title="Inspect the last SAP project refresh issue" hidden>Details</button><button id="load-projects" class="ghost" type="button" title="Refresh SAP Sandbox projects; showcase investments remain available" hidden>Refresh SAP Data</button></div></header>
+      <header id="global-page-header" class="page-header"><div><p id="page-eyebrow" class="eyebrow" hidden>Investment Governance</p><h2 id="page-title" tabindex="-1">Portfolio Governance</h2></div><div id="portfolio-tools" class="portfolio-tools" hidden><span id="connection-status" class="sap-connection" role="status"></span><button id="connection-issue-details" class="ghost" type="button" title="Inspect the last SAP project refresh issue" hidden>Details</button><button id="load-projects" class="ghost" type="button" title="Refresh SAP Sandbox projects; showcase investments remain available" hidden>Refresh SAP Data</button></div></header>
       <p id="storage-notice" class="status-message" role="alert" hidden></p>
 
       <section id="dashboard-view" aria-label="Dashboard">
-        <section class="portfolio-pulse" aria-label="Governance lenses"><div id="dashboard-cards" class="pulse-metrics" role="group" aria-label="View current reviews or recorded decisions"></div></section>
+        <section class="portfolio-pulse" aria-label="Governance lenses"><div id="dashboard-cards" class="pulse-metrics" role="group" aria-label="Investment governance lenses. Independent percentages may overlap and do not sum to 100 percent."></div></section>
         <section class="decision-queue" aria-labelledby="decision-queue-title">
           <header class="decision-queue-header"><div class="dashboard-list-heading" role="status" aria-live="polite" aria-atomic="true"><h3 id="decision-queue-title">Active Reviews</h3><p id="dashboard-filter-count" class="sr-only"></p></div></header>
           <div id="dashboard-columns" class="queue-columns queue-grid" role="group" aria-label="Governance list columns"><span>Investment</span><span>Review Trigger</span><span>Findings</span><span>Decision Timing</span><span>Next Step</span></div>
@@ -97,7 +97,7 @@
       <section id="workspace-current" role="tabpanel" aria-labelledby="workspace-tab-current" hidden>
       <header class="current-review-heading sr-only"><h3>Continuation Review</h3></header><p id="current-review-empty" class="workspace-empty" role="status" hidden></p>
       <div class="review-layout customer-review">
-        <section id="review-chrome" hidden><header class="review-header"><div id="review-trigger" class="legacy-trigger-recovery" hidden><span>Review Trigger was not recorded for this legacy review.</span><button id="set-review-trigger" type="button" class="secondary">Set Review Trigger</button></div><ol id="review-steps" class="steps" aria-label="Continuation review stages"><li><button id="review-step-assessment" type="button"><span>1</span> Assessment</button></li><li><button id="review-step-summary" type="button"><span>2</span> Review Summary</button></li><li><button id="review-step-decision" type="button" aria-disabled="true"><span>3</span> Governance Decision</button></li></ol><p id="review-save-status" class="review-save-status" role="status" aria-live="polite">✓ Saved</p><div id="draft-save-error" class="draft-save-error" role="alert" tabindex="-1" hidden><strong>Couldn’t save changes.</strong><p>Your edits are still on this screen. Retry before leaving this review.</p><button id="retry-save" class="secondary" type="button">Retry Save</button></div><p id="workflow-message" class="status-message" role="alert" tabindex="-1" hidden></header></section>
+        <section id="review-chrome" hidden><header class="review-header"><div id="review-trigger" class="legacy-trigger-recovery" hidden><span>Review Trigger was not recorded for this legacy review.</span><button id="set-review-trigger" type="button" class="secondary">Set Review Trigger</button></div><ol id="review-steps" class="steps" aria-label="Continuation review stages"><li><button id="review-step-assessment" type="button"><span>1</span> Assessment</button></li><li><button id="review-step-summary" type="button"><span>2</span> Review Summary</button></li><li><button id="review-step-decision" type="button" aria-disabled="true"><span>3</span> Governance Decision</button></li></ol><p id="review-save-status" class="sr-only" role="status" aria-live="polite"></p><div id="draft-save-error" class="draft-save-error" role="alert" tabindex="-1" hidden><strong>Couldn’t save changes.</strong><p>Your edits are still on this screen. Retry before leaving this review.</p><button id="retry-save" class="secondary" type="button">Retry Save</button></div><p id="workflow-message" class="status-message" role="alert" tabindex="-1" hidden></header></section>
         <section id="assessment-view" aria-label="Assessment" hidden>
           <form id="assessment-form" class="panel" novalidate><div class="assessment-heading"><h3 id="assessment-title" tabindex="-1">Assessment</h3><div class="assessment-owner-field"><div class="field-heading"><label for="assessment-owner">Decision Owner <span class="required-mark" aria-hidden="true">*</span></label><span id="assessment-owner-help"></span></div><select id="assessment-owner" aria-describedby="governance-directory-status" required><option value="">Select decision owner</option></select></div></div><p id="governance-directory-status" class="sr-only" role="status"></p>
             <div class="assessment-columns">

@@ -1,4 +1,4 @@
-# DPE IT Investment Governance Hub
+# Domino’s Investment Governance Hub
 
 ## What this is
 
@@ -21,7 +21,7 @@ Reviews/decisions are browser/origin-local. Owners come from an explicitly ficti
 
 **Dashboard | Portfolio → Investment Governance Workspace**
 
-Core navigation is **Dashboard | Portfolio**; the visually separate **How It Works** utility gives a short product introduction. Dashboard combines current governance attention with portfolio-wide **Recorded Decisions** in one shared list. The first four lenses may overlap; Recorded Decisions counts completed review records, not distinct investments. Portfolio retains all loaded investments, including those with no reviews or decisions.
+Core navigation is **Dashboard | Portfolio**; the visually separate **How It Works** utility gives a short product introduction. The supplied `logo.png` is the single header identity, without an added subtitle. Dashboard's five overlapping lenses count **distinct investments**. **Reviewed Investments** shows each investment's latest completed decision; full cycles remain in History. Compact independent percentage rings use the represented investment universe (loaded Portfolio plus saved-only identities); percentages need not sum to 100%. Portfolio retains all loaded investments, including Monitoring investments absent from Dashboard.
 
 Each investment has one workspace: **Overview | Current Review | History**. Overview owns context/evidence; **Start Review** captures the human-selected Review Trigger before creating the cycle. Dashboard displays that stored trigger—it never infers it. **Continue Review** enters Assessment when incomplete or Review Summary when ready. Summary can also preview incomplete assessments; Governance Decision stays readiness-gated. Once ready, all three stages are freely navigable.
 
@@ -29,7 +29,7 @@ Each investment has one workspace: **Overview | Current Review | History**. Over
 
 An active review supersedes the previous cycle’s Next Review date in current governance views (shown as — in Portfolio). Stop does not schedule a next review; the store also rejects starting a normal review after the latest Stop. Historical decision records remain unchanged.
 
-Decision offers five human outcomes, never a recommendation. Rationale, owner, conditional follow-up and 14/30-day controls remain. Inputs autosave locally: **Saved** means persisted, not ready or formally recorded. A failed save keeps edits visible and blocks leaving until **Retry Save** succeeds. Only **Record Decision** creates immutable history. Historical-only snapshots remain labelled/read-only; the optional fresh-record Back to Dashboard selects Recorded Decisions once.
+Decision offers five human outcomes, never a recommendation. Rationale, owner, conditional follow-up and 14/30-day controls remain. Inputs autosave silently; persistence does not imply readiness or formal recording. A failed save keeps edits visible and blocks leaving until **Retry Save** succeeds. Only **Record Decision** creates immutable history. Historical-only snapshots remain labelled/read-only; the optional fresh-record Back to Dashboard selects Reviewed Investments once.
 
 Violet **SHOWCASE** badges identify synthetic scenarios; blue **SAP SANDBOX** badges identify SAP Business Accelerator Hub Sandbox samples. Neither is DPE production data. Missing-key status is neutral; a failed SAP project refresh uses a non-blocking toast while Showcase remains available. Evidence failures stay local to their cards; governance storage/save failures stay persistent, not in disappearing toasts.
 

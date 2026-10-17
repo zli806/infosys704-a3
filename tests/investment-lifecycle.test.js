@@ -20,7 +20,7 @@ test('navigation and Dashboard orientation use customer terminology without chan
   const html = readFileSync('index.html', 'utf8');
   assert.match(html, /id="nav-dashboard"[^>]*>Dashboard/); assert.match(html, /id="nav-investments"[^>]*>Portfolio/); assert(!html.includes('nav-reviews'));
   assert.match(html, /class="queue-columns queue-grid"[^>]*><span>Investment<\/span><span>Review Trigger<\/span><span>Findings<\/span><span>Decision Timing<\/span><span>Next Step/);
-  const w = workspace({ controller: true }); assert.match(w.document.getElementById('metric-tip-active').textContent, /Current-review lenses may overlap/);
+  const w = workspace({ controller: true }); assert.match(w.document.getElementById('metric-tip-active').textContent, /Lenses may overlap; percentages are independent/);
   assert(!html.includes('Why is this flagged?'));
   click(w, 'nav-investments'); assert.equal(w.elements.get('nav-investments').getAttribute('aria-current'), 'page'); assert.equal(w.elements.get('nav-dashboard').getAttribute('aria-current'), null);
   buttonIn(w.elements.get('projects-body').children[0]).events.click[0](); assert.equal(w.state.view, 'summary'); assert.equal(w.elements.get('nav-investments').getAttribute('aria-current'), 'page');
@@ -97,13 +97,13 @@ test('Stop controller guard prevents accidental restart even if the hidden start
   const before = w.map.get(w.services.reviewStore.STORAGE_KEY); click(w, 'start-review'); assert.equal(w.state.view, 'confirmation'); assert.equal(w.map.get(w.services.reviewStore.STORAGE_KEY), before);
 });
 
-test('Dashboard recorded decisions and investment history sort by decision timestamp, not review-open time, with deterministic ties', () => {
+test('Dashboard selects each latest decision while complete investment history retains timestamp ordering and deterministic ties', () => {
   const w = workspace(), ready = w.services.showcase.seededReviews()[0], other = w.services.showcase.seededReviews()[1];
   const make = (id, timestamp, opened, project = ready.project) => ({ ...ready, id, project, reviewOpenedAt: opened, status: 'decision_recorded', decision: { ...draft('Continue'), timestamp, owner: 'Unit owner' } });
   const older = make('old', '2026-09-01T10:00:00Z', '2026-08-28T10:00:00Z'), latest = make('latest', '2026-10-17T10:00:00Z', '2026-08-01T10:00:00Z');
   const tie = { ...latest, id: 'tie' }, unrelated = make('unrelated', '2026-10-10T10:00:00Z', '2026-10-01T10:00:00Z', other.project);
   const input = [ready, older, unrelated, tie, latest], before = JSON.stringify(input); let opened;
-  w.governanceUI.renderDashboard(input, 2, id => { opened = id; }); click(w, 'dashboard-filter-recorded'); assert.deepEqual(rows(w, 'dashboard-attention').map(row => row.dataset.reviewId), ['latest', 'tie', 'unrelated', 'old']);
+  w.governanceUI.renderDashboard(input, [ready.project, other.project], id => { opened = id; }); click(w, 'dashboard-filter-recorded'); assert.deepEqual(rows(w, 'dashboard-attention').map(row => row.dataset.reviewId), ['latest', 'unrelated']);
   for (const row of rows(w, 'dashboard-attention')) { assert.equal(row.children[0].children.length, 5); buttonIn(row).events.click[0](); assert.equal(opened, row.dataset.reviewId); }
   w.governanceUI.details(ready.project, ready.evidence, input, false, true, id => { opened = id; });
   assert.deepEqual(rows(w, 'investment-history-body').map(row => row.dataset.reviewId), ['latest', 'tie', 'old']);
@@ -111,7 +111,7 @@ test('Dashboard recorded decisions and investment history sort by decision times
   assert.equal(w.governanceUI.portfolioState(ready.project, input).latest.id, 'latest'); assert.equal(JSON.stringify(input), before);
   const differentOffset = make('offset', '2026-10-17T23:30:00-10:00', '2026-08-01T10:00:00Z');
   assert.equal(w.governanceUI.completedReviews([latest, differentOffset])[0].id, 'offset');
-  w.governanceUI.renderDashboard([ready], 1, () => {}); assert.match(w.elements.get('dashboard-attention').textContent, /No decisions recorded yet/);
+  w.governanceUI.renderDashboard([ready], [ready.project], () => {}); assert.match(w.elements.get('dashboard-attention').textContent, /No investments have a recorded governance decision/);
   w.governanceUI.details(other.project, other.evidence, [ready]); assert.match(w.elements.get('investment-history-body').textContent, /No recorded decisions/);
 });
 

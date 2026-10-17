@@ -172,18 +172,18 @@
       nextStep: active ? "Continue Review" : outcome === "Stop" ? "View Decision" : "Open Investment" };
   }
   const dashboardFilters = [
-    { key: "active", label: "Active Reviews", heading: "Active Reviews", unit: "review", description: "Show all currently open reviews", matches: () => true, empty: "No active reviews awaiting a governance decision." },
-    { key: "overdue", label: "Overdue", heading: "Overdue Decisions", unit: "review", description: "Show open reviews with an overdue decision or reached escalation threshold", matches: item => ["Decision overdue", "Escalation threshold reached"].includes(item.timing.status), empty: "No overdue decisions awaiting governance action." },
-    { key: "material", label: "Material Concerns", heading: "Investments with Material Concerns", unit: "investment", description: "Show active investments with at least one Material Concern", distinct: true, matches: item => item.signals.materialConcerns.length > 0, empty: "No active investments with material concerns." },
-    { key: "gap", label: "Evidence Gaps", heading: "Investments with Evidence Gaps", unit: "investment", description: "Show active investments with at least one Evidence Gap", distinct: true, matches: item => item.signals.evidenceGaps.length > 0, empty: "No active investments with evidence gaps." },
-    { key: "recorded", label: "Recorded Decisions", heading: "Recorded Decisions", unit: "decision", description: "Show completed decision records from all review cycles", recorded: true, empty: "No decisions recorded yet." }
+    { key: "active", label: "Active Reviews", heading: "Active Reviews", description: "Show investments with a current active continuation review", matches: () => true, empty: "No active reviews awaiting a governance decision." },
+    { key: "overdue", label: "Overdue", heading: "Overdue Decisions", description: "Show investments whose current review is overdue or has reached the escalation threshold", matches: item => ["Decision overdue", "Escalation threshold reached"].includes(item.timing.status), empty: "No overdue decisions awaiting governance action." },
+    { key: "material", label: "Material Concerns", heading: "Investments with Material Concerns", description: "Show active investments with at least one Material Concern", matches: item => item.signals.materialConcerns.length > 0, empty: "No active investments with material concerns." },
+    { key: "gap", label: "Evidence Gaps", heading: "Investments with Evidence Gaps", description: "Show active investments with at least one reviewer Evidence Gap", matches: item => item.signals.evidenceGaps.length > 0, empty: "No active investments with evidence gaps." },
+    { key: "recorded", label: "Reviewed Investments", heading: "Reviewed Investments", description: "Show investments with at least one completed governance decision, using their latest completed decision", recorded: true, empty: "No investments have a recorded governance decision yet." }
   ];
   const lensHelp = {
-    active: "Open review cycles awaiting assessment completion or a governance decision. Current-review lenses may overlap.",
-    overdue: "Active reviews past the 14-day decision target, including reviews that have reached the 30-day escalation threshold.",
+    active: "Distinct investments with an active continuation review awaiting assessment completion or a governance decision. Lenses may overlap; percentages are independent and do not sum to 100%.",
+    overdue: "Investments whose active review is past the 14-day decision target, including reviews that have reached the 30-day escalation threshold.",
     material: "Active investments with at least one Material Concern identified during assessment. This number counts investments, not individual findings.",
     gap: "Active investments where at least one assessment area has insufficient evidence for a reliable conclusion. This number counts investments, not individual gaps.",
-    recorded: "Completed, immutable governance decisions. One investment may appear more than once when it has completed multiple review cycles."
+    recorded: "Investments with at least one completed governance decision. Each investment is counted once; full review-cycle history remains available in the investment History tab."
   };
   const findingHelp = {
     material: "A serious adverse assessment requiring formal management attention.",
@@ -201,17 +201,23 @@
   let selectedDashboardFilter = "active";
   let dashboardState = null;
   let dashboardFilterButtons = [];
+  function investmentIdentity(project, fallback) {
+    return project?.ProjectUUID?.trim() ? `uuid:${project.ProjectUUID.trim().toLowerCase()}` : project?.Project ? `project:${project.Project}` : `review:${fallback}`;
+  }
   function distinctDashboardInvestments(items) {
     const seen = new Set();
     return items.filter(({ review }) => {
-      const identity = review.project.ProjectUUID || review.project.Project || review.id;
+      const identity = investmentIdentity(review.project, review.id);
       if (seen.has(identity)) return false;
       seen.add(identity); return true;
     });
   }
-  function renderDashboard(records, count, onOpen, storageAvailable = true) {
-    const now = new Date(), result = rules.dashboard(records, count, now);
-    el("dashboard-portfolio-count").textContent = `${result.projectCount} investments monitored`;
+  function renderDashboard(records, projects, onOpen, storageAvailable = true) {
+    const now = new Date(), result = rules.dashboard(records, projects.length, now);
+    // Portfolio plus saved-only identities is the Dashboard's represented universe.
+    // A missing live project stays in governance/history without inflating any share above 100%.
+    const universe = new Set(projects.map((project, index) => investmentIdentity(project, `portfolio-${index}`)));
+    for (const review of records) universe.add(investmentIdentity(review.project, review.id));
     const items = result.open.map(review => ({ review, signals: rules.reviewSignals(review), timing: rules.timing(review, now) }));
     const timingOrder = ["Escalation threshold reached", "Decision overdue", "Within decision window"];
     const compare = (left, right) => left < right ? -1 : left > right ? 1 : 0;
@@ -219,9 +225,8 @@
       || compare(left.timing.decisionTarget, right.timing.decisionTarget)
       || compare(left.review.project.Project || "", right.review.project.Project || "") || compare(left.review.id, right.review.id));
     const subsets = Object.fromEntries(dashboardFilters.map(filter => {
-      if (filter.recorded) return [filter.key, completedReviews(records).map(review => ({ review }))];
-      const matching = items.filter(filter.matches);
-      return [filter.key, filter.distinct ? distinctDashboardInvestments(matching) : matching];
+      if (filter.recorded) return [filter.key, distinctDashboardInvestments(completedReviews(records).map(review => ({ review })))];
+      return [filter.key, distinctDashboardInvestments(items.filter(filter.matches))];
     }));
     dashboardState = { subsets, onOpen, storageAvailable };
     const pulse = el("dashboard-cards");
@@ -233,14 +238,21 @@
         metric = node("button", undefined, "pulse-metric"); metric.type = "button"; metric.id = `dashboard-filter-${filter.key}`;
         metric.dataset.kind = filter.key; metric.dataset.filter = filter.key;
         metric.setAttribute("aria-controls", "dashboard-attention");
-        metric.append(node("span", filter.label, "pulse-label"), node("span", "", "pulse-value"));
+        const ring = node("span", undefined, "pulse-ring"); ring.setAttribute("aria-hidden", "true");
+        ring.append(node("span", undefined, "pulse-ring-arc"), node("span", "", "pulse-percentage"));
+        metric.append(node("span", filter.label, "pulse-label"), node("span", "", "pulse-value"), ring);
         metric.addEventListener("click", () => { dismissMetricHelp(); selectedDashboardFilter = filter.key; renderDashboardQueue(); });
         cell.append(metric, metricHelp(filter)); pulse.append(cell); dashboardFilterButtons.push(metric);
       }
       metric.dataset.active = String(storageAvailable && value > 0);
       metric.disabled = !storageAvailable;
-      metric.setAttribute("aria-label", `${filter.label}: ${storageAvailable ? countLabel(value, filter.unit) : "Unavailable"}. ${filter.description}.`);
+      const percentage = universe.size ? Math.max(0, Math.min(100, Math.round(value / universe.size * 100))) : 0;
+      metric.setAttribute("aria-label", `${filter.label}: ${storageAvailable ? `${countLabel(value, "investment")}, ${percentage} percent of the current investment universe` : "Unavailable"}. ${filter.description}.`);
+      metric.title = "Independent share of the represented investment universe. Lenses may overlap; percentages do not sum to 100%.";
       metric.children[1].textContent = storageAvailable ? value : "Unavailable";
+      const ring = metric.children[2]; ring.hidden = !storageAvailable;
+      ring.children[0].style.background = storageAvailable ? `conic-gradient(var(--metric-tone) ${percentage}%, transparent 0)` : "none";
+      ring.children[1].textContent = storageAvailable ? `${percentage}%` : "";
     }
     renderDashboardQueue();
   }
@@ -252,8 +264,8 @@
     for (const button of dashboardFilterButtons) button.setAttribute("aria-pressed", String(button.dataset.filter === selectedDashboardFilter));
     for (const control of metricHelpControls) control.place();
     el("decision-queue-title").textContent = filter.heading;
-    el("dashboard-filter-count").textContent = storageAvailable ? countLabel(items.length, filter.unit) : "Records unavailable";
-    const labels = ["Investment", "Review Trigger", filter.recorded ? "Decision" : "Findings", filter.recorded ? "Decision Date" : "Decision Timing", "Next Step"];
+    el("dashboard-filter-count").textContent = storageAvailable ? countLabel(items.length, "investment") : "Records unavailable";
+    const labels = ["Investment", "Review Trigger", filter.recorded ? "Latest Decision" : "Findings", filter.recorded ? "Decision Date" : "Decision Timing", "Next Step"];
     if (!dashboardColumnLabels) {
       dashboardColumnLabels = labels.map(label => { const cell = node("span"), text = node("span", label, "column-label"); cell.append(text); return cell; });
       dashboardColumnLabels[1].append(contextHelp("dashboard-trigger", "Review Trigger", reviewTriggerHelp));
@@ -279,7 +291,7 @@
       const triggerText = node("p", basis || "Not selected"); triggerText.title = reviewTriggerHelp; triggerText.setAttribute("aria-label", `${basis || "Review Trigger not selected"}. ${reviewTriggerHelp}`);
       trigger.append(node("span", "Review Trigger", "queue-field-label"), triggerText);
       if (filter.recorded) {
-        const outcome = node("div", undefined, "queue-decision"); outcome.append(node("span", "Decision", "queue-field-label"), node("strong", review.decision.outcome, "governance-chip"));
+        const outcome = node("div", undefined, "queue-decision"); outcome.append(node("span", "Latest Decision", "queue-field-label"), node("strong", review.decision.outcome, "governance-chip"));
         const date = node("div", undefined, "queue-timing"), time = node("time", shortDate(review.decision.timestamp)); time.dateTime = review.decision.timestamp; time.title = dateTime(review.decision.timestamp);
         date.append(node("span", "Decision Date", "queue-field-label"), time);
         const primary = node("div", undefined, "queue-action"), button = action("View Decision", () => onOpen(review.id)); button.className = "queue-action-button";
@@ -559,7 +571,6 @@
     if (!inWorkspace) { el("page-title").textContent = titles[view]; el("page-title").focus(); }
     else { const target = stages.includes(view) ? el(`${view}-view`) : el("detail-project-name"); target.setAttribute("tabindex", "-1"); target.focus({ preventScroll: true }); }
     el("page-eyebrow").hidden = view !== "investments";
-    el("dashboard-portfolio-count").hidden = view !== "dashboard";
     for (const name of ["dashboard", "investments"]) {
       const active = view === name || name === "investments" && inWorkspace;
       if (active) el(`nav-${name}`).setAttribute("aria-current", "page"); else el(`nav-${name}`).removeAttribute("aria-current");
@@ -687,7 +698,7 @@
     setDirectory(people, error = "") { directoryPeople = people; directoryError = error; populateOwners(); },
     storageNotice(text) { el("storage-notice").hidden = !text; el("storage-notice").textContent = text; },
     autosaveStatus(failed, unavailable = false) {
-      const status = el("review-save-status"), text = failed ? "Couldn’t save changes" : unavailable ? "Storage unavailable" : "✓ Saved";
+      const status = el("review-save-status"), text = failed ? "Couldn’t save changes" : unavailable ? "Storage unavailable" : "";
       if (status.textContent !== text) status.textContent = text;
       status.dataset.state = failed ? "failed" : unavailable ? "unavailable" : "saved";
       el("draft-save-error").hidden = !failed;

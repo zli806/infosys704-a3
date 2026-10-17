@@ -16,10 +16,10 @@ function clock() {
 }
 const sapProject = { ProjectUUID: '11111111-2222-3333-4444-555555555555', Project: 'UNIT-SAP', ProjectDescription: 'Unit Sandbox project' };
 
-test('partially assessed review is Saved but not ready, and Summary freely previews the four missing dimensions', async () => {
+test('partially assessed review autosaves silently but is not ready, and Summary freely previews four missing dimensions', async () => {
   const w = workspace({ controller: true }); await newReview(w);
   choose(w, 'assessment-alignment', 'High'); choose(w, 'assessment-benefits', 'Yes'); w.elements.get('assessment-owner').value = 'GOV-001'; edit(w, 'assessment-form');
-  const record = w.services.reviewStore.get(w.state.currentReviewID); assert.equal(w.reviewRules.readiness(record).ready, false); assert.equal(w.elements.get('review-save-status').textContent, '✓ Saved');
+  const record = w.services.reviewStore.get(w.state.currentReviewID); assert.equal(w.reviewRules.readiness(record).ready, false); assert.equal(w.elements.get('review-save-status').dataset.state, 'saved'); assert.equal(w.elements.get('review-save-status').textContent, '');
   assert.equal(w.elements.get('review-step-summary').disabled, false); click(w, 'review-step-summary'); assert.equal(w.state.view, 'summary');
   assert.match(w.elements.get('summary-readiness').textContent, /Assessment incomplete · 4 required items remaining/);
   assert.equal(byClass(w.elements.get('review-summary'), 'assessment-signal').filter(c => c.dataset.tone === 'unassessed').length, 4);
@@ -40,7 +40,7 @@ test('all ready stages freely round-trip Decision drafts; incomplete edits re-lo
   const w = workspace({ controller: true }); readyReview(w); click(w, 'review-step-decision'); choose(w, 'decision-outcome', 'Modify');
   for (const [id, value] of [['decision-rationale', 'Human draft'], ['decision-action', 'Reassess scope'], ['decision-action-owner', 'Unit coordinator'], ['decision-next-date', '2026-11-17']]) w.elements.get(id).value = value;
   edit(w, 'decision-form'); const id = w.state.currentReviewID, draft = JSON.stringify(w.services.reviewStore.get(id).decisionDraft);
-  click(w, 'review-step-assessment'); w.elements.get('assessment-owner').value = ''; edit(w, 'assessment-form'); assert.equal(w.elements.get('review-save-status').textContent, '✓ Saved'); assert.equal(w.elements.get('review-step-decision').getAttribute('aria-disabled'), 'true');
+  click(w, 'review-step-assessment'); w.elements.get('assessment-owner').value = ''; edit(w, 'assessment-form'); assert.equal(w.elements.get('review-save-status').dataset.state, 'saved'); assert.equal(w.elements.get('review-step-decision').getAttribute('aria-disabled'), 'true');
   click(w, 'review-step-decision'); assert.equal(w.state.view, 'assessment'); assert.match(w.elements.get('workflow-message').textContent, /Decision Owner/);
   click(w, 'review-step-summary'); assert.equal(w.state.view, 'summary'); click(w, 'review-step-assessment'); w.elements.get('assessment-owner').value = 'GOV-001'; edit(w, 'assessment-form');
   click(w, 'review-step-decision'); assert.equal(w.state.view, 'decision'); assert.equal(JSON.stringify(w.services.reviewStore.get(id).decisionDraft), draft); assert.equal(w.governanceUI.readDecision().rationale, 'Human draft');
@@ -55,7 +55,7 @@ test('Assessment save failure preserves edits, blocks every exit, persists until
   for (const target of ['nav-dashboard', 'nav-investments', 'nav-how-it-works', 'workspace-tab-overview', 'workspace-tab-history', 'review-step-summary', 'review-step-decision']) { click(w, target); assert.equal(w.state.view, 'assessment'); assert.equal(w.elements.get('assessment-comments').value, 'Keep this unsaved human note'); }
   assert.equal(w.windowEvents.beforeunload.length, 1); let prevented = false; const event = { preventDefault() { prevented = true; }, returnValue: null }; w.windowEvents.beforeunload[0](event); assert(prevented); assert.equal(event.returnValue, '');
   w.governanceUI.storageNotice(''); w.governanceUI.autosaveStatus(true); assert.equal(w.elements.get('draft-save-error').hidden, false); assert.notEqual(w.elements.get('toast-region').hidden, false);
-  store.update = original; click(w, 'retry-save'); assert.equal(w.elements.get('draft-save-error').hidden, true); assert.equal(w.elements.get('review-save-status').textContent, '✓ Saved'); assert.equal(w.windowEvents.beforeunload.length, 0);
+  store.update = original; click(w, 'retry-save'); assert.equal(w.elements.get('draft-save-error').hidden, true); assert.equal(w.elements.get('review-save-status').dataset.state, 'saved'); assert.equal(w.elements.get('review-save-status').textContent, ''); assert.equal(w.windowEvents.beforeunload.length, 0);
   assert.equal(store.get(w.state.currentReviewID).assessment.comments, 'Keep this unsaved human note'); click(w, 'nav-how-it-works'); assert.equal(w.state.view, 'how-it-works');
 });
 
@@ -78,7 +78,7 @@ test('actual localStorage write failure is atomic and survives background render
   click(w, 'nav-investments'); assert.equal(w.state.view, 'assessment'); assert.equal(w.elements.get('review-save-status').textContent, 'Couldn’t save changes');
   storage.fail = false; click(w, 'retry-save'); assert.equal(w.elements.get('review-step-assessment').focused, true); assert.equal(w.elements.get('draft-save-error').hidden, true);
   const reloaded = workspace({ controller: true, storage }); readyReview(reloaded); click(reloaded, 'review-step-assessment');
-  assert.equal(reloaded.elements.get('assessment-comments').value, 'Actual storage failure retains this note'); assert.equal(reloaded.elements.get('assessment-dependencies').value, 'Retain dependencies too'); assert.equal(reloaded.elements.get('review-save-status').textContent, '✓ Saved');
+  assert.equal(reloaded.elements.get('assessment-comments').value, 'Actual storage failure retains this note'); assert.equal(reloaded.elements.get('assessment-dependencies').value, 'Retain dependencies too'); assert.equal(reloaded.elements.get('review-save-status').dataset.state, 'saved');
 });
 
 test('actual immutable-record localStorage failure leaves the saved draft and prior History byte-for-byte intact', () => {
@@ -86,7 +86,7 @@ test('actual immutable-record localStorage failure leaves the saved draft and pr
   const storage = new Storage(), w = workspace({ controller: true, storage }); readyReview(w); click(w, 'review-step-decision'); choose(w, 'decision-outcome', 'Continue'); w.elements.get('decision-rationale').value = 'Draft already saved before the formal recording attempt'; edit(w, 'decision-form');
   const before = storage.get(w.services.reviewStore.STORAGE_KEY); storage.fail = true; w.elements.get('decision-form').events.submit[0]({ preventDefault() {} });
   assert.equal(w.state.view, 'decision'); assert.equal(storage.get(w.services.reviewStore.STORAGE_KEY), before); assert.match(w.elements.get('decision-incomplete').textContent, /Couldn’t record decision/); assert.equal(w.elements.get('decision-rationale').value, 'Draft already saved before the formal recording attempt');
-  assert.equal(w.services.reviewStore.get(w.state.currentReviewID).status, 'in_progress'); assert.equal(w.elements.get('review-save-status').textContent, '✓ Saved'); assert.equal(w.elements.get('toast-region').hidden, true);
+  assert.equal(w.services.reviewStore.get(w.state.currentReviewID).status, 'in_progress'); assert.equal(w.elements.get('review-save-status').dataset.state, 'saved'); assert.equal(w.elements.get('toast-region').hidden, true);
 });
 
 test('unchanged or reverted inputs do not create false unsaved warnings when no new persistence is needed', () => {
@@ -95,7 +95,7 @@ test('unchanged or reverted inputs do not create false unsaved warnings when no 
   click(w, 'nav-how-it-works'); assert.equal(w.state.view, 'how-it-works'); assert.equal((w.windowEvents.beforeunload || []).length, 0);
   click(w, 'how-portfolio'); w.elements.get('projects-body').children[0].children[4].children[0].events.click[0](); click(w, 'review-step-assessment');
   const saved = w.services.reviewStore.get(w.state.currentReviewID).assessment.comments; w.elements.get('assessment-comments').value = 'Temporary unsaved edit'; edit(w, 'assessment-form'); assert.equal(w.elements.get('draft-save-error').hidden, false);
-  w.elements.get('assessment-comments').value = saved; edit(w, 'assessment-form'); assert.equal(w.elements.get('draft-save-error').hidden, true); assert.equal(w.elements.get('review-save-status').textContent, '✓ Saved'); assert.equal(w.windowEvents.beforeunload.length, 0);
+  w.elements.get('assessment-comments').value = saved; edit(w, 'assessment-form'); assert.equal(w.elements.get('draft-save-error').hidden, true); assert.equal(w.elements.get('review-save-status').dataset.state, 'saved'); assert.equal(w.windowEvents.beforeunload.length, 0);
   w.services.reviewStore.update = original;
 });
 
@@ -103,7 +103,7 @@ test('Record Decision service failure stays on Decision with persistent local fe
   const w = workspace({ controller: true }); readyReview(w); click(w, 'review-step-decision'); choose(w, 'decision-outcome', 'Continue'); w.elements.get('decision-rationale').value = 'Human intent to continue';
   const original = w.services.reviewStore.confirm; w.services.reviewStore.confirm = () => { throw new Error('Unit immutable-record write failure'); };
   w.elements.get('decision-form').events.submit[0]({ preventDefault() {} }); assert.equal(w.state.view, 'decision'); assert.equal(w.elements.get('decision-incomplete').hidden, false); assert.match(w.elements.get('decision-incomplete').textContent, /Couldn’t record decision/); assert.equal(w.elements.get('toast-region').hidden, true);
-  assert.equal(w.services.reviewStore.get(w.state.currentReviewID).status, 'in_progress'); assert.equal(w.elements.get('review-save-status').textContent, '✓ Saved'); w.services.reviewStore.confirm = original;
+  assert.equal(w.services.reviewStore.get(w.state.currentReviewID).status, 'in_progress'); assert.equal(w.elements.get('review-save-status').dataset.state, 'saved'); w.services.reviewStore.confirm = original;
   w.elements.get('decision-rationale').value = 'A later draft edit does not imply recording succeeded'; edit(w, 'decision-form'); assert.equal(w.elements.get('decision-incomplete').hidden, false); assert.match(w.elements.get('decision-incomplete').textContent, /Couldn’t record decision/);
 });
 
