@@ -3,16 +3,16 @@ version: alpha
 colors:
   brandBlue: "#006491"
   brandRed: "#E31837"
-  canvas: "#fafbfc"
-  ink: "#20324b"
-  muted: "#596b7e"
-  background: "#f3f6fa"
+  canvas: "#f3f4f6"
+  ink: "#202f3d"
+  muted: "#596875"
+  background: "#f6f7f9"
   surface: "#ffffff"
-  border: "#d8e1eb"
+  border: "#dfe4e9"
   primary: "#146b9a"
   action: "#146b9a"
   actionHover: "#105477"
-  secondary: "#eaf1f7"
+  secondary: "#eaf0f5"
   success: "#16734f"
   successBackground: "#edf7f2"
   warning: "#895d12"
@@ -26,13 +26,13 @@ colors:
 typography:
   body:
     fontFamily: '"Segoe UI", system-ui, -apple-system, sans-serif'
-    fontSize: "15px"
-    lineHeight: "1.55"
+    fontSize: "16px"
+    lineHeight: "1.6"
   heading:
     fontFamily: '"Avenir Next", "Segoe UI", system-ui, sans-serif'
 rounded:
-  panel: "10px"
-  control: "6px"
+  panel: "12px"
+  control: "8px"
 omitted:
   - section: spacing
     reason: "Layout-specific spacing is maintained in styles.css; no generated scale."
@@ -79,18 +79,18 @@ Keep native controls: assessment/decision fieldsets use visible labelled radios,
 
 ### Customer-facing components
 
-- **Interactive executive status strip:** Portfolio Governance and the actual investment count are the only Dashboard header layers. Five metrics are buttons—Active Reviews, Overdue, Material Concerns, Evidence Gaps, Recorded Decisions—with no second tab bar. Existing number/label scale, separators and selected surface/rule remain. Material/gap counts are distinct matching active investments; Recorded Decisions counts all completed cycles, not distinct investments, and uses neutral muted violet rather than success green. Five columns wrap to three then two, with a full-width fifth control on phones; type never shrinks to force one row.
-- **One shared governance list:** current lenses use Investment / Review Trigger / Findings / Decision Timing / Next Step. Recorded Decisions switches the same grid to Investment / Review Trigger / Decision / Decision Date / Next Step, newest decision timestamp first. Readable headings become field labels when stacked. Individual white row surfaces with small gaps replace full-table framing; investment names lead, trigger text is quiet, findings use compact semantic chips. All actions remain consistent; urgent rows retain a thin rule and explicit timing. No extra module/page is added.
-- **Portfolio:** Dashboard remains the visual reference. Portfolio lists every loaded investment with derived governance state, latest decision, stored next review and contextual next step; generic Start/End columns remain secondary Detail metadata. Its approved layout, thin rules, source badges and responsive field labels are unchanged. Investments with no governance event remain accessible here, not in a sixth Dashboard lens.
+- **Interactive executive status strip:** Portfolio Governance/current investment count lead five metric filter buttons. Clear blue / deadline red / rust / indigo / historical violet distinguish lenses; recorded never means success. Selected weight, tinted surface and 4px rule make interaction obvious without solid-colour boxes. Each label has its own separate 24px help button, not nested in the filter. 64px numbers/16px labels fit five desktop columns and wrap 5→3→2 without illegible sizing.
+- **One shared governance list:** current lenses use Investment / Review Trigger / Findings / Decision Timing / Next Step; recorded swaps Decision / Decision Date in the same grid. The heading has no visible repeated total (live count is sr-only). Decorative 01/02/03 indexes sit inside the left row margin, separate from the urgent accent. Strong investment names, readable headings, compact high-contrast findings and explicit timing retain orientation without spreadsheet grid lines. Emerging chips expose concise accessible meanings; no extra explanation row/icon.
+- **Portfolio:** all loaded investments retain derived state, latest decision, next review and contextual action. Semantic tables use horizontal rules/quiet hover only. Names lead; latest outcome is stronger than its secondary date; Monitoring stays neutral, Assessment blue-neutral, Ready action-blue, Follow-up amber, Paused violet and Stopped slate. Outcomes themselves are neutral, not good/bad traffic lights. Investment Review History stays a quiet compact ledger. Detail renders current governance as a strong state label followed by timing/history/checkpoint lines.
 - **Repeated review cycles:** investments outlive reviews. No active review means Start Review for a first cycle, or Start New Review after non-Stop completion; View Latest Decision remains secondary. Stop offers only View Decision. A secondary thin-rule Review History below current evidence shows completed cycles newest first. All new cycles preserve old snapshots; no auto-review date logic or persisted display status is added.
 - **Automatic loading:** a configured key starts one project refresh while Dashboard remains visible. Opening an investment loads structure, then dependent financial/procurement evidence. Happy-path success is quiet; refresh/retry are secondary. Failures do not auto-loop. HTTP status/raw diagnostics never lead the normal workflow.
 - **Three evidence cards:** Project Structure, Financial Activity, Procurement Activity. One state, actual count and short qualification. One collapsed Technical Details section near the bottom retains all original tables, raw responses, HTTP/filter diagnostics and provenance. No nested technical toggles on Investment Details.
-- **Assessment:** three-step header plus compact human-selected trigger/due date. Two desktop groups: Investment Case and Delivery & Risk. Six native radio groups retain Not assessed defaults and visible checked/Selected states. Owner follows; optional comments/dependencies are collapsed. Missing items appear only after Review Summary is attempted.
+- **Assessment:** progress-only three-step header and one bordered ← Back to Investment exit. Completed steps use neutral/action-blue checks, current is strongest, future quiet; none are links. Six native groups/defaults remain. One bottom primary Continue to Summary →; missing items appear only on progression attempts. Red required stars never colour whole labels.
 - **Short Summary:** a two-column/three-row categorical signal matrix is central, followed by grouped Management Attention, horizontal governance timeline and three evidence rows. Optional reviewer context and a link to Investment Technical Details avoid repeating context/raw lists.
 - **Timeline:** actual opened/14-day/30-day milestones with text status. Dates are concise; exact UTC timestamps remain in time elements, accessible names and hover titles. Geometry denotes milestone order, not elapsed-time scale. Recorded milestones retain actual chronological position.
 - **Decision:** five spacious native radio cards with neutral descriptions/no default. Required fields have red asterisks plus native required/accessibility semantics; conditional markers follow existing rules. Accountability and follow-up are grouped surfaces. Stop hides/disables Next Review, with a concise terminal-outcome explanation; optional closure work remains possible. Record Decision retains human rationale/owner validation.
-- **Resume and accountability:** incomplete active reviews resume Assessment; ready ones resume Summary, never skip the checkpoint. Contextual investment CTAs lead to Make Governance Decision. Immediately before the five cards, compact signal counts explain context without deciding an outcome. Material concerns add non-blocking rationale guidance; all five outcomes remain available and all require rationale under the unchanged rules.
-- **Executive restraint:** there are no per-project Why is this flagged? controls or extra reasoning rows. Project-specific assessment reasoning remains in Review Summary. The single question-mark help retains the prototype definitions, timing/severity distinction and calibration caveat; hover, focus, Escape and touch toggling stay accessible. No extra classification cues appear beside assessment inputs.
+- **Workflow grammar:** external Review & Decide still enters Summary, not Decision. Summary's strip is information only; bottom actions are ← Back to Assessment / Continue to Decision →. Decision ends with ← Back to Summary / Record Decision. Confirmation closes with primary Back to Dashboard and secondary View Investment, retaining the one-time recorded-lens context. All guards and human outcomes are unchanged.
+- **Executive restraint:** no per-project explanation rows, global methodology popup or sixth help icon. Five concise lens definitions explain current overlap/counting/history where needed; hover/focus/tap, Escape/outside dismiss and stable refresh behaviour remain accessible. Calibration/methodology belongs in review context/documentation. No assessment hints infer classifications or outcomes.
 - **Record:** a joined white hero unifies the neutral outcome, investment identity, owner/role and timestamp; the green acknowledgement means saved, not recommended. Rationale and follow-up remain clear primary sections; provenance/snapshots remain secondary disclosures. No new information is inferred.
 - **Owner configuration:** immutable fictional Alex Lee, Morgan Chen and Taylor Singh roles live only in governance-directory.js. Normal deferred JS populates immediately even on local-file loads; no JSON fetch. This does not make SAP file-origin requests supported or create authenticated authority.
 
@@ -102,13 +102,15 @@ Showcase-only Investment Context is a compact flat business summary of approved/
 
 The six-dimension matrix uses the central prototype convention: normal green/positive-neutral, emerging amber, material red, evidence gap grey/neutral, unassessed unfilled. Text markers accompany colour. A Material trigger explains why the review began, not a classified finding. No numeric materiality threshold, score or recommended outcome is implied; production governance/pilot must calibrate policy. Seeded assessments stay editable, with project-level SHOWCASE provenance rather than repeated field badges. Preserve Assessment → Summary → Decision without restoring a control rail.
 
-This is reusable component anatomy. The status strip uses navy/action-blue, governance red, warm rust, slate and a restrained neutral recorded tone on numbers/rules, not large colour fills. Native buttons retain visible focus and aria-pressed; the live list heading/count updates without moving focus or changing route. Active Reviews is the normal entry default; Back to Dashboard from a freshly recorded decision selects Recorded Decisions once. Selection stays while using Dashboard, never across browser sessions. The logo asset and workflow architecture remain unchanged; surfaces and typography are refined below. There are no gradients, extra charts or decorative animation.
+This is reusable component anatomy. Lens tones are #006491 / #b42318 / #d15a35 / #4f6cc9 / #7257b3; small material/emerging/gap text uses darker #a83d21 / #905400 / #3e55aa on restrained tints for contrast. These are governance-specific aliases, not a reclassification of brand red or decision outcomes. Native focus/aria-pressed/live counts remain, with counts visually hidden. Dashboard normally enters Active Reviews; fresh-record closure selects Recorded Decisions once. No preference persistence, new route, gradient or decorative animation.
 
 Executive polish supersedes the former flat presentation without changing IA: 16px body baseline, ~42px main titles and 64px desktop lens numbers (52px phone); an integrated five-lens strip, white row surfaces and grey canvas establish hierarchy. Portfolio/history keep semantic tables with subtle horizontal rules and stronger investment names. Detail uses calmer identity/evidence grouping. Summary retains its six-dimension matrix, now coherent bordered components, a restrained Management Attention surface and readable timeline/evidence rows. Decision and Confirmation follow the same component language. There are no gradients, decorative imagery or pervasive shadows; only the small help overlay has a light elevation cue.
 
 Semantic polish: active cycles suppress previous-cycle Next Review in current presentation while history retains it. Store.start now guards latest Stop by actual decision date, and new Stop confirmations omit Next Review even from direct service calls. Old recorded snapshots are never migrated. Required markers follow conditional native flags; no assessment classification, 14/30-day policy, owner model or five-outcome change.
 
 Polish verification: 97 Node tests, 123-ID contract and syntax/static checks; isolated Edge exercised all Dashboard modes, ready Summary, rejected empty Decision, required Modify fields, Stop date toggling/recording, service-level Stop guard, immutable history and the new-cycle Portfolio date suppression. Desktop/laptop/mobile screenshots of all workflow views were inspected; 320–1440px layouts had no page overflow or console errors. Existing showcase data only; no new live SAP validation. Client-projector readability, other engines and formal screen-reader/WCAG review remain nice-to-have validation.
+
+Workflow/hierarchy verification: 103 Node tests, 120-ID contract; isolated Edge reviewed all five lenses and Assessment/Summary/Decision/Confirmation at 1440/1280/1024/768/390px. Hoverable/focusable help, physical emulated touch, Escape, hidden live counts, decorative indexes, selected states and action hierarchy passed without page overflow/console errors. Portfolio QA included Monitoring, active/ready, Follow-up, Paused/Stopped and long names through real showcase review cycles. Material/emerging/gap chip text measured 5.51:1 minimum; large metric numbers ≥4.01:1 on white and ≥3.69:1 on selected surfaces. Mobile inspection prompted label-aligned help positioning; latest-decision dates were quietened without leading separators. This is qualitative product QA, not formal cross-engine/screen-reader/projector certification.
 
 Verification retains engineering tests, CI, static checks and the remote SAP validator. Qualitative manager self-checks are not formal timed user studies; Jerry still owns the final client-projection/usability and brand refinement.
 

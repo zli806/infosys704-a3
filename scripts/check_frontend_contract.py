@@ -14,7 +14,7 @@ REQUIRED_IDS = (
     "raw-gl-response", "gl-diagnostic", "raw-gl-diagnostic",
     "po-panel", "load-po-evidence", "po-project", "po-message", "po-error", "po-summary", "po-body", "raw-po-response",
     "nav-dashboard", "nav-investments", "page-title", "storage-notice", "investment-history-title", "investment-history-body",
-    "dashboard-view", "dashboard-cards", "dashboard-columns", "dashboard-portfolio-count", "page-eyebrow", "decision-queue-title", "dashboard-filter-count", "queue-help", "queue-help-trigger",
+    "dashboard-view", "dashboard-cards", "dashboard-columns", "dashboard-portfolio-count", "page-eyebrow", "decision-queue-title", "dashboard-filter-count",
     "investments-view", "detail-view", "investment-context", "detail-review-status", "start-review", "view-last-decision",
     "detail-lifecycle-overview", "reload-lifecycle", "load-review-evidence", "detail-financial-overview", "detail-procurement-overview",
     "review-chrome", "current-review-project", "review-steps",
@@ -28,7 +28,7 @@ REQUIRED_IDS = (
     "decision-follow-up", "decision-follow-up-title", "confirmation-outcome",
     "project-refresh-error", "retry-projects", "project-diagnostics", "investment-technical-details", "technical-evidence-context", "decision-incomplete",
     "detail-source", "showcase-investment-context", "technical-source", "showcase-project-payload", "raw-showcase-project", "reset-showcase",
-    "signals-help", "decision-context-title", "decision-context-counts", "decision-rationale-help",
+    "decision-context-title", "decision-context-counts", "decision-rationale-help",
     "summary-decision-overview", "decision-next-date-help", "decision-next-review-field",
     "decision-action-required", "decision-action-owner-required", "decision-next-date-required",
 )

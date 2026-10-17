@@ -72,8 +72,9 @@ test('empty and unavailable queues/decisions are truthful, with no fabricated co
   w.governanceUI.showView('dashboard', 'recorded'); assert.match(w.elements.get('dashboard-attention').textContent, /unavailable/); assert.equal(rows(w).length, 0);
 });
 
-test('question help opens on hover and focus, stays hoverable, is dismissible with Escape, supports touch and closes on navigation', () => {
-  const w = workspace(), wrapper = w.elements.get('queue-help'), trigger = w.elements.get('queue-help-trigger'), text = w.elements.get('signals-help');
+test('metric help opens on hover and focus, stays hoverable, is dismissible with Escape, supports touch and closes on navigation', () => {
+  const w = workspace(); w.governanceUI.renderDashboard([], 0, () => {});
+  const trigger = w.document.getElementById('metric-help-active'), wrapper = trigger.parentElement, text = w.document.getElementById('metric-tip-active');
   assert.equal(text.hidden, true);
   wrapper.events.mouseenter[0](); assert.equal(text.hidden, false); assert.equal(trigger.getAttribute('aria-expanded'), 'true');
   wrapper.events.mouseleave[0](); assert.equal(text.hidden, true);
@@ -112,10 +113,15 @@ test('shared shell and Dashboard contain only the requested navigation, regions 
   assert(!html.includes('class="sidebar"')); assert(!html.includes('Evidence. Judgement.'));
   for (const id of ['attention-profile', 'attention-breakdown', 'dashboard-open-reviews', 'dashboard-view-investments']) assert(!html.includes(`id="${id}"`));
   for (const selector of ['.sidebar', '.chart-row', '.attention-chart', '.dashboard-columns', '.other-reviews', '.status-card']) assert(!css.includes(selector));
-  assert.match(html, /id="queue-help-trigger"[^>]*aria-label="[^"]+"[^>]*aria-describedby="signals-help"/); assert.match(html, /id="signals-help"[^>]*role="tooltip"[^>]*hidden/);
+  for (const retired of ['queue-help', 'queue-help-trigger', 'signals-help']) assert(!html.includes(`id="${retired}"`));
   const dashboard = html.slice(html.indexOf('<section id="dashboard-view"'), html.indexOf('<section id="investments-view"'));
   assert(!dashboard.includes('Decisions Recorded')); assert(!dashboard.includes('Governance Attention Profile')); assert(!dashboard.includes('Needs Attention'));
-  for (const label of ['Active Reviews', 'Recorded Decisions', 'Material Concern', 'Emerging Concern', 'Evidence Gap', 'calibrated with DPE']) assert(dashboard.includes(label));
+  assert(dashboard.includes('Active Reviews')); assert(!dashboard.includes('calibrated with DPE'));
+  const helpWorkspace = workspace(); helpWorkspace.governanceUI.renderDashboard([], 0, () => {});
+  for (const key of ['active', 'overdue', 'material', 'gap', 'recorded']) {
+    const trigger = helpWorkspace.document.getElementById(`metric-help-${key}`), tip = helpWorkspace.document.getElementById(`metric-tip-${key}`);
+    assert.equal(trigger.getAttribute('aria-describedby'), tip.id); assert.equal(tip.getAttribute('role'), 'tooltip'); assert.equal(tip.hidden, true);
+  }
   for (const retired of ['Recent Decisions', 'dashboard-decisions', 'recent-decisions-title', 'nav-reviews', 'reviews-view', 'reviews-body']) assert(!html.includes(retired));
   assert(!dashboard.includes('Portfolio Pulse')); assert(dashboard.includes('class="queue-columns queue-grid"'));
   const w = workspace(); w.governanceUI.renderDashboard(w.services.reviewStore.seedShowcase(), 5, () => {});

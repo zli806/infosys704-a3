@@ -179,6 +179,18 @@
     { key: "gap", label: "Evidence Gaps", heading: "Investments with Evidence Gaps", unit: "investment", description: "Show active investments with at least one Evidence Gap", distinct: true, matches: item => item.signals.evidenceGaps.length > 0, empty: "No active investments with evidence gaps." },
     { key: "recorded", label: "Recorded Decisions", heading: "Recorded Decisions", unit: "decision", description: "Show completed decision records from all review cycles", recorded: true, empty: "No decisions recorded yet." }
   ];
+  const lensHelp = {
+    active: "Open review cycles awaiting assessment completion or a governance decision. Current-review lenses may overlap.",
+    overdue: "Active reviews past the 14-day decision target, including reviews that have reached the 30-day escalation threshold.",
+    material: "Active investments with at least one Material Concern identified during assessment. This number counts investments, not individual findings.",
+    gap: "Active investments where at least one assessment area has insufficient evidence for a reliable conclusion. This number counts investments, not individual gaps.",
+    recorded: "Completed, immutable governance decisions. One investment may appear more than once when it has completed multiple review cycles."
+  };
+  const findingHelp = {
+    material: "A serious adverse assessment requiring formal management attention.",
+    emerging: "A deteriorating or uncertain assessment requiring attention or monitoring, but not currently classified as material.",
+    gap: "An assessment area has insufficient evidence for a reliable conclusion."
+  };
   let selectedDashboardFilter = "active";
   let dashboardState = null;
   let dashboardFilterButtons = [];
@@ -205,21 +217,25 @@
       return [filter.key, filter.distinct ? distinctDashboardInvestments(matching) : matching];
     }));
     dashboardState = { subsets, onOpen, storageAvailable };
-    const focusedFilter = document.activeElement?.dataset.filter;
-    const pulse = el("dashboard-cards"); pulse.replaceChildren(); dashboardFilterButtons = [];
+    const pulse = el("dashboard-cards");
     for (const filter of dashboardFilters) {
-      const value = subsets[filter.key].length, metric = node("button", undefined, "pulse-metric");
-      metric.type = "button"; metric.id = `dashboard-filter-${filter.key}`;
-      metric.dataset.kind = filter.key; metric.dataset.filter = filter.key; metric.dataset.active = String(storageAvailable && value > 0);
+      const value = subsets[filter.key].length;
+      let metric = dashboardFilterButtons.find(button => button.dataset.filter === filter.key);
+      if (!metric) {
+        const cell = node("div", undefined, "pulse-metric-wrap"); cell.dataset.kind = filter.key;
+        metric = node("button", undefined, "pulse-metric"); metric.type = "button"; metric.id = `dashboard-filter-${filter.key}`;
+        metric.dataset.kind = filter.key; metric.dataset.filter = filter.key;
+        metric.setAttribute("aria-controls", "dashboard-attention");
+        metric.append(node("span", filter.label, "pulse-label"), node("span", "", "pulse-value"));
+        metric.addEventListener("click", () => { dismissMetricHelp(); selectedDashboardFilter = filter.key; renderDashboardQueue(); });
+        cell.append(metric, metricHelp(filter)); pulse.append(cell); dashboardFilterButtons.push(metric);
+      }
+      metric.dataset.active = String(storageAvailable && value > 0);
       metric.disabled = !storageAvailable;
-      metric.setAttribute("aria-controls", "dashboard-attention");
       metric.setAttribute("aria-label", `${filter.label}: ${storageAvailable ? countLabel(value, filter.unit) : "Unavailable"}. ${filter.description}.`);
-      metric.append(node("span", filter.label, "pulse-label"), node("span", storageAvailable ? value : "Unavailable", "pulse-value"));
-      metric.addEventListener("click", () => { selectedDashboardFilter = filter.key; renderDashboardQueue(); });
-      dashboardFilterButtons.push(metric); pulse.append(metric);
+      metric.children[1].textContent = storageAvailable ? value : "Unavailable";
     }
     renderDashboardQueue();
-    if (focusedFilter && document.querySelector("main").dataset.view === "dashboard") dashboardFilterButtons.find(button => button.dataset.filter === focusedFilter)?.focus();
   }
   function renderDashboardQueue() {
     if (!dashboardState) return;
@@ -227,6 +243,7 @@
     selectedDashboardFilter = filter.key;
     const { subsets, onOpen, storageAvailable } = dashboardState, items = subsets[filter.key];
     for (const button of dashboardFilterButtons) button.setAttribute("aria-pressed", String(button.dataset.filter === selectedDashboardFilter));
+    for (const control of metricHelpControls) control.place();
     el("decision-queue-title").textContent = filter.heading;
     el("dashboard-filter-count").textContent = storageAvailable ? countLabel(items.length, filter.unit) : "Records unavailable";
     const labels = ["Investment", "Review Trigger", filter.recorded ? "Decision" : "Findings", filter.recorded ? "Decision Date" : "Decision Timing", "Next Step"];
@@ -235,8 +252,9 @@
     queue.dataset.mode = filter.recorded ? "recorded" : "current";
     if (!storageAvailable) queue.append(node("p", "Review storage unavailable; governance records cannot be refreshed.", "queue-empty"));
     else if (!items.length) queue.append(node("p", filter.empty, "queue-empty"));
-    else for (const { review, signals, timing } of items) {
+    else for (const [index, { review, signals, timing }] of items.entries()) {
       const row = node("article", undefined, "decision-queue-row"); row.dataset.reviewId = review.id; row.setAttribute("role", "listitem");
+      const sequence = node("span", String(index + 1).padStart(2, "0"), "queue-sequence"); sequence.setAttribute("aria-hidden", "true");
       if (timing) row.dataset.timing = timing.status;
       const urgent = !!timing && timing.status !== "Within decision window"; row.dataset.urgent = String(urgent);
       const grid = node("div", undefined, "queue-grid");
@@ -252,13 +270,14 @@
         const primary = node("div", undefined, "queue-action"), button = action("View Decision", () => onOpen(review.id)); button.className = "queue-action-button";
         button.setAttribute("aria-label", `View Decision: ${review.project.ProjectDescription || review.project.Project} · ${dateTime(review.decision.timestamp)}`);
         primary.append(node("span", "Next Step", "queue-field-label"), button);
-        grid.append(investment, trigger, outcome, date, primary); row.append(grid); queue.append(row); continue;
+        grid.append(investment, trigger, outcome, date, primary); row.append(grid, sequence); queue.append(row); continue;
       }
       const findings = node("div", undefined, "queue-signals"); findings.append(node("span", "Findings", "queue-field-label"));
       const list = node("ul");
       for (const [count, label, tone] of [[signals.materialConcerns.length, "Material", "material"], [signals.attentionItems.length, "Emerging", "emerging"], [signals.evidenceGaps.length, "Evidence Gap", "gap"]]) {
         if (!count) continue;
-        const signal = node("li", label === "Evidence Gap" ? countLabel(count, label) : `${count} ${label}`, "queue-signal"); signal.dataset.tone = tone; list.append(signal);
+        const signal = node("li", label === "Evidence Gap" ? countLabel(count, label) : `${count} ${label}`, "queue-signal"); signal.dataset.tone = tone;
+        signal.title = findingHelp[tone]; signal.setAttribute("aria-label", `${signal.textContent}. ${findingHelp[tone]}`); list.append(signal);
       }
       if (!list.children.length) {
         const assessed = Object.entries(rules.ASSESSMENTS).every(([key, field]) => field.options.includes(review.assessment?.[key]) && review.assessment[key] !== field.missing);
@@ -272,7 +291,7 @@
       deadline.append(time);
       const primary = node("div", undefined, "queue-action"), button = action(resumeLabel(review), () => onOpen(review.id)); button.className = "queue-action-button";
       button.setAttribute("aria-label", `${resumeLabel(review)}: ${review.project.ProjectDescription || review.project.Project}`); primary.append(node("span", "Next Step", "queue-field-label"), button);
-      grid.append(investment, trigger, findings, deadline, primary); row.append(grid);
+      grid.append(investment, trigger, findings, deadline, primary); row.append(grid, sequence);
       queue.append(row);
     }
   }
@@ -310,10 +329,10 @@
     if (capturedContext) context.append(node("p", "Saved project context. Refresh evidence for current activity.", "hint"));
     const governance = portfolioState(project, records, storageAvailable), { active, latest } = governance;
     const timing = active ? rules.timing(active) : null;
-    el("detail-review-status").textContent = [governance.label,
-      timing ? `${timing.status === "Within decision window" ? "Decision due" : timing.status + " · Due"} ${shortDate(timing.decisionTarget)}` : "",
+    const status = el("detail-review-status"); status.replaceChildren(node("strong", governance.label, "detail-state")); status.dataset.state = governance.label.toLowerCase().replace(/ /g, "-");
+    for (const line of [timing ? `${timing.status === "Within decision window" ? "Decision due" : timing.status + " · Due"} ${shortDate(timing.decisionTarget)}` : !latest && storageAvailable ? "No active review" : "",
       latest ? `Latest decision ${latest.decision.outcome} · ${shortDate(latest.decision.timestamp)}` : "",
-      governance.nextReview ? `Next review ${shortDate(governance.nextReview)}` : ""].filter(Boolean).join(" · ");
+      governance.nextReview ? `Next review ${shortDate(governance.nextReview)}` : ""]) if (line) status.append(node("span", line));
     el("start-review").disabled = !storageAvailable;
     el("start-review").textContent = active ? resumeLabel(active) : latest ? "Start New Review" : "Start Review";
     el("start-review").hidden = !active && latest?.decision.outcome === "Stop";
@@ -489,7 +508,7 @@
   }
   function showView(view, dashboardFilter = "active") {
     if (view === "dashboard") { selectedDashboardFilter = dashboardFilter === "recorded" ? "recorded" : "active"; renderDashboardQueue(); }
-    if (view !== "dashboard") dismissQueueHelp();
+    if (view !== "dashboard") dismissMetricHelp();
     for (const name of views) el(`${name}-view`).hidden = name !== view;
     el("review-chrome").hidden = !["assessment", "summary", "decision"].includes(view);
     if (view === "detail") el("investment-technical-details").open = false;
@@ -501,7 +520,12 @@
       if (active) el(`nav-${name}`).setAttribute("aria-current", "page"); else el(`nav-${name}`).removeAttribute("aria-current");
     }
     const step = ["assessment", "summary", "decision"].indexOf(view);
-    [...el("review-steps").children].forEach((item, index) => { if (index === step) item.setAttribute("aria-current", "step"); else item.removeAttribute("aria-current"); });
+    [...el("review-steps").children].forEach((item, index) => {
+      item.dataset.state = index < step ? "complete" : index === step ? "current" : "future";
+      if (index === step) item.setAttribute("aria-current", "step"); else item.removeAttribute("aria-current");
+      if (item.children[0]) { item.children[0].textContent = index < step ? "✓" : String(index + 1); item.children[0].setAttribute("aria-hidden", "true"); }
+      item.setAttribute("aria-label", `${index + 1} ${["Assessment", "Summary", "Decision"][index]}${index < step ? ", completed" : index === step ? ", current step" : ", upcoming"}`);
+    });
     el("workflow-message").hidden = true;
     el("decision-incomplete").hidden = true;
     document.querySelector("main").dataset.view = view;
@@ -510,26 +534,54 @@
   }
   function growTextareas() { for (const input of document.querySelectorAll("textarea")) { if (input.offsetParent !== null) { input.style.height = "auto"; input.style.height = Math.max(110, input.scrollHeight + 2) + "px"; } } }
   let technicalAction = () => {};
-  let dismissQueueHelp = () => {};
-  function bindQueueHelp() {
-    const wrapper = el("queue-help"), trigger = el("queue-help-trigger"), text = el("signals-help");
+  const metricHelpControls = [];
+  function dismissMetricHelp() { for (const control of metricHelpControls) control.dismiss(); }
+  function metricHelp(filter) {
+    const wrapper = node("span", undefined, "metric-help-wrap"), trigger = node("button", "?", "metric-help"), text = node("span", lensHelp[filter.key], "metric-tooltip");
+    trigger.id = `metric-help-${filter.key}`; trigger.type = "button"; text.id = `metric-tip-${filter.key}`; text.hidden = true; text.setAttribute("role", "tooltip");
+    trigger.setAttribute("aria-label", `About ${filter.label}`); trigger.setAttribute("aria-describedby", text.id); trigger.setAttribute("aria-controls", text.id);
     let hovered = false, focused = false, pinned = false, dismissed = false;
-    const update = () => { const open = !dismissed && (hovered || focused || pinned); text.hidden = !open; trigger.setAttribute("aria-expanded", String(open)); };
-    dismissQueueHelp = () => { hovered = false; focused = false; pinned = false; dismissed = true; update(); };
-    wrapper.addEventListener("mouseenter", () => { hovered = true; dismissed = false; update(); });
+    const position = () => {
+      if (!trigger.getBoundingClientRect || text.hidden) return;
+      const width = document.documentElement?.clientWidth || window.innerWidth, height = document.documentElement?.clientHeight || window.innerHeight;
+      text.style.maxWidth = `${Math.max(0, width - 24)}px`;
+      const rect = trigger.getBoundingClientRect(), tip = text.getBoundingClientRect();
+      text.style.left = `${Math.max(12, Math.min(rect.left - 20, width - tip.width - 12))}px`;
+      text.style.top = `${Math.max(12, rect.bottom + tip.height > height - 12 ? rect.top - tip.height : rect.bottom)}px`;
+    };
+    const update = () => { const open = !dismissed && (hovered || focused || pinned); text.hidden = !open; trigger.setAttribute("aria-expanded", String(open)); position(); };
+    const control = {
+      dismiss() { hovered = false; focused = false; pinned = false; dismissed = true; update(); }, position,
+      contains(target) { return wrapper.contains?.(target) || false; },
+      place() {
+        const label = wrapper.parentElement?.children[0]?.children[0];
+        if (label && Number.isFinite(label.offsetWidth)) {
+          // Keep the separate help button beside the label's reserved 32px space, even after wrapping.
+          wrapper.style.left = `${label.offsetLeft + label.offsetWidth - 32 + 8}px`;
+          wrapper.style.top = `${label.offsetTop + (label.offsetHeight - 24) / 2}px`;
+          wrapper.style.bottom = "auto";
+        }
+        position();
+      }
+    };
+    const activate = () => { for (const other of metricHelpControls) if (other !== control) other.dismiss(); dismissed = false; };
+    metricHelpControls.push(control);
+    wrapper.addEventListener("mouseenter", () => { activate(); hovered = true; update(); });
     wrapper.addEventListener("mouseleave", () => { hovered = false; update(); });
-    trigger.addEventListener("focus", () => { focused = true; dismissed = false; update(); });
+    trigger.addEventListener("focus", () => { activate(); focused = true; update(); });
     trigger.addEventListener("blur", () => { focused = false; pinned = false; update(); });
-    trigger.addEventListener("click", () => { pinned = !pinned; dismissed = !pinned; update(); });
+    trigger.addEventListener("click", () => { if (!pinned) activate(); pinned = !pinned; dismissed = !pinned; update(); });
     document.addEventListener("keydown", event => { if (event.key === "Escape" && !text.hidden) { dismissed = true; pinned = false; update(); event.preventDefault(); } });
-    update();
+    wrapper.append(trigger, text); update(); return wrapper;
   }
   function bind(actions) {
     technicalAction = actions.technicalDetails || (() => {});
     el("retry-projects").addEventListener("click", actions.retryProjects);
     el("project-diagnostics").addEventListener("click", technicalAction);
     el("reset-showcase").addEventListener("click", actions.resetShowcase);
-    bindQueueHelp();
+    window.addEventListener?.("resize", () => metricHelpControls.forEach(control => control.place()));
+    window.addEventListener?.("scroll", () => metricHelpControls.forEach(control => control.position()), true);
+    document.addEventListener("pointerdown", event => { for (const control of metricHelpControls) if (!control.contains(event.target)) control.dismiss(); });
     for (const [key, id] of Object.entries(assessmentIDs)) buildChoices(id, rules.ASSESSMENTS[key].options);
     buildChoices("decision-outcome", rules.OUTCOMES);
     for (const view of ["dashboard", "investments"]) el(`nav-${view}`).addEventListener("click", () => actions.navigate(view));

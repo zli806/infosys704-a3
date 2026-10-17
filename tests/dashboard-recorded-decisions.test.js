@@ -8,7 +8,7 @@ const buttonIn = el => all(el).find(el => el.tag === 'button');
 const rows = w => w.elements.get('dashboard-attention').children.filter(row => row.dataset.reviewId);
 const metric = (w, key) => w.document.getElementById(`dashboard-filter-${key}`);
 const count = (w, key) => Number(metric(w, key).children[1].textContent);
-const selected = w => w.elements.get('dashboard-cards').children.filter(b => b.getAttribute('aria-pressed') === 'true').map(b => b.dataset.filter);
+const selected = w => all(w.elements.get('dashboard-cards')).filter(b => b.getAttribute('aria-pressed') === 'true').map(b => b.dataset.filter);
 const columns = w => w.elements.get('dashboard-columns').children.map(c => c.textContent);
 function recordModify(w) {
   buttonIn(rows(w).find(r => r.dataset.reviewId === 'SHOWCASE-ODP-REVIEW')).events.click[0]();

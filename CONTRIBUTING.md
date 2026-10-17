@@ -8,7 +8,7 @@ Start with `git status`; if clean, sync with `git checkout master` and `git pull
 
 ## Validate the current workflow
 
-The app loads showcase immediately; live SAP auto-loads when configured. Opening an investment auto-loads evidence. New/incomplete reviews open Assessment; ready reviews resume at Summary, then the human chooses **Make Governance Decision**. Recorded decisions open their saved record. No manual sequence of API load buttons is needed.
+The app loads showcase immediately; live SAP auto-loads when configured. Opening an investment auto-loads evidence. New/incomplete reviews open Assessment; ready reviews resume at Summary, then use **Continue to Decision** before the human records an outcome. Recorded decisions open their saved record. No manual sequence of API load buttons is needed.
 
 Run:
 

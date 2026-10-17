@@ -29,7 +29,7 @@ Inspect an investment before **Start Review**. After a non-Stop decision, a futu
 
 An active review supersedes the previous cycle’s Next Review date in current governance views (shown as — in Portfolio). Stop does not schedule a next review; the store also rejects starting a normal review after the latest Stop. Historical decision records remain unchanged.
 
-**Make Governance Decision** exposes five human choices: Continue, Continue with Conditions, Modify, Pause or Stop—never a system recommendation. Rationale is always required; existing conditional follow-up requirements and 14/30-day controls remain. Assessment/evidence snapshots are historical, not fresh SAP calls or complete-cost/liability claims.
+Within a review, use **Continue to Summary → Continue to Decision → Record Decision**. Decision offers five human choices: Continue, Continue with Conditions, Modify, Pause or Stop—never a system recommendation. Rationale is always required; existing conditional follow-up requirements and 14/30-day controls remain. Assessment/evidence snapshots are historical, not fresh SAP calls or complete-cost/liability claims.
 
 ## Team Working Rule
 

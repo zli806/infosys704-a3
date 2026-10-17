@@ -193,11 +193,11 @@ test('timing-only urgency stays visible without inventing concerns or extra per-
 
 test('static guidance remains progressive and explicit about human judgement, with no classification hints beside assessment inputs', () => {
   const html = readFileSync(join(__dirname, '../index.html'), 'utf8');
-  assert.match(html, /id="proceed-decision"[^>]*>Make Governance Decision/);
+  assert.match(html, /id="proceed-decision"[^>]*>Continue to Decision/);
   assert(html.includes('Select one outcome. Assessment signals inform this decision but do not determine it.'));
   assert(html.includes('These signals support governance judgement; they do not automatically select an outcome.'));
   assert(html.includes('This review contains material concerns. Explain how the selected outcome addresses them.'));
-  assert.match(html, /id="queue-help-trigger"[^>]*aria-describedby="signals-help"/); assert.match(html, /<div id="signals-help"[^>]*role="tooltip"[^>]*hidden/);
+  assert(!html.includes('id="queue-help-trigger"')); assert(!html.includes('id="signals-help"'));
   const assessment = html.slice(html.indexOf('<section id="assessment-view"'), html.indexOf('<section id="summary-view"'));
   assert(!assessment.includes('SIGNAL_RULES')); assert(!assessment.includes('Material Concern')); assert(!assessment.includes('Emerging Concern'));
   for (const word of ['Recommended outcome', 'Suggested decision', 'Auto-decision', 'Override decision']) assert(!html.includes(word));

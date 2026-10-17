@@ -87,6 +87,12 @@
       cells(row, [project.ProjectDescription || project.Project, governance.label,
         latest ? `${latest.decision.outcome} · ${formatDate(latest.decision.timestamp)}` : "—", formatDate(governance.nextReview)]);
       ["Investment", "Governance State", "Latest Decision", "Next Review"].forEach((label, index) => { row.children[index].dataset.label = label; });
+      if (latest) {
+        const outcome = document.createElement("strong"), date = document.createElement("span");
+        outcome.className = "portfolio-outcome"; outcome.textContent = latest.decision.outcome;
+        date.className = "portfolio-decision-date"; date.textContent = formatDate(latest.decision.timestamp);
+        row.children[2].replaceChildren(outcome, date);
+      }
       const identity = document.createElement("p"); identity.className = "queue-identity"; identity.textContent = project.Project;
       const source = document.createElement("span"), synthetic = app.services.showcase?.isShowcase(project);
       source.className = `source ${synthetic ? "showcase" : "sap"}`; source.textContent = synthetic ? "SHOWCASE" : "SAP SANDBOX"; identity.append(source); row.children[0].append(identity);

@@ -73,9 +73,9 @@ test('all filters preserve escalation/overdue/nearest-due ordering with determin
 test('selection persists through help interactions and data refresh; empty filters stay selected rather than showing unrelated records', () => {
   const w = workspace(), records = w.services.reviewStore.seedShowcase(); w.governanceUI.showView('dashboard');
   w.governanceUI.renderDashboard(records, 5, () => {}); select(w, 'gap');
-  w.elements.get('queue-help-trigger').events.focus[0](); w.elements.get('queue-help-trigger').events.blur[0](); assert.deepEqual(selected(w), ['gap']);
+  const help = w.document.getElementById('metric-help-gap'); help.events.focus[0](); help.events.blur[0](); assert.deepEqual(selected(w), ['gap']);
   w.document.activeElement = button(w, 'gap');
-  w.governanceUI.renderDashboard(records, 10, () => {}); assert.deepEqual(selected(w), ['gap']); assert.equal(button(w, 'gap').focused, true); assert.equal(rows(w).length, 1);
+  const focused = button(w, 'gap'); w.governanceUI.renderDashboard(records, 10, () => {}); assert.deepEqual(selected(w), ['gap']); assert.equal(button(w, 'gap'), focused); assert.equal(rows(w).length, 1);
   const withoutGap = records.filter(record => record.id !== 'SHOWCASE-DAT-REVIEW'); w.governanceUI.renderDashboard(withoutGap, 10, () => {});
   assert.deepEqual(selected(w), ['gap']); assert.equal(count(w, 'gap'), 0); assert.equal(rows(w).length, 0); assert.equal(w.elements.get('dashboard-filter-count').textContent, '0 investments');
   assert.match(w.elements.get('dashboard-attention').textContent, /No active investments with evidence gaps/); assert.equal(button(w, 'gap').disabled, false);

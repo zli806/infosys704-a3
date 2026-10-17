@@ -20,9 +20,8 @@ test('navigation and Dashboard orientation use customer terminology without chan
   const html = readFileSync('index.html', 'utf8');
   assert.match(html, /id="nav-dashboard"[^>]*>Dashboard/); assert.match(html, /id="nav-investments"[^>]*>Portfolio/); assert(!html.includes('nav-reviews'));
   assert.match(html, /class="queue-columns queue-grid"[^>]*><span>Investment<\/span><span>Review Trigger<\/span><span>Findings<\/span><span>Decision Timing<\/span><span>Next Step/);
-  assert(html.includes('overlapping current-review lenses')); assert(html.includes('both current and historical views across different cycles'));
+  const w = workspace({ controller: true }); assert.match(w.document.getElementById('metric-tip-active').textContent, /Current-review lenses may overlap/);
   assert(!html.includes('Why is this flagged?'));
-  const w = workspace({ controller: true });
   click(w, 'nav-investments'); assert.equal(w.elements.get('nav-investments').getAttribute('aria-current'), 'page'); assert.equal(w.elements.get('nav-dashboard').getAttribute('aria-current'), null);
   buttonIn(w.elements.get('projects-body').children[0]).events.click[0](); assert.equal(w.state.view, 'summary'); assert.equal(w.elements.get('nav-investments').getAttribute('aria-current'), 'page');
 });
@@ -38,7 +37,8 @@ test('Portfolio derives all eight governance cases and uses only stored decision
     const view = w.governanceUI.portfolioState(project, [completed]); assert.equal(view.label, label); assert.equal(view.nextStep, step);
     assert.equal(view.nextReview, outcome === 'Stop' ? null : '2026-11-17'); assert.equal(JSON.stringify(completed), before);
     w.ui.configureReviews(p => w.governanceUI.portfolioState(p, [completed])); w.ui.renderProjects([project], null, () => {});
-    const row = w.elements.get('projects-body').children[0]; assert.equal(row.children[1].textContent, label); assert.equal(row.children[2].textContent, `${outcome} · ${w.ui.formatDate(completed.decision.timestamp)}`);
+    const row = w.elements.get('projects-body').children[0]; assert.equal(row.children[1].textContent, label);
+    assert.equal(row.children[2].children[0].textContent, outcome); assert.equal(row.children[2].children[1].textContent, w.ui.formatDate(completed.decision.timestamp));
     assert.equal(row.children[3].textContent, outcome === 'Stop' ? '—' : w.ui.formatDate('2026-11-17')); assert.equal(buttonIn(row).textContent, step);
     const active = w.governanceUI.portfolioState(project, [completed, incomplete]); assert.equal(active.label, 'Assessment in progress'); assert.equal(active.nextStep, 'Continue Assessment'); assert.equal(active.latest.id, completed.id);
     completed.decision.nextReviewDate = ''; assert.equal(w.governanceUI.portfolioState(project, [completed]).nextReview, null);
@@ -66,7 +66,7 @@ test('non-Stop decision stays immutable while Start New Review creates a fresh s
   click(w, 'return-investment'); await tick(); assert.equal(w.state.view, 'detail');
   assert.equal(w.elements.get('start-review').textContent, 'Start New Review'); assert.equal(w.elements.get('start-review').hidden, false);
   assert.equal(w.elements.get('view-last-decision').textContent, 'View Latest Decision'); assert.equal(w.elements.get('view-last-decision').className, 'secondary');
-  assert.match(w.elements.get('detail-review-status').textContent, /Follow-up · Latest decision Modify/);
+  assert.equal(w.elements.get('detail-review-status').children[0].textContent, 'Follow-up'); assert.match(w.elements.get('detail-review-status').children[1].textContent, /Latest decision Modify/);
   assert.equal(rows(w, 'investment-history-body').length, 1); assert.equal(rows(w, 'investment-history-body')[0].dataset.reviewId, oldID);
   click(w, 'start-review'); const id = w.state.currentReviewID; assert.notEqual(id, oldID); assert.equal(w.state.view, 'assessment');
   const fresh = store.get(id); assert.equal(fresh.status, 'in_progress'); assert.notEqual(fresh.reviewOpenedAt, store.get(oldID).reviewOpenedAt);
@@ -76,7 +76,7 @@ test('non-Stop decision stays immutable while Start New Review creates a fresh s
   assert.equal(w.elements.get('start-review').textContent, 'Continue Assessment'); assert.deepEqual(rows(w, 'investment-history-body').map(row => row.dataset.reviewId), [oldID]);
   click(w, 'nav-investments'); const portfolio = w.elements.get('projects-body').children[0]; assert(portfolio.textContent.includes('Assessment in progress')); assert(portfolio.textContent.includes('Modify')); assert.equal(buttonIn(portfolio).textContent, 'Continue Assessment');
   click(w, 'nav-dashboard'); click(w, 'dashboard-filter-recorded'); assert(rows(w, 'dashboard-attention').some(row => row.dataset.reviewId === oldID)); assert(!rows(w, 'dashboard-attention').some(row => row.dataset.reviewId === id));
-  click(w, 'nav-dashboard'); const metric = w.elements.get('dashboard-cards').children[0]; assert.equal(metric.children[1].textContent, '3'); assert(w.elements.get('dashboard-attention').textContent.includes(fresh.project.ProjectDescription));
+  click(w, 'nav-dashboard'); const metric = w.document.getElementById('dashboard-filter-active'); assert.equal(metric.children[1].textContent, '3'); assert(w.elements.get('dashboard-attention').textContent.includes(fresh.project.ProjectDescription));
   const reloaded = workspace({ controller: true, storage: w.map }); assert.equal(reloaded.services.reviewStore.list().filter(r => r.project.ProjectUUID === fresh.project.ProjectUUID).length, 2); assert.equal(JSON.stringify(reloaded.services.reviewStore.get(oldID)), old);
 });
 
