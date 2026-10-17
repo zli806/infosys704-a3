@@ -12,7 +12,7 @@ test('an active review suppresses the previous next-review date without changing
   const w = workspace(), store = w.services.reviewStore; store.seedShowcase();
   const saved = store.confirm('SHOWCASE-ODP-REVIEW', draft('Modify')), snapshot = JSON.stringify(saved);
   let state = w.governanceUI.portfolioState(saved.project, store.list()); assert.equal(state.nextReview, '2026-11-17');
-  const active = store.start(saved.project, saved.evidence);
+  const active = store.start(saved.project, saved.evidence, { reviewBasis: w.reviewRules.BASIS[0] });
   state = w.governanceUI.portfolioState(saved.project, store.list()); assert.equal(state.active.id, active.id); assert.equal(state.nextReview, null);
   w.ui.configureReviews(project => w.governanceUI.portfolioState(project, store.list())); w.ui.renderProjects([saved.project], null, () => {});
   const row = w.elements.get('projects-body').children[0]; assert.equal(row.children[3].textContent, '—'); assert.match(row.children[2].textContent, /Modify/);
@@ -59,7 +59,7 @@ test('terminal guard uses latest decision timestamp rather than review-open time
   let raw = JSON.parse(w.map.get(store.STORAGE_KEY)); raw.reviews.push(older); w.map.set(store.STORAGE_KEY, JSON.stringify(raw));
   assert.throws(() => store.start(seed.project, seed.evidence), /investment is stopped/);
   raw = JSON.parse(w.map.get(store.STORAGE_KEY)); raw.reviews.find(r => r.id === older.id).decision.timestamp = '2026-10-01T00:00:00Z'; w.map.set(store.STORAGE_KEY, JSON.stringify(raw));
-  const fresh = store.start(seed.project, seed.evidence); assert.equal(fresh.status, 'in_progress'); assert.equal(store.start(seed.project, seed.evidence).id, fresh.id);
+  const fresh = store.start(seed.project, seed.evidence, { reviewBasis: w.reviewRules.BASIS[0] }); assert.equal(fresh.status, 'in_progress'); assert.equal(store.start(seed.project, seed.evidence).id, fresh.id);
 });
 
 test('new Stop confirmations omit next review even from a direct service draft; old Stop snapshots are not rewritten', () => {

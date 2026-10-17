@@ -53,7 +53,7 @@ test('queue includes unflagged open reviews and sorts escalation, overdue, due d
 
 test('fully assessed normal review is still actionable without fabricating a flagged state or final decision', () => {
   const w = workspace(), s = w.services.showcase, store = w.services.reviewStore;
-  store.seedShowcase(); let normal = store.start(s.projects()[3], s.evidence(s.projects()[3]));
+  store.seedShowcase(); let normal = store.start(s.projects()[3], s.evidence(s.projects()[3]), { reviewBasis: w.reviewRules.BASIS[0] });
   normal = store.update(normal.id, { reviewBasis: w.reviewRules.BASIS[0], decisionOwnerId: 'GOV-003', assessment: { strategicAlignment: 'High', expectedBenefits: 'Yes', deliveryPerformance: 'On track', costPosition: 'Within expectations', risk: 'Low', futureEconomicValue: 'Positive' } });
   w.governanceUI.renderDashboard([normal], 5, () => {});
   assert.equal(rows(w).length, 1); assert.equal(byClass(rows(w)[0], 'flag-explanation').length, 0);

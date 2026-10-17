@@ -5,6 +5,7 @@
   const store = services.reviewStore;
   const showcase = services.showcase;
   let freshlyRecordedDecisionID = null;
+  let pendingReviewStart = null;
   const missingKeyMessage = "Please add your SAP Sandbox API key to config.local.js first.";
   state.evidence = rules.emptyEvidence();
 
@@ -50,7 +51,6 @@
     const record = currentReview();
     if (record && ["assessment", "summary", "decision"].includes(state.view)) {
       governance.chrome(record, busy());
-      governance.financialSnapshot(record);
       if (state.view === "summary") governance.reviewSummary(record);
     }
     governance.evidenceButton(!!state.selectedProject && !state.selectedFromSnapshot && !busy());
@@ -121,9 +121,34 @@
       if (state.selectedFromSnapshot && !rules.activeReview(state.reviews, state.selectedProject.ProjectUUID)) return;
       const context = governance.portfolioState(state.selectedProject, state.reviews);
       if (!context.active && context.latest?.decision.outcome === "Stop") { openReview(context.latest.id); return; }
-      const record = store.start(state.selectedProject, state.evidence);
-      refreshRecords(); state.currentReviewID = record.id; resumeReview(record);
+      if (context.active) { state.currentReviewID = context.active.id; resumeReview(context.active); return; }
+      pendingReviewStart = { projectUUID: state.selectedProject.ProjectUUID };
+      governance.reviewStart(false);
     } catch (error) { governance.storageNotice(error.message); }
+  }
+  function setLegacyReviewTrigger() {
+    if (!saveDraft() || !refreshRecords()) return;
+    const record = rules.activeReview(state.reviews, state.selectedProject?.ProjectUUID);
+    if (!record || rules.normalizeBasis(record.reviewBasis)) return;
+    pendingReviewStart = { projectUUID: record.project.ProjectUUID, recordID: record.id };
+    governance.reviewStart(true);
+  }
+  function cancelReviewStart() { pendingReviewStart = null; governance.closeReviewStart(); }
+  function confirmReviewStart() {
+    const basis = rules.normalizeBasis(governance.readReviewStart());
+    if (!basis) { governance.reviewStartError(pendingReviewStart?.recordID ? "Select the missing Review Trigger for this existing review." : "Select a Review Trigger before starting the review."); return; }
+    if (!pendingReviewStart || pendingReviewStart.projectUUID !== state.selectedProject?.ProjectUUID) { cancelReviewStart(); return; }
+    try {
+      if (!refreshRecords()) { governance.reviewStartError(state.storageError); return; }
+      let record;
+      if (pendingReviewStart.recordID) {
+        record = store.get(pendingReviewStart.recordID);
+        if (!record || record.status !== "in_progress") throw new Error("This legacy review is no longer active.");
+        if (!rules.normalizeBasis(record.reviewBasis)) record = store.update(record.id, { reviewBasis: basis });
+      } else record = store.start(state.selectedProject, state.evidence, { reviewBasis: basis });
+      refreshRecords(); state.currentReviewID = record.id; pendingReviewStart = null;
+      governance.closeReviewStart(); resumeReview(record);
+    } catch (error) { governance.reviewStartError(error.message); }
   }
   function openReview(id) {
     if (!saveDraft() || !refreshRecords()) return;
@@ -377,7 +402,8 @@
   ui.configureReviews(project => governance.portfolioState(project, state.reviews, !state.storageError), openReview);
   ui.bindEvents({ loadGL: loadFinancialEvidence, loadPO: loadPurchaseOrderEvidence,
     loadProjects: refreshProjects });
-  governance.bind({ navigate, workspaceTab, startReview, saveDraft, summary: () => showReviewStep("summary"), reviewStep: showReviewStep,
+  governance.bind({ navigate, workspaceTab, startReview, confirmReviewStart, cancelReviewStart, setLegacyReviewTrigger, saveDraft, summary: () => showReviewStep("summary"), reviewStep: showReviewStep,
+    viewEvidence: () => { if (workspaceTab("overview") !== false) governance.focusEvidence(); },
     backDashboard: () => navigate("dashboard", state.view === "confirmation" && freshlyRecordedDecisionID === state.currentReviewID ? "recorded" : "active"),
     confirm: confirmDecision, loadEvidence: loadReviewEvidence,
     reloadLifecycle: loadReviewEvidence,

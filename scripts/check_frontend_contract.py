@@ -20,8 +20,8 @@ REQUIRED_IDS = (
     "workspace-view", "workspace-current", "workspace-history", "workspace-tab-overview", "workspace-tab-current", "workspace-tab-history",
     "workspace-snapshot-notice", "workspace-recorded-notice", "current-review-empty", "history-fresh-actions", "global-page-header",
     "review-chrome", "review-steps", "review-step-assessment", "review-step-summary", "review-step-decision",
-    "workflow-message", "assessment-view", "assessment-form", "assessment-title", "summary-title", "assessment-trigger-help",
-    "review-basis", "assessment-alignment", "assessment-benefits", "assessment-delivery", "assessment-financial-evidence",
+    "workflow-message", "assessment-view", "assessment-form", "assessment-title", "summary-title", "assessment-owner-help",
+    "assessment-alignment", "assessment-benefits", "assessment-delivery",
     "assessment-cost", "assessment-risk", "assessment-value", "assessment-comments", "assessment-dependencies", "assessment-owner",
     "assessment-save-summary", "summary-view", "review-summary", "back-assessment", "proceed-decision", "decision-view", "decision-form",
     "decision-outcome", "decision-rationale", "decision-owner", "decision-requirements", "decision-action", "decision-action-owner",
@@ -30,9 +30,11 @@ REQUIRED_IDS = (
     "decision-follow-up", "decision-follow-up-title", "confirmation-outcome",
     "project-refresh-error", "retry-projects", "project-diagnostics", "investment-technical-details", "technical-evidence-context", "decision-incomplete",
     "detail-source", "showcase-investment-context", "technical-source", "showcase-project-payload", "raw-showcase-project", "reset-showcase",
-    "decision-context-title", "decision-context-counts", "decision-rationale-help",
+    "decision-rationale-help", "workspace-review-context", "overview-evidence-title", "set-review-trigger",
     "summary-decision-overview", "decision-next-date-help", "decision-next-review-field",
     "decision-action-required", "decision-action-owner-required", "decision-next-date-required",
+    "assessment-alignment-help", "assessment-benefits-help", "assessment-value-help", "assessment-delivery-help", "assessment-cost-help", "assessment-risk-help",
+    "review-start-dialog", "review-start-form", "review-start-title", "review-start-trigger", "review-start-help", "review-start-error", "review-start-cancel", "review-start-submit",
 )
 REQUIRED_SCRIPTS = (
     "config.local.js", "api-config.js", "js/data/showcase-portfolio.js", "js/core/state.js", "js/core/utils.js", "js/core/review-rules.js",

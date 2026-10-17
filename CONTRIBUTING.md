@@ -8,7 +8,7 @@ Start with `git status`; if clean, sync with `git checkout master` and `git pull
 
 ## Validate the current workflow
 
-The app loads showcase immediately; live SAP auto-loads when configured. Open Investment enters workspace Overview and loads evidence. Open Review enters Current Review at Assessment when incomplete or Review Summary when ready. The three stages stay in that tab; Record Decision opens History with the exact immutable record selected. No manual API-button sequence is needed.
+The app loads showcase immediately; live SAP auto-loads when configured. Open Investment enters Overview/evidence; Start Review first captures a human Review Trigger in the small dialog. Open Review enters Assessment when incomplete or Review Summary when ready. Stages stay in Current Review; Record Decision opens the exact immutable History record. No manual API-button sequence is needed.
 
 Run:
 

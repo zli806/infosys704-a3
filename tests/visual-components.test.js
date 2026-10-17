@@ -61,10 +61,10 @@ test('governance timeline keeps actual dates/text and positions the recorded mil
 
 test('trigger treatment reflects only the selected basis, with a neutral scheduled variant', () => {
   const w = workspace(); const review = record(w.reviewRules); w.governanceUI.decision(review); w.governanceUI.chrome(review, false);
-  assert.equal(w.elements.get('review-trigger').dataset.trigger, 'material');
-  assert(w.elements.get('review-trigger').textContent.includes('Decision due'));
-  review.reviewBasis = 'Scheduled governance review'; w.governanceUI.chrome(review, false);
-  assert.equal(w.elements.get('review-trigger').dataset.trigger, 'scheduled');
+  w.governanceUI.details(review.project, review.evidence, [review]);
+  assert.equal(w.elements.get('review-trigger').hidden, true); assert(w.elements.get('workspace-review-context').textContent.includes('Material trigger'));
+  review.reviewBasis = 'Scheduled governance review'; w.governanceUI.chrome(review, false); w.governanceUI.details(review.project, review.evidence, [review]);
+  assert(w.elements.get('workspace-review-context').textContent.includes('Scheduled stage-gate review'));
 });
 
 test('decision cards have neutral descriptions and a non-colour selected marker without choosing an outcome', () => {

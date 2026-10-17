@@ -23,7 +23,7 @@ Reviews/decisions are browser/origin-local. Owners come from an explicitly ficti
 
 Top navigation is **Dashboard | Portfolio**. Dashboard combines current governance attention with portfolio-wide **Recorded Decisions** in one shared list. The first four lenses may overlap; Recorded Decisions counts completed review records, not distinct investments. Portfolio retains all loaded investments, including those with no reviews or decisions.
 
-Each investment has one workspace: **Overview | Current Review | History**. Overview owns context/evidence and review initiation. **Open Review** enters Assessment when incomplete or Review Summary when ready—never straight to Governance Decision. Current Review contains **Assessment → Review Summary → Governance Decision** as stages, not separate pages.
+Each investment has one workspace: **Overview | Current Review | History**. Overview owns context/evidence; **Start Review** captures the human-selected Review Trigger before creating the cycle. Dashboard displays that stored trigger—it never infers it. **Open Review** enters Assessment when incomplete or Review Summary when ready. Assessment owns human judgement; Summary synthesises it; Governance Decision records the accountable action.
 
 **Record Decision → History**, with a small save acknowledgement and the exact immutable record expanded. **View Record** opens any completed cycle inline in History. Investments have **0..N completed cycles and at most one active review**; after a non-Stop outcome, Overview may Start New Review at a future human stage gate/trigger. Stop has no normal restart path. Next Review is a checkpoint, not an automatic review timer.
 

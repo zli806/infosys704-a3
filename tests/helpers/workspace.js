@@ -54,4 +54,11 @@ function workspace({ fetchImpl, storage, controller = false, key = '', serviceOv
   return { ...context.window.DPEApp, elements, document, runtime: context.window.DPEApp, map, directory, fixtures: context.window.DPE_SHOWCASE_PORTFOLIO,
     confirmReset(value) { confirmResult = value; } };
 }
-module.exports = { workspace, directory };
+function startReview(w, reviewBasis = 'Scheduled stage-gate review') {
+  w.document.getElementById('start-review').events.click[0]();
+  if (w.elements.get('review-start-dialog')?.open) {
+    for (const radio of w.elements.get('review-start-trigger').querySelectorAll('input')) radio.checked = radio.value === reviewBasis;
+    w.elements.get('review-start-form').events.submit[0]({ preventDefault() {} });
+  }
+}
+module.exports = { workspace, directory, startReview };

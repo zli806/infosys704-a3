@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
-const { workspace } = require('./helpers/workspace');
+const { workspace, startReview } = require('./helpers/workspace');
 const tick = () => new Promise(r => setImmediate(r));
 const all = el => [el, ...el.children.flatMap(all)];
 const click = (w, id) => w.document.getElementById(id).events.click[0]();
@@ -38,7 +38,7 @@ test('unreviewed investment opens Overview; Current Review and History have trut
   assert.equal(w.elements.get('detail-review-status').children[0].textContent, 'Monitoring'); assert.equal(w.elements.get('start-review').textContent, 'Start Review');
   click(w, 'workspace-tab-current'); tab(w, 'current'); assert.match(w.elements.get('current-review-empty').textContent, /No active continuation review/); assert.equal(w.elements.get('assessment-view').hidden, true);
   click(w, 'workspace-tab-history'); tab(w, 'history'); assert.match(w.elements.get('investment-history-body').textContent, /No recorded decisions/); assert.equal(w.elements.get('confirmation-view').hidden, true);
-  click(w, 'workspace-tab-overview'); await tick(); click(w, 'start-review'); tab(w, 'current'); assert.equal(w.state.view, 'assessment');
+  click(w, 'workspace-tab-overview'); await tick(); startReview(w); tab(w, 'current'); assert.equal(w.state.view, 'assessment');
   assert.equal(w.elements.get('detail-review-status').children[0].textContent, 'Assessment in progress');
 });
 
@@ -54,7 +54,7 @@ test('active incomplete/ready deep links and Current Review re-entry derive the 
   w.elements.get('assessment-comments').value = 'Assessment draft survives Overview'; click(w, 'workspace-tab-overview'); await tick(); tab(w, 'overview');
   assert.equal(w.services.reviewStore.get('SHOWCASE-ODP-REVIEW').assessment.comments, 'Assessment draft survives Overview');
   click(w, 'workspace-tab-current'); assert.equal(w.state.view, 'summary');
-  openPortfolioRow(w, 3); await tick(); click(w, 'start-review'); click(w, 'workspace-tab-overview'); await tick(); click(w, 'workspace-tab-current'); assert.equal(w.state.view, 'assessment');
+  openPortfolioRow(w, 3); await tick(); startReview(w); click(w, 'workspace-tab-overview'); await tick(); click(w, 'workspace-tab-current'); assert.equal(w.state.view, 'assessment');
 });
 
 test('completed step controls navigate backward only, keeping decision drafts and the same workspace', () => {
@@ -78,7 +78,7 @@ test('each completed outcome drives Overview, Current Review empty state and lat
     click(w, 'workspace-tab-current'); assert.match(w.elements.get('current-review-empty').textContent, outcome === 'Stop' ? /investment is stopped/ : /started from Overview/);
     click(w, 'workspace-tab-overview'); await tick(); click(w, 'view-last-decision'); tab(w, 'history'); assert.equal(w.state.currentReviewID, id); assert.equal(w.elements.get('workspace-recorded-notice').hidden, true);
     assert.equal(JSON.stringify(w.services.reviewStore.get(id)), saved);
-    if (outcome !== 'Stop') { click(w, 'workspace-tab-overview'); await tick(); click(w, 'start-review'); tab(w, 'current'); assert.equal(w.state.view, 'assessment'); assert.notEqual(w.state.currentReviewID, id); assert.deepEqual(historyRows(w).map(r => r.dataset.reviewId), [id]); }
+    if (outcome !== 'Stop') { click(w, 'workspace-tab-overview'); await tick(); startReview(w); tab(w, 'current'); assert.equal(w.state.view, 'assessment'); assert.notEqual(w.state.currentReviewID, id); assert.deepEqual(historyRows(w).map(r => r.dataset.reviewId), [id]); }
     else assert.throws(() => w.services.reviewStore.start(w.state.selectedProject, w.state.evidence), /stopped/);
   }
 });
@@ -128,10 +128,10 @@ test('workspace tabs support arrow/Home/End activation and failed draft saves pr
   tab(w, 'current'); assert.equal(w.elements.get('workspace-tab-history').focused, false); w.services.reviewStore.update = original;
 });
 
-test('Review Trigger help is reused across Dashboard/current/Assessment, while Findings help is absent in recorded mode', () => {
+test('stored Review Trigger help is shared by Dashboard/header, while Findings help is absent in recorded mode', () => {
   const w = workspace({ controller: true }); const text = w.document.getElementById('context-tip-dashboard-trigger').textContent;
-  assert.match(text, /trigger is not itself a review finding/); assert.equal(w.document.getElementById('context-tip-assessment-trigger').textContent, text);
-  openPortfolioRow(w, 0); assert.equal(w.document.getElementById('context-tip-current-trigger').textContent, text);
+  assert.match(text, /trigger is not itself a review finding/);
+  openPortfolioRow(w, 0); assert.equal(w.document.getElementById('context-tip-workspace-trigger').textContent, text);
   click(w, 'nav-dashboard'); assert.equal(w.document.getElementById('context-help-dashboard-findings').parentElement.hidden, false);
   click(w, 'dashboard-filter-recorded'); assert.equal(w.document.getElementById('context-help-dashboard-findings').parentElement.hidden, true);
 });

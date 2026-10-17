@@ -33,14 +33,14 @@ test('offline directory needs no network; an invalid/unavailable UI configuratio
   assert.match(w.elements.get('governance-directory-status').textContent, /unavailable/);
 });
 
-test('visible assessment choices retain exact enums and explicit unassessed defaults', () => {
+test('visible assessment choices retain assessed enums while no selection preserves the internal unassessed default', () => {
   const w = workspace(); const review = model(w.reviewRules); w.governanceUI.assessment(review);
   const fields = { strategicAlignment: 'assessment-alignment', expectedBenefits: 'assessment-benefits', deliveryPerformance: 'assessment-delivery', risk: 'assessment-risk', futureEconomicValue: 'assessment-value', costPosition: 'assessment-cost' };
   for (const [key, id] of Object.entries(fields)) {
     const radios = w.elements.get(id).querySelectorAll('input[type="radio"]');
-    assert.deepEqual(radios.map(radio => radio.value), Array.from(w.reviewRules.ASSESSMENTS[key].options));
-    assert.equal(radios.filter(radio => radio.checked).length, 1);
-    assert.equal(radios.find(radio => radio.checked).value, 'Not assessed');
+    assert.deepEqual(radios.map(radio => radio.value), Array.from(w.reviewRules.ASSESSMENTS[key].options.filter(value => value !== 'Not assessed')));
+    assert.equal(radios.filter(radio => radio.checked).length, 0);
+    assert.equal(w.governanceUI.readAssessment().assessment[key], 'Not assessed');
     assert.equal(new Set(radios.map(radio => radio.name)).size, 1);
     choose(w.elements.get(id), w.reviewRules.ASSESSMENTS[key].options.find(value => value !== 'Not assessed'));
   }
@@ -50,7 +50,7 @@ test('visible assessment choices retain exact enums and explicit unassessed defa
 
 test('owner selected in Assessment is authoritative through Summary, Decision and saved record', async () => {
   const w = workspace(); const people = await w.services.governanceDirectory.load(); w.governanceUI.setDirectory(people);
-  const store = w.services.reviewStore; let review = store.start(project, w.reviewRules.emptyEvidence());
+  const store = w.services.reviewStore; let review = store.start(project, w.reviewRules.emptyEvidence(), { reviewBasis: w.reviewRules.BASIS[0] });
   w.governanceUI.assessment(review);
   assert.equal(w.elements.get('assessment-owner').value, '');
   assert.equal(w.elements.get('assessment-owner').children.length, people.length + 1);
@@ -61,7 +61,7 @@ test('owner selected in Assessment is authoritative through Summary, Decision an
   const assessment = w.reviewRules.defaultAssessment(); for (const [key, field] of Object.entries(w.reviewRules.ASSESSMENTS)) assessment[key] = field.options.find(value => value !== 'Not assessed'); assessment.costPosition = 'Insufficient information';
   review = store.update(review.id, { ...patch, reviewBasis: w.reviewRules.BASIS[0], assessment, evidence });
   assert(w.reviewRules.readiness(review).ready); assert.equal(review.decisionOwner, 'Morgan Chen'); assert.equal(review.decisionOwnerSnapshot.role, 'Executive Sponsor');
-  w.governanceUI.reviewSummary(review); assert(w.elements.get('review-summary').textContent.includes('Morgan Chen')); assert(w.elements.get('review-summary').textContent.includes('Executive Sponsor'));
+  w.governanceUI.reviewSummary(review); assert(w.elements.get('summary-decision-overview').textContent.includes('Morgan Chen')); assert(w.elements.get('summary-decision-overview').textContent.includes('Executive Sponsor'));
   w.governanceUI.decision(review); assert.equal(w.governanceUI.readDecision().outcome, '');
   assert(w.elements.get('decision-owner').textContent.includes('Morgan Chen'));
   w.elements.get('decision-owner').value = 'Independent override';

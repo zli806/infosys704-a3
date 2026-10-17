@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
-const { workspace } = require('./helpers/workspace');
+const { workspace, startReview } = require('./helpers/workspace');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const click = (w, id) => w.document.getElementById(id).events.click[0]();
 const descendants = el => [el, ...el.children.flatMap(descendants)];
@@ -52,7 +52,7 @@ test('Portfolio retains every investment and follows contextual next steps rathe
   assert(body.children[0].textContent.includes('Ready for decision')); assert(body.children[0].textContent.includes('SHOWCASE')); assert(body.children[0].textContent.includes('DPE-IT-ODP-01'));
   assert.equal(buttonIn(body.children[3]).textContent, 'Open Investment'); assert.equal(buttonIn(body.children[4]).textContent, 'View Record'); assert(body.children[4].textContent.includes('Stopped'));
   assert(!body.textContent.includes('Start Review')); buttonIn(body.children[3]).events.click[0](); await tick(); assert.equal(w.state.view, 'detail'); assert.equal(w.elements.get('start-review').textContent, 'Start Review');
-  click(w, 'start-review'); assert.equal(w.state.view, 'assessment'); click(w, 'nav-investments');
+  startReview(w); assert.equal(w.state.view, 'assessment'); click(w, 'nav-investments');
   assert.equal(buttonIn(w.elements.get('projects-body').children[3]).textContent, 'Open Review');
   buttonIn(w.elements.get('projects-body').children[3]).events.click[0](); assert.equal(w.state.view, 'assessment');
 });
@@ -66,11 +66,11 @@ test('non-Stop decision stays immutable while Start New Review creates a fresh s
   click(w, 'workspace-tab-overview'); await tick(); assert.equal(w.state.view, 'detail');
   assert.equal(w.elements.get('start-review').textContent, 'Start New Review'); assert.equal(w.elements.get('start-review').hidden, false);
   assert.equal(w.elements.get('view-last-decision').textContent, 'View Latest Record'); assert.equal(w.elements.get('view-last-decision').className, 'secondary');
-  assert.equal(w.elements.get('detail-review-status').children[0].textContent, 'Follow-up'); assert.match(w.elements.get('detail-review-status').children[1].textContent, /Latest decision: Modify/);
+  assert.equal(w.elements.get('detail-review-status').children[0].textContent, 'Follow-up'); assert.match(w.elements.get('workspace-review-context').textContent, /Latest decision: Modify/);
   assert.equal(rows(w, 'investment-history-body').length, 1); assert.equal(rows(w, 'investment-history-body')[0].dataset.reviewId, oldID);
-  click(w, 'start-review'); const id = w.state.currentReviewID; assert.notEqual(id, oldID); assert.equal(w.state.view, 'assessment');
+  startReview(w); const id = w.state.currentReviewID; assert.notEqual(id, oldID); assert.equal(w.state.view, 'assessment');
   const fresh = store.get(id); assert.equal(fresh.status, 'in_progress'); assert.notEqual(fresh.reviewOpenedAt, store.get(oldID).reviewOpenedAt);
-  assert.deepEqual(fresh.assessment, w.reviewRules.defaultAssessment()); assert.equal(fresh.reviewBasis, ''); assert.equal(fresh.decisionOwner, ''); assert.equal(fresh.decisionDraft.outcome, '');
+  assert.deepEqual(fresh.assessment, w.reviewRules.defaultAssessment()); assert.equal(fresh.reviewBasis, 'Scheduled stage-gate review'); assert.equal(fresh.decisionOwner, ''); assert.equal(fresh.decisionDraft.outcome, '');
   assert.equal(store.start(fresh.project, fresh.evidence).id, id); assert.equal(store.list().filter(r => r.project.ProjectUUID === fresh.project.ProjectUUID && r.status === 'in_progress').length, 1);
   assert.equal(JSON.stringify(store.get(oldID)), old); click(w, 'workspace-tab-overview'); await tick();
   assert.equal(w.elements.get('start-review').textContent, 'Open Review'); assert.deepEqual(rows(w, 'investment-history-body').map(row => row.dataset.reviewId), [oldID]);
@@ -85,7 +85,7 @@ test('every completed non-Stop outcome allows a new cycle, whereas latest Stop e
     const w = workspace(), store = w.services.reviewStore; store.seedShowcase(); const completed = store.confirm('SHOWCASE-ODP-REVIEW', draft(outcome));
     const before = JSON.stringify(completed); w.governanceUI.details(completed.project, completed.evidence, store.list());
     assert.equal(w.elements.get('start-review').hidden, outcome === 'Stop'); assert.equal(w.elements.get('view-last-decision').hidden, false);
-    if (outcome !== 'Stop') { assert.equal(w.elements.get('start-review').textContent, 'Start New Review'); assert.notEqual(store.start(completed.project, completed.evidence).id, completed.id); }
+    if (outcome !== 'Stop') { assert.equal(w.elements.get('start-review').textContent, 'Start New Review'); assert.notEqual(store.start(completed.project, completed.evidence, { reviewBasis: w.reviewRules.BASIS[0] }).id, completed.id); }
     assert.equal(JSON.stringify(store.get(completed.id)), before);
   }
 });

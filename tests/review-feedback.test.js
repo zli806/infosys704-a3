@@ -53,16 +53,17 @@ test('signals ignore SAP evidence, unknown/missing answers and do not mutate rev
   }
 });
 
-test('categorical assessment leads the shorter Summary, with management attention, timeline and evidence rows', () => {
+test('one categorical matrix leads Summary with a single headline, timeline and compact evidence basis', () => {
   const { reviewRules: rules, governanceUI: ui, elements } = workspace();
   const review = record(rules, { strategicAlignment: 'Medium', expectedBenefits: 'Partially', deliveryPerformance: 'Off track', costPosition: 'Insufficient information', risk: 'High', futureEconomicValue: 'Negative' });
   ui.reviewSummary(review);
   const target = elements.get('review-summary');
   assert.match(target.children[0].textContent, /^Assessment at a Glance/);
-  assert.match(target.children[0].textContent, /3 material concerns · 2 emerging concerns · 1 evidence gap/);
-  for (const value of ['Strategic Alignment', 'Expected Benefits', 'Delivery Performance', 'Risk', 'Future Economic Value', 'Management Attention', 'High project risk', 'Delivery is off track', 'Future economic value is negative', 'Cost position cannot yet be fully assessed']) assert(target.children[0].textContent.includes(value), value);
-  for (const title of ['Governance Timeline', 'Evidence Reviewed']) assert(target.children.some(child => child.textContent.startsWith(title)), title);
-  assert.equal(target.children.length, 3); assert(target.textContent.includes('View SAP Technical Details'));
+  assert.match(elements.get('summary-decision-overview').textContent, /3 Material · 2 Emerging · 1 Evidence Gap/);
+  for (const value of ['Strategic Alignment', 'Expected Benefits', 'Delivery Performance', 'Risk', 'Future Economic Value', 'Insufficient information', 'Material Concern', 'Emerging Concern', 'Evidence Gap']) assert(target.children[0].textContent.includes(value), value);
+  assert(!target.textContent.includes('Management Attention Required'));
+  for (const title of ['Governance Timeline', 'Evidence Basis']) assert(target.children.some(child => child.textContent.startsWith(title)), title);
+  assert.equal(target.children.length, 4); assert(target.textContent.includes('View evidence in Overview'));
   assert.equal(review.assessment.costPosition, 'Insufficient information');
   assert(!descendants(target.children[0]).some(child => child.className === 'source reviewer'));
 });
@@ -72,17 +73,17 @@ test('no signals is qualified, not assurance of safe continuation; outcome stays
   const review = record(rules);
   ui.reviewSummary(review); ui.decision(review);
   const snapshot = elements.get('review-summary').children[0].textContent;
-  assert(snapshot.includes('Complete the reviewer assessment to identify management concerns.'));
+  assert(snapshot.includes('Not assessed'));
   assert(!snapshot.includes('Safe to continue')); assert(!snapshot.includes('recommendation'));
   assert.equal(elements.get('decision-outcome').value, '');
   assert(rules.decisionErrors(review, ui.readDecision()).includes('Select a human governance decision.'));
 });
 
-test('Review Trigger is visible in its callout and saved confirmation without inference', () => {
+test('stored Review Trigger is visible in compact header and historical record without inference', () => {
   const { reviewRules: rules, governanceUI: ui, elements } = workspace();
   const review = record(rules);
-  ui.decision(review); ui.chrome(review, false);
-  assert(elements.get('review-trigger').textContent.includes('Decision due') && elements.get('review-trigger').textContent.includes(review.reviewBasis));
+  ui.decision(review); ui.chrome(review, false); ui.details(review.project, review.evidence, [review]);
+  assert.equal(elements.get('review-trigger').hidden, true); assert(elements.get('workspace-review-context').textContent.includes('Due') && elements.get('workspace-review-context').textContent.includes(review.reviewBasis));
   review.status = 'decision_recorded';
   review.decision = { outcome: 'Pause', rationale: 'Explicit unit-test reviewer choice', owner: 'Unit reviewer', timestamp: '2026-10-15T01:00:00Z', requiredAction: 'Follow up', actionOwner: 'Unit owner', nextReviewDate: '2026-11-01', decisionTarget: rules.calendarTarget(review.reviewOpenedAt, 14), escalationThreshold: rules.calendarTarget(review.reviewOpenedAt, 30), assessmentSnapshot: review.assessment, evidenceSnapshot: review.evidence };
   ui.confirmation(review);
@@ -109,8 +110,8 @@ test('business evidence wording distinguishes zero matches, failure, unavailable
   const review = record(rules);
   function summary(status, linkedRecordCount = null) {
     review.evidence.po = { ...rules.emptyEvidence().po, attempted: status !== 'not_attempted', status, linkedRecordCount };
-    ui.reviewSummary(review);
-    return elements.get('review-summary').children.find(child => child.textContent.startsWith('Evidence Reviewed')).textContent;
+    ui.details(review.project, review.evidence, [review]);
+    return elements.get('detail-procurement-overview').textContent;
   }
   assert(summary('success', 0).includes('This does not establish that procurement exposure is zero.'));
   assert(summary('error').includes('Could not refresh this evidence'));
@@ -118,8 +119,8 @@ test('business evidence wording distinguishes zero matches, failure, unavailable
   assert(summary('not_attempted').includes('Waiting for project structure'));
   assert(!summary('success', 2).includes('No linked Purchase Order account assignments were found'));
   review.evidence.gl = { ...rules.emptyEvidence().gl, attempted: true, status: 'success', linkedRecordCount: 0 };
-  ui.reviewSummary(review);
-  assert(elements.get('review-summary').textContent.includes('This does not establish that project cost is zero.'));
+  ui.details(review.project, review.evidence, [review]);
+  assert(elements.get('detail-financial-overview').textContent.includes('This does not establish that project cost is zero.'));
   // Pending controller is UI runtime state, not a new SAP evidence state.
   const loaded = workspace(); loaded.runtime.state = { poController: {} };
   loaded.governanceUI.details(review.project, review.evidence, [review]);

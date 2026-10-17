@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
-const { workspace } = require('./helpers/workspace');
+const { workspace, startReview } = require('./helpers/workspace');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const descendants = el => [el, ...el.children.flatMap(descendants)];
 const byClass = (el, name) => descendants(el).filter(child => (child.className || '').split(' ').includes(name));
@@ -66,12 +66,12 @@ test('ready hero CTA resumes Summary, exposes five unselected choices, records M
   assert.equal(w.elements.get('start-review').textContent, 'Open Review');
   assert(w.elements.get('detail-review-status').textContent.includes('Ready for decision'));
   click(w, 'start-review'); assert.equal(w.state.view, 'summary');
-  assert(w.elements.get('review-summary').textContent.includes('3 material concerns · 2 emerging concerns'));
+  assert(w.elements.get('summary-decision-overview').textContent.includes('3 Material · 2 Emerging'));
   click(w, 'proceed-decision'); assert.equal(w.state.view, 'decision');
   const radios = w.elements.get('decision-outcome').querySelectorAll('input');
   assert.deepEqual(radios.map(radio => radio.value), ['Continue', 'Continue with Conditions', 'Modify', 'Pause', 'Stop']);
   assert(radios.every(radio => !radio.checked && !radio.disabled));
-  assert.deepEqual(w.elements.get('decision-context-counts').children.map(child => child.textContent), ['3 Material Concerns', '2 Emerging Concerns', '0 Evidence Gaps']);
+  assert.equal(w.elements.has('decision-context-counts'), false);
   assert.equal(w.elements.get('decision-rationale-help').hidden, false);
   choose(w, 'decision-outcome', 'Modify'); change(w, 'decision-form');
   assert.equal(w.elements.get('decision-follow-up').open, true);
@@ -93,14 +93,14 @@ test('ready hero CTA resumes Summary, exposes five unselected choices, records M
 
 test('new Infrastructure review remains at Assessment until trigger, six judgements, owner and evidence are complete', async () => {
   const w = workspace({ controller: true }); reset(w); await openInvestment(w, 3);
-  assert.equal(w.elements.get('start-review').textContent, 'Start Review'); click(w, 'start-review'); assert.equal(w.state.view, 'assessment');
+  assert.equal(w.elements.get('start-review').textContent, 'Start Review'); startReview(w); assert.equal(w.state.view, 'assessment');
   assert.equal(w.elements.get('start-review').textContent, 'Open Review');
   assert.equal(w.elements.get('proceed-decision').disabled, true);
   click(w, 'proceed-decision'); assert.equal(w.state.view, 'assessment');
   submit(w, 'assessment-form'); assert.equal(w.state.view, 'assessment'); assert.match(w.elements.get('workflow-message').textContent, /^Complete:/);
   for (const [group, value] of [['assessment-alignment', 'High'], ['assessment-benefits', 'Yes'], ['assessment-delivery', 'On track'], ['assessment-cost', 'Within expectations'], ['assessment-risk', 'Low'], ['assessment-value', 'Positive']]) choose(w, group, value);
   change(w, 'assessment-form'); submit(w, 'assessment-form'); assert.equal(w.state.view, 'assessment');
-  w.elements.get('review-basis').value = 'Scheduled stage-gate review'; change(w, 'assessment-form');
+  assert.equal(w.services.reviewStore.get(w.state.currentReviewID).reviewBasis, 'Scheduled stage-gate review');
   submit(w, 'assessment-form'); assert.equal(w.state.view, 'assessment'); assert(w.elements.get('workflow-message').textContent.includes('Decision Owner'));
   w.elements.get('assessment-owner').value = 'GOV-003'; change(w, 'assessment-form');
   const store = w.services.reviewStore, id = w.state.currentReviewID, completeEvidence = store.get(id).evidence;
@@ -119,22 +119,22 @@ test('summary decision context follows the current review without stale concerns
   await openInvestment(w, 0); click(w, 'start-review');
   const context = w.elements.get('summary-decision-overview');
   assert(context, 'Summary must expose the current decision context beside the decision action');
-  assert(context.textContent.includes('3 material concerns'));
-  assert(context.textContent.includes('2 emerging concerns'));
-  assert(context.textContent.includes('0 evidence gaps'));
+  assert(context.textContent.includes('3 Material'));
+  assert(context.textContent.includes('2 Emerging'));
+  assert(context.textContent.includes('0 Evidence Gaps'));
   assert(context.textContent.includes('Alex Lee'));
   assert.equal(w.elements.get('proceed-decision').disabled, false);
   const before = JSON.stringify(w.services.reviewStore.get('SHOWCASE-ODP-REVIEW'));
   w.governanceUI.reviewSummary(w.services.reviewStore.get('SHOWCASE-ODP-REVIEW'));
   assert.equal(JSON.stringify(w.services.reviewStore.get('SHOWCASE-ODP-REVIEW')), before);
   await openInvestment(w, 2); click(w, 'start-review');
-  assert(context.textContent.includes('0 material concerns'));
-  assert(context.textContent.includes('1 emerging concern'));
-  assert(context.textContent.includes('1 evidence gap'));
-  assert(!context.textContent.includes('3 material concerns'));
+  assert(context.textContent.includes('0 Material'));
+  assert(context.textContent.includes('1 Emerging'));
+  assert(context.textContent.includes('1 Evidence Gap'));
+  assert(!context.textContent.includes('3 Material'));
   assert(context.textContent.includes('Morgan Chen'));
   assert(!context.textContent.includes('Alex Lee'));
-  assert(context.textContent.includes('26 Oct 2026'));
+  assert(!context.textContent.includes('26 Oct 2026')); assert(w.elements.get('workspace-review-context').textContent.includes('26 Oct 2026'));
   click(w, 'proceed-decision');
   assert(w.elements.get('decision-outcome').querySelectorAll('input').every(radio => !radio.checked));
   reset(w);
@@ -172,8 +172,11 @@ test('Decision Queue stays action-focused while project-specific findings remain
   const rows = byClass(attention, 'decision-queue-row');
   assert.deepEqual(rows.map(row => byClass(row, 'queue-signals')[0].children[1].children.map(signal => signal.textContent)), [['3 Material', '2 Emerging'], ['4 Emerging'], ['1 Emerging', '1 Evidence Gap']]);
   ui.reviewSummary(records.find(record => record.id === 'SHOWCASE-ODP-REVIEW'));
-  for (const finding of ['Delivery is off track', 'Cost position assessed as Material variance', 'High project risk']) assert(w.elements.get('review-summary').textContent.includes(finding));
-  ui.reviewSummary(records.find(record => record.id === 'SHOWCASE-DAT-REVIEW')); assert(w.elements.get('review-summary').textContent.includes('Cost position cannot yet be fully assessed'));
+  for (const [dimension, value] of [['deliveryPerformance', 'Off track'], ['costPosition', 'Material variance'], ['risk', 'High']]) {
+    const card = byClass(w.elements.get('review-summary'), 'assessment-signal').find(card => card.dataset.dimension === dimension); assert(card.textContent.includes(value)); assert.equal(card.dataset.tone, 'material');
+  }
+  ui.reviewSummary(records.find(record => record.id === 'SHOWCASE-DAT-REVIEW'));
+  const gap = byClass(w.elements.get('review-summary'), 'assessment-signal').find(card => card.dataset.dimension === 'costPosition'); assert(gap.textContent.includes('Insufficient information')); assert.equal(gap.dataset.tone, 'gap');
   assert(!attention.textContent.includes('Legacy Reporting Consolidation')); assert(!attention.textContent.includes('Store Technology Infrastructure Refresh'));
   assert.equal(w.state.view, 'dashboard'); assert.equal(JSON.stringify(records), before);
 });
@@ -193,8 +196,8 @@ test('timing-only urgency stays visible without inventing concerns or extra per-
 test('static guidance remains progressive and explicit about human judgement, with no classification hints beside assessment inputs', () => {
   const html = readFileSync(join(__dirname, '../index.html'), 'utf8');
   assert.match(html, /id="proceed-decision"[^>]*>Continue to Governance Decision/);
-  assert(html.includes('Select one outcome. Assessment signals inform this decision but do not determine it.'));
-  assert(html.includes('These signals support governance judgement; they do not automatically select an outcome.'));
+  assert(html.includes('Select the continuation outcome.')); assert(!html.includes('id="decision-context-counts"'));
+  assert(readFileSync(join(__dirname, '../js/ui/governance.js'), 'utf8').includes('They inform governance judgement but do not determine the decision.'));
   assert(html.includes('This review contains material concerns. Explain how the selected outcome addresses them.'));
   assert(!html.includes('id="queue-help-trigger"')); assert(!html.includes('id="signals-help"'));
   const assessment = html.slice(html.indexOf('<section id="assessment-view"'), html.indexOf('<section id="summary-view"'));
