@@ -1,6 +1,6 @@
 # Frontend UI Contract
 
-This contract covers the customer workflow and retained SAP diagnostics. `js/ui/renderers.js` owns evidence tables/status; `js/ui/governance.js` owns navigation/forms/summaries. The checker requires 121 IDs. Implementation, contract and checks must change together.
+This contract covers the customer workflow and retained SAP diagnostics. `js/ui/renderers.js` owns evidence tables/status; `js/ui/governance.js` owns navigation/forms/summaries. The checker requires 123 IDs. Implementation, contract and checks must change together.
 
 ## Functional Hooks
 
@@ -10,7 +10,7 @@ This contract covers the customer workflow and retained SAP diagnostics. `js/ui/
 | Projects | `connection-status` | Connection status text. |
 | Projects | `message` | Status text and `data-kind` styling. |
 | Projects | `error-details` | Safe error body text; supports `hidden`. |
-| Projects | `projects-body` | Table `tbody` for six-column business rows, local review status and View Investment actions. Raw status/company/currency remain in SAP context/diagnostics. |
+| Projects | `projects-body` | Five-column Portfolio: Investment (name, ID, source), Governance State, Latest Decision, Next Review, Next Step. Dates/metadata remain in Investment Detail, not primary list columns. |
 | Projects | `raw-response` | Raw project-list JSON/text output. |
 | Elements | `elements-panel` | Selected-project/elements section; supports `hidden`. |
 | Elements | `selected-project` | Selected-project summary text. |
@@ -45,10 +45,11 @@ All of these are functional IDs (in addition to the SAP hooks above):
 
 | Area | IDs | Role |
 | --- | --- | --- |
-| Shell/navigation | `nav-dashboard`, `nav-investments`, `nav-reviews`, `page-title`, `storage-notice` | Shared top navigation: Dashboard / Portfolio / Reviews. Internal investments route/ID is retained; title supports focus and active navigation uses aria-current. |
+| Shell/navigation | `nav-dashboard`, `nav-investments`, `nav-reviews`, `page-title`, `storage-notice` | Shared top navigation: Dashboard / Portfolio / Decisions. Legacy reviews route/IDs/renderReviews name intentionally remain internal; the view is completed decisions only. Title supports focus; aria-current marks Portfolio for investment/review process, Decisions for register/record. |
 | Dashboard | `dashboard-view`, `dashboard-portfolio-count`, `page-eyebrow`, `dashboard-cards`, `decision-queue-title`, `dashboard-filter-count`, `dashboard-attention`, `recent-decisions-title`, `dashboard-decisions` | Portfolio Governance header/current loaded investment count, one interactive four-metric strip and one filtered open-review list. The shared eyebrow is hidden only on Dashboard; Portfolio Pulse has no visible heading. Recent Decisions remains independent. |
 | Investment details | `investments-view`, `detail-view`, `investment-context`, `detail-review-status`, `start-review`, `view-last-decision`, `detail-lifecycle-overview`, `reload-lifecycle`, `load-review-evidence`, `detail-financial-overview`, `detail-procurement-overview` | Source-labelled context, evidence loads and start/continue/view decision actions. |
-| Reviews | `reviews-view`, `reviews-body` | Local-record list with six-column rows and resume/view actions. |
+| Decisions | `reviews-view`, `reviews-body` | Completed-only register: Investment, Review Trigger, Decision, Decision Date, Decision Owner, Next Review, Next Step. View Decision opens the exact immutable record in Confirmation, even without the investment in the loaded portfolio. |
+| Investment review history | `investment-history-title`, `investment-history-body` | Secondary completed-review history for the selected ProjectUUID, newest decision first; six columns omit repeated investment identity. Active reviews are never duplicated here. Truthful empty/unavailable states. |
 | Shared review context | `review-chrome`, `current-review-project`, `review-steps`, `workflow-message`, `review-back-investment` | Step indicator, compact trigger/due date, submit-only missing-fields message and back navigation. No persistent control rail. |
 | Assessment | `assessment-view`, `assessment-form`, `review-basis`, `assessment-alignment`, `assessment-benefits`, `assessment-delivery`, `assessment-financial-evidence`, `assessment-cost`, `assessment-risk`, `assessment-value`, `assessment-comments`, `assessment-dependencies`, `assessment-owner`, `assessment-save-summary` | Review Trigger select, six radio fieldsets, directory-owner dropdown, reviewer text and local save/summary. |
 | Summary | `summary-view`, `review-summary`, `summary-decision-overview`, `back-assessment`, `proceed-decision` | Decision overview beside the single top-of-summary action; review evidence/assessment/control pack; decision progression only when READY and no request pending. |
@@ -67,9 +68,29 @@ Showcase hooks: `detail-source` displays SHOWCASE / SAP SANDBOX; each investment
 
 Review basis displays canonical Material trigger / Scheduled stage-gate review, read-through-normalising legacy wording. Trigger is not an assessment concern. Matrix labels are Normal / no concern identified, Emerging Concern, Material Concern, Evidence Gap and Not assessed; the central qualitative map owns semantics. Internal `attentionItems` remains compatible but no customer text says Attention Items. Not assessed is never a gap. The historical synthetic Stop uses normal stored-record confirmation and is labelled as history; no current decision is preselected. Dates are real clock based; fixed showcase seeds are explicitly synthetic historical dates.
 
-Selecting an investment starts structure retrieval, then financial/procurement calls using existing identifier rules. Card retry controls retain their historical IDs but are secondary and hidden on success. `load-review-evidence` is now Refresh Evidence, not a required happy-path task. Summary contains the six-signal matrix, grouped management attention, timeline, three evidence rows and a link to the consolidated details; no repeated raw tables. Native form semantics and the store's final validation remain authoritative.
+View Investment starts structure retrieval, then financial/procurement calls using existing identifier rules. Active Portfolio next steps resume the review directly; Back to Investment opens evidence/context. Card retry controls retain their historical IDs but are secondary and hidden on success. `load-review-evidence` is Refresh Evidence, not a required happy-path task. Summary contains the six-signal matrix, grouped management attention, timeline, three evidence rows and a link to the consolidated details; no repeated raw tables. Native form semantics and the store's final validation remain authoritative.
 
-Final handover UX: all review entry points resume an incomplete active review at Assessment and a ready one at Summary, never directly at Decision; recorded decisions open Confirmation. Investment CTA is Start Review / Continue Assessment / Review Summary & Decide / View Decision. `proceed-decision` is the primary Make Governance Decision action. `decision-context-title` / `decision-context-counts` summarise current reviewSignals without selecting any outcome; `decision-rationale-help` is non-blocking material-concern guidance, not a validation rule.
+All review entry points resume an incomplete active review at Assessment and a ready one at Summary using the shared Continue Assessment / Review & Decide labels, never directly at Decision; recorded decisions open Confirmation. `proceed-decision` remains Make Governance Decision. `decision-context-title` / `decision-context-counts` summarise current reviewSignals without selecting any outcome; `decision-rationale-help` is non-blocking material-concern guidance, not a validation rule.
+
+### Investment → review → immutable decision
+
+An investment can have 0..N reviews, with one active at most. `portfolioState()` derives presentation only from the active review/readiness and latest completed decision; there is no persisted project-governance-status field. Latest/history/register order is descending decision timestamp with record-ID tie break, not review-open date. Source badges and stored owner/date/snapshot meanings are unchanged.
+
+| Current context | Governance State | Portfolio Next Step | Investment Detail primary action |
+| --- | --- | --- | --- |
+| Active, incomplete | Assessment in progress | Continue Assessment | Continue Assessment |
+| Active, ready | Ready for decision | Review & Decide | Review & Decide |
+| No active, no decision | Monitoring | View Investment | Start Review |
+| No active, Continue | Monitoring | View Investment | Start New Review |
+| No active, Continue with Conditions / Modify | Follow-up | View Investment | Start New Review |
+| No active, Pause | Paused | View Investment | Start New Review |
+| No active, Stop | Stopped | View Decision | View Decision only |
+
+Latest Decision is stored outcome/date or —; Next Review uses only the latest decision's stored nextReviewDate or — (always — for Portfolio Stop). An active cycle takes precedence for current state/next step without hiding latest historical context. After non-Stop completion, Detail offers secondary View Latest Decision beside Start New Review. History/register actions use exact review IDs, never infer a record from investment alone. Storage unavailable reports unknown governance/history and disables starting instead of claiming Monitoring or zero decisions.
+
+New cycles use existing `store.start()` to allocate a new ID/opened time/default assessment, retaining all prior decision snapshots; an existing active cycle is reused. Store update/confirm reject completed reviews. Stop has no normal new-review UI, plus a controller guard against a hidden/stale Start handler; this is not a new store schema or restart-approval workflow. A Next Review date never auto-creates a cycle. No background governance automation is introduced.
+
+Product-model validation: 84 Node tests, 123 required hooks and runtime syntax/static checks pass. Native Edge exercised the full Modify → new active cycle story, historical callbacks, completed-only register, Dashboard lens/row equality, keyboard filters/help, Stop protection and 320–1440px layouts without console errors. Screenshot review covered Portfolio, Decisions and Investment Detail. This is not formal cross-browser/screen-reader certification; browser QA used isolated existing showcase data, not new evidence or live SAP validation.
 
 Dashboard status navigation (17 October 2026): `dashboard-cards` is a labelled native-button group, not a dl, a second tab bar or passive KPI row. Generated `dashboard-filter-active/overdue/material/gap` buttons use one true aria-pressed state and aria-controls for the same `dashboard-attention` list. Tab/Enter/Space provide native keyboard access; colour, label weight, selected surface and bottom rule identify selection. The default is Active Reviews; zero-match buttons remain selectable, while unavailable storage disables unknown counts rather than inventing zero.
 
@@ -79,7 +100,7 @@ One list updates in place without changing route or Recent Decisions. `decision-
 
 Dashboard visual refinement: repeated Why is this flagged? controls and their presentation helpers are removed. The queue is action-only; project-specific findings remain in the unchanged Review Summary. `signalBreakdown()` and other business helpers remain available, not deleted. `queue-help` / `queue-help-trigger` expose `signals-help` as the sole Dashboard explanation. Hover or focus reveals the preserved definitions; moving into the tooltip keeps it open, Escape dismisses it, click supports touch/toggling, and leaving Dashboard closes it. The labelled native button has aria-describedby/aria-expanded and visible focus. No classification hints are added to assessment inputs.
 
-Presentation metadata (`pulse-metric` kind/active and row urgent flags) only styles existing counts/timing. It does not calculate severity or recommendations. All row resume actions use the same blue `queue-action-button` style and white row surface; urgent rows retain a thin semantic rule/timing marker, not a special background. Traditional tiny column headings are removed; accessible row labels remain, visible in stacked layouts. Neutral recorded-outcome badges never imply that Stop/Modify/Continue is good or bad. Existing brand/logo styling and assets are unchanged in this interaction round.
+Presentation metadata (`pulse-metric` kind/active and row urgent flags) only styles existing counts/timing. It does not calculate severity or recommendations. All row resume actions use the same blue `queue-action-button` style and white row surface; urgent rows retain a thin semantic rule/timing marker, not a special background. Readable 13.5px semibold desktop headings share the exact queue-grid: Investment / Review Trigger / Findings / Decision Timing / Next Step. At ≤1100px the heading row hides and per-field labels appear. The existing ? help adds only the overlapping-review-lenses sentence. Neutral recorded outcomes never imply good/bad judgement. Brand/logo styling and assets are unchanged.
 
 Obsolete Dashboard-only hooks removed with their event/CSS/test contracts: `attention-profile`, `attention-breakdown`, `dashboard-open-reviews`, `dashboard-view-investments`. There is no chart, duplicated signal aggregate, separate other-review list, Decisions Recorded KPI or Portfolio CTA in Recent Decisions. Business-rule helpers are retained for other views.
 
@@ -138,7 +159,7 @@ Canonical UI owners:
 | CRUD | Existing governance.js navigation and controller callbacks | UI_CONTRACT.md / app.js / review-store.js | Local draft / immutable completed record; confirmed showcase-only reset | Back / resume / summary / persisted decision / unrelated-record preservation |
 
 
-Technical evidence tables retain all columns and the existing bounded API retrieval (5 projects; up to 100 G/L/PO rows). The primary Investments table is reduced to project, description, dates, review status and action. No search/pagination changes or persistence of selection in URLs are introduced. There is no selection/bulk grid. Responsive horizontal table overflow is keyboard focusable; ordinary forms continue to scroll with the document. Native controls, rather than authored popup implementations, are deliberate.
+Technical evidence tables retain all columns and the existing bounded API retrieval (5 projects; up to 100 G/L/PO rows). Portfolio/Decisions/Review History use readable semantic tables, thin rules and neutral chips on the Dashboard canvas/width; narrow layouts stack cells with matching field labels rather than overflowing the page. No search/pagination or URL-selection persistence is introduced. Technical table overflow remains keyboard focusable; ordinary forms scroll with the document. Native controls, rather than authored popup implementations, are deliberate.
 
 Zero matches/partial results are Limited evidence; errors, unavailable/unrequested and loading retain truthful states and explanatory copy. Pending requests supersede saved success badges; readiness still checks attempts, not evidence sufficiency. No scoring/recommendations are added. Comments/dependencies are optional disclosures whose input persists through local drafts; textareas grow. A concise submit-time message replaces permanent readiness/touched-field lists. Source/amount qualifications and raw technical tables remain available in the consolidated disclosure.
 
@@ -146,7 +167,7 @@ Local save feedback reflects visible storage errors. Normal navigation attempts 
 
 ## Final UI refinement (15 October 2026)
 
-Dashboard places Needs Attention first in both DOM and visual order, with the existing count chart secondary. Existing categories, deadlines, disclosures and handlers retain their meaning. Chips use text plus shared semantic surfaces; timing urgency stays separate from assessment concerns.
+Historical note: the former Needs Attention/chart composition has been superseded by the approved four-filter Dashboard described above. Categories/deadlines remain unchanged; timing urgency stays separate from assessment concerns.
 
 `summary-decision-overview` is presentation only: current concern/gap counts, decision target/status and the selected owner. It refreshes from the current record whenever Summary renders. The original `proceed-decision` button is moved beside this overview, not duplicated; its controller callback and readiness/owner/pending-request guard remain unchanged. Trigger context remains above; the duplicate trigger-header date is visually omitted on Summary because the same target appears in the overview. The six-dimension matrix uses three desktop columns, two at intermediate narrow widths and one on small phones. Management Attention, the full timeline and qualified evidence remain in the page below.
 
@@ -169,7 +190,7 @@ Harneet’s BA/PO and Dhruv’s first-time-user feedback is addressed without ch
 - Refresh SAP Projects is available only on Investments, with its existing request/busy/error behavior. It refreshes live SAP projects; the showcase presentation path has no global refresh action. Automatic configured-key loading and retry remain unchanged.
 - Financial activity still does not imply complete project expenditure. Evidence Reviewed distinguishes retrieved-record availability from the reviewer-assessed Evidence Gap category. No new assessment or financial rules are introduced.
 
-Recommended demonstration path: Dashboard → Investments → View Investment → Review Summary → Governance Decision → Decision Confirmation → Dashboard. Existing direct Summary shortcuts remain available.
+Recommended demonstration path: Dashboard → Review & Decide → Summary → Governance Decision → immutable record → Back to Investment → Start New Review. Portfolio → View Investment remains the evidence-first path for investments without active reviews; Decisions provides the full completed register.
 
 
 Validation for this follow-up: 58 credential-free Node tests and the 118-ID frontend contract pass; application JavaScript syntax, Python parse, diff whitespace and official DESIGN.md lint pass (zero lint errors/warnings). New regression tests were observed failing before the fixes and passing afterward. Real-browser checks covered neutral/no-selection guidance, all five outcome labels, rejected empty Modify submission, retained drafts, calendar-date entry and the formatted preview, saved/reloaded Next Review, the Data & Analytics gap case, Investments-only SAP refresh visibility, and 390px form/record layouts without page overflow. Desktop evidence is captured at 1280px. Screenshots under `docs/ui-review/` use synthetic showcase data; the mobile saved record is explicitly UI QA only. The native calendar popup itself and other browser engines were not certified. No live SAP requests were made. The same 24 supplemental strict-scanner findings described above remain; they are not reported as a passing audit.

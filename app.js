@@ -42,9 +42,10 @@
     return rules.activeReview(state.reviews, state.selectedProject?.ProjectUUID)?.evidence || state.evidence;
   }
   function refreshGovernance() {
+    if (state.view === "investments") ui.renderProjects(state.projects, state.selectedProject, loadProjectElements);
     governance.renderDashboard(state.reviews, state.projects.length, openReview, !state.storageError);
     governance.renderReviews(state.reviews, openReview, !state.storageError);
-    if (state.selectedProject) governance.details(state.selectedProject, evidenceForSelected(), state.reviews, !!state.selectedFromSnapshot, !state.storageError);
+    if (state.selectedProject) governance.details(state.selectedProject, evidenceForSelected(), state.reviews, !!state.selectedFromSnapshot, !state.storageError, openReview);
     const record = currentReview();
     if (record && ["assessment", "summary", "decision"].includes(state.view)) {
       governance.chrome(record, busy());
@@ -97,6 +98,8 @@
     if (!state.selectedProject) return;
     try {
       if (!refreshRecords()) return;
+      const context = governance.portfolioState(state.selectedProject, state.reviews);
+      if (!context.active && context.latest?.decision.outcome === "Stop") { openReview(context.latest.id); return; }
       const record = store.start(state.selectedProject, state.evidence);
       refreshRecords(); state.currentReviewID = record.id; resumeReview(record);
     } catch (error) { governance.storageNotice(error.message); }
@@ -348,7 +351,7 @@
     } finally { if (isCurrent()) { state.poController = null; ui.poFinished(); refreshGovernance(); } }
   }
 
-  ui.configureReviews(project => state.storageError ? "Review status unavailable" : showcase.isShowcase(project) && rules.needsAttention(state.reviews).some(item => item.review.project.ProjectUUID === project.ProjectUUID) ? "Needs attention" : rules.projectStatus(state.reviews, project.ProjectUUID));
+  ui.configureReviews(project => governance.portfolioState(project, state.reviews, !state.storageError), openReview);
   ui.bindEvents({ loadGL: loadFinancialEvidence, loadPO: loadPurchaseOrderEvidence,
     loadProjects: refreshProjects });
   governance.bind({ navigate, startReview, saveDraft, summary: () => showReviewStep("summary"), reviewStep: showReviewStep,

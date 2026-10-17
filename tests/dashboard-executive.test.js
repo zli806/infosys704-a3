@@ -48,7 +48,7 @@ test('queue includes unflagged open reviews and sorts escalation, overdue, due d
   assert.deepEqual(rows(w).map(row => row.dataset.reviewId), ['escalated', 'overdue', 'tie-a', 'tie-b', 'soon', 'ordinary']);
   const fresh = rows(w).at(-1); assert.equal(byClass(fresh, 'flag-explanation').length, 0);
   assert(byClass(fresh, 'queue-signals')[0].textContent.includes('Assessment in progress'));
-  byClass(fresh, 'queue-action')[0].children[0].events.click[0](); assert.equal(selected, ordinary.id);
+  byClass(fresh, 'queue-action')[0].children[1].events.click[0](); assert.equal(selected, ordinary.id);
 });
 
 test('fully assessed normal review is still actionable without fabricating a flagged state or final decision', () => {
@@ -57,7 +57,7 @@ test('fully assessed normal review is still actionable without fabricating a fla
   normal = store.update(normal.id, { reviewBasis: w.reviewRules.BASIS[0], decisionOwnerId: 'GOV-003', assessment: { strategicAlignment: 'High', expectedBenefits: 'Yes', deliveryPerformance: 'On track', costPosition: 'Within expectations', risk: 'Low', futureEconomicValue: 'Positive' } });
   w.governanceUI.renderDashboard([normal], 5, () => {});
   assert.equal(rows(w).length, 1); assert.equal(byClass(rows(w)[0], 'flag-explanation').length, 0);
-  assert(rows(w)[0].textContent.includes('No concerns identified')); assert.equal(byClass(rows(w)[0], 'queue-action')[0].children[0].textContent, 'Review Summary & Decide');
+  assert(rows(w)[0].textContent.includes('No concerns identified')); assert.equal(byClass(rows(w)[0], 'queue-action')[0].children[1].textContent, 'Review & Decide');
   assert.equal(store.get(normal.id).decision, null);
 });
 
@@ -114,7 +114,7 @@ test('shared shell and Dashboard contain only the requested navigation, regions 
   const dashboard = html.slice(html.indexOf('<section id="dashboard-view"'), html.indexOf('<section id="investments-view"'));
   assert(!dashboard.includes('Decisions Recorded')); assert(!dashboard.includes('Governance Attention Profile')); assert(!dashboard.includes('Needs Attention'));
   for (const label of ['Active Reviews', 'Recent Decisions', 'Material Concern', 'Emerging Concern', 'Evidence Gap', 'calibrated with DPE']) assert(dashboard.includes(label));
-  assert(!dashboard.includes('Portfolio Pulse')); assert(!dashboard.includes('class="queue-columns"'));
+  assert(!dashboard.includes('Portfolio Pulse')); assert(dashboard.includes('class="queue-columns queue-grid"'));
   const w = workspace(); w.governanceUI.renderDashboard(w.services.reviewStore.seedShowcase(), 5, () => {});
   assert(!w.elements.get('dashboard-attention').textContent.includes('Why is this flagged?')); assert(!css.includes('.flag-explanation'));
   const svg = readFileSync(join(__dirname, '../assets/dpe-mark.svg'), 'utf8');

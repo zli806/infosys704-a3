@@ -9,7 +9,7 @@
     if (Number.isNaN(date.getTime())) return String(value);
     return new Intl.DateTimeFormat("en-NZ", { year: "numeric", month: "short", day: "2-digit", timeZone: "UTC" }).format(date);
   }
-  let reviewStatusForProject = () => "No active review";
+  let governanceForProject = () => ({ label: "Monitoring", nextStep: "View Investment" }), openReview = () => {};
   const dom = {
     button: document.getElementById("load-projects"),
     connection: document.getElementById("connection-status"),
@@ -79,21 +79,28 @@
     return context.data !== undefined ? JSON.stringify(context.data, null, 2) : context.safeBody || "(Empty response body)";
   }
   function renderProjects(projects, selectedProject, onSelect) {
-    if (!projects.length) { empty(dom.tableBody, 6, "No investments found in the current data."); return; }
+    if (!projects.length) { empty(dom.tableBody, 5, "No investments found in the current data."); return; }
     dom.tableBody.replaceChildren();
     for (const project of projects) {
       const row = document.createElement("tr");
-      cells(row, [project.Project, project.ProjectDescription,
-        formatDate(project.ProjectStartDate), formatDate(project.ProjectEndDate), reviewStatusForProject(project)]);
+      const governance = governanceForProject(project), latest = governance.latest;
+      cells(row, [project.ProjectDescription || project.Project, governance.label,
+        latest ? `${latest.decision.outcome} · ${formatDate(latest.decision.timestamp)}` : "—", formatDate(governance.nextReview)]);
+      ["Investment", "Governance State", "Latest Decision", "Next Review"].forEach((label, index) => { row.children[index].dataset.label = label; });
+      const identity = document.createElement("p"); identity.className = "queue-identity"; identity.textContent = project.Project;
       const source = document.createElement("span"), synthetic = app.services.showcase?.isShowcase(project);
-      source.className = `source ${synthetic ? "showcase" : "sap"}`; source.textContent = synthetic ? "SHOWCASE" : "SAP SANDBOX"; row.children[0].append(source);
+      source.className = `source ${synthetic ? "showcase" : "sap"}`; source.textContent = synthetic ? "SHOWCASE" : "SAP SANDBOX"; identity.append(source); row.children[0].append(identity);
+      const chip = document.createElement("span"); chip.className = "governance-chip"; chip.textContent = governance.label;
+      row.children[1].replaceChildren(chip);
       const actionCell = document.createElement("td");
+      actionCell.dataset.label = "Next Step";
       const action = document.createElement("button");
       action.type = "button";
       action.className = "row-action";
-      action.textContent = "View Investment";
-      action.setAttribute("aria-label", `View Investment for ${project.Project || "project"}`);
-      action.addEventListener("click", () => onSelect(project));
+      action.textContent = governance.nextStep;
+      action.setAttribute("aria-label", `${governance.nextStep} for ${project.Project || "project"}`);
+      action.addEventListener("click", () => governance.active ? openReview(governance.active.id)
+        : governance.nextStep === "View Decision" && latest ? openReview(latest.id) : onSelect(project));
       actionCell.append(action);
       row.append(actionCell);
       if (project === selectedProject) row.className = "selected-project";
@@ -199,7 +206,7 @@
   }
   app.ui = {
     formatDate,
-    configureReviews(callback) { reviewStatusForProject = callback; },
+    configureReviews(callback, onOpen = () => {}) { governanceForProject = callback; openReview = onOpen; },
     renderProjects, resetElements, selectProject, renderElements, resetGL, renderGL, resetPO, renderPO,
     bindEvents(actions) {
       dom.glButton.addEventListener("click", actions.loadGL);
@@ -209,10 +216,10 @@
     projectStart() {
       document.getElementById("project-refresh-error").hidden = true;
       dom.errorDetails.hidden = true; dom.errorDetails.textContent = "";
-      empty(dom.tableBody, 6, "Refreshing investments…"); dom.rawResponse.textContent = "No response received yet.";
+      empty(dom.tableBody, 5, "Refreshing investments…"); dom.rawResponse.textContent = "No response received yet.";
     },
     projectKeyMissing() {
-      empty(dom.tableBody, 6, "Investment data is not configured.");
+      empty(dom.tableBody, 5, "Investment data is not configured.");
       dom.connection.textContent = "Showcase available. SAP Sandbox connection is not configured."; dom.connection.hidden = false;
       message(dom.message, "Please add your SAP Sandbox API key to config.local.js first.", "error");
     },
@@ -230,7 +237,7 @@
     projectFailure(detail) {
       dom.connection.textContent = ""; dom.connection.hidden = true;
       document.getElementById("project-refresh-error").hidden = false;
-      empty(dom.tableBody, 6, "Investment data is unavailable. Please retry."); message(dom.message, detail, "error");
+      empty(dom.tableBody, 5, "Investment data is unavailable. Please retry."); message(dom.message, detail, "error");
     },
     projectFinished() { dom.button.disabled = false; dom.button.textContent = "Refresh SAP Data"; dom.button.removeAttribute("aria-busy"); },
     projectRaw(context) { dom.rawResponse.textContent = raw(context); },

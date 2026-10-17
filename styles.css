@@ -362,6 +362,7 @@ button.help-trigger:hover { background:var(--color-secondary); color:var(--color
 .queue-help-text h4 { font-size:.85rem; margin-top:14px; }
 .queue-help-text h4:first-child { margin-top:0; }
 .queue-grid { display:grid; grid-template-columns:minmax(210px,2fr) minmax(130px,1.1fr) minmax(110px,.95fr) minmax(140px,1.15fr) minmax(175px,1.25fr); gap:20px; }
+.queue-grid.queue-columns { padding:12px 28px; border-block:1px solid var(--color-line); color:var(--color-ink); background:#f8fafb; font-size:.9rem; font-weight:600; }
 .decision-queue-row { position:relative; padding:25px 28px; border-bottom:1px solid var(--color-line); }
 .decision-queue-row:last-child { border-bottom:0; }
 .decision-queue-row[data-urgent="true"]::before { content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--queue-material); }
@@ -395,11 +396,54 @@ button.help-trigger:hover { background:var(--color-secondary); color:var(--color
 .recent-decision-row time { color:var(--color-muted); font-size:.83rem; }
 .recent-decision-row button { font-size:.81rem; }
 @media (max-width:1100px) {
+ .queue-columns { display:none; }
  .queue-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px 24px; }
  .queue-investment { grid-column:1/-1; }
  .queue-field-label { position:static; display:block; width:auto; height:auto; clip:auto; white-space:normal; overflow:visible; color:var(--color-muted); font-size:.84rem; margin:0 0 5px; }
  .queue-action { align-self:end; } .queue-action button { width:auto; }
  .decision-queue-row { padding:24px 28px; }
+}
+
+/* Portfolio and the completed register follow the approved executive canvas. */
+main[data-view="investments"], main[data-view="reviews"], main[data-view="detail"] { max-width:1400px; padding-top:22px; }
+main[data-view="investments"] #page-title, main[data-view="reviews"] #page-title { font-size:2.05rem; letter-spacing:-.04em; }
+main[data-view="investments"] .page-header, main[data-view="reviews"] .page-header { margin-bottom:24px; }
+.governance-surface { background:var(--color-paper); border:1px solid var(--color-line); border-radius:var(--radius-control); }
+table.governance-table { width:100%; min-width:0; table-layout:fixed; font-size:.9rem; }
+.governance-table th { font-size:.9rem; font-weight:600; color:var(--color-ink); background:#f8fafb; text-transform:none; letter-spacing:0; white-space:normal; }
+.governance-table th,.governance-table td { padding:20px 18px; vertical-align:middle; overflow-wrap:anywhere; }
+.governance-table td:first-child { font-weight:600; }
+.governance-table .queue-identity { font-weight:400; }
+.governance-table tbody tr:last-child td { border-bottom:0; }
+.governance-table tbody tr,.governance-table tbody tr:hover { background:transparent; }
+.governance-table button { font-size:.84rem; padding:10px 12px; white-space:normal; }
+.portfolio-table th:first-child { width:28%; }
+.portfolio-table th:nth-child(2) { width:20%; }
+.portfolio-table th:nth-child(3) { width:22%; }
+.portfolio-table th:nth-child(4) { width:13%; }
+.portfolio-table th:last-child { width:17%; }
+.decision-register th:first-child { width:24%; }
+.decision-register th:nth-child(2) { width:15%; }
+.decision-register th:nth-child(3) { width:15%; }
+.governance-chip { display:inline-block; padding:5px 8px; border:1px solid #e0e5e9; border-radius:4px; background:#f1f3f5; color:var(--color-ink); font-size:.84rem; font-weight:500; }
+.investment-history { margin:28px 0; }
+.investment-history > h3 { font-size:1rem; color:var(--color-muted); margin-bottom:14px; }
+.history-table th:first-child { width:15%; }
+.history-table th:nth-child(2) { width:24%; }
+#detail-review-status { max-width:850px; line-height:1.7; }
+@media (max-width:1100px) {
+ .governance-table, .governance-table tbody, .governance-table tr, .governance-table td { display:block; }
+ .governance-table thead { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); }
+ .governance-table tbody tr { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); padding:20px; gap:16px 24px; border-bottom:1px solid var(--color-line); }
+ .governance-table tbody tr:last-child { border-bottom:0; }
+ .governance-table td { border:0; padding:0; min-width:0; }
+ .governance-table td::before { content:attr(data-label); display:block; font-size:.88rem; font-weight:600; color:var(--color-muted); margin-bottom:6px; }
+ .governance-table td:first-child { grid-column:1/-1; }
+ .governance-table td.empty { grid-column:1/-1; }
+}
+@media (max-width:700px) {
+ main[data-view="investments"] #page-title, main[data-view="reviews"] #page-title { font-size:1.85rem; }
+ .governance-table tbody tr { grid-template-columns:1fr; }
 }
 @media (max-width:700px) {
  .app-header-inner { padding:14px 16px; flex-wrap:wrap; gap:12px; }

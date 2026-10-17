@@ -29,7 +29,7 @@ test('dashboard pulse distinguishes investments from signals and keeps queue act
   const items = byClass(w.elements.get('dashboard-attention'), 'decision-queue-row'); assert.equal(items.length, 2);
   assert.equal(byClass(items[0], 'queue-signal').length, 1);
   assert(items[0].textContent.includes(first.reviewBasis) && items[0].textContent.includes(w.reviewRules.timing(first).status));
-  byClass(items[0], 'queue-action')[0].children[0].events.click[0](); assert.equal(opened, first.id);
+  byClass(items[0], 'queue-action')[0].children[1].events.click[0](); assert.equal(opened, first.id);
 });
 
 test('six-dimension matrix uses explicit input and existing categorical signals, not numeric scoring', () => {

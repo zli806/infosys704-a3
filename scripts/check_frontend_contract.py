@@ -13,7 +13,7 @@ REQUIRED_IDS = (
     "gl-panel", "load-financial-evidence", "gl-project", "gl-message", "gl-error", "gl-summary", "gl-body",
     "raw-gl-response", "gl-diagnostic", "raw-gl-diagnostic",
     "po-panel", "load-po-evidence", "po-project", "po-message", "po-error", "po-summary", "po-body", "raw-po-response",
-    "nav-dashboard", "nav-investments", "nav-reviews", "page-title", "storage-notice",
+    "nav-dashboard", "nav-investments", "nav-reviews", "page-title", "storage-notice", "investment-history-title", "investment-history-body",
     "dashboard-view", "dashboard-cards", "dashboard-decisions", "dashboard-portfolio-count", "page-eyebrow", "decision-queue-title", "dashboard-filter-count", "queue-help", "queue-help-trigger", "recent-decisions-title",
     "investments-view", "detail-view", "investment-context", "detail-review-status", "start-review", "view-last-decision",
     "detail-lifecycle-overview", "reload-lifecycle", "load-review-evidence", "detail-financial-overview", "detail-procurement-overview",

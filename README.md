@@ -19,9 +19,13 @@ Reviews/decisions are browser/origin-local. Owners come from an explicitly ficti
 
 ## MVP Flow
 
-**Dashboard → Portfolio → Investment Details → Continuation Review → Summary → Decision → Confirmation**
+**Dashboard / Portfolio → Investment → Review → Assessment → Summary → Decision → immutable Decision Record**
 
-Ready reviews resume at Summary; incomplete ones resume Assessment. **Make Governance Decision** exposes five human choices: Continue, Continue with Conditions, Modify, Pause or Stop—never a system recommendation. Rationale is required; signals inform, not determine, the outcome. Dashboard status metrics filter the active-review list; Portfolio retains all investments. Review-open time drives the 14/30-day controls; saved evidence is a snapshot, not a fresh SAP call or complete-cost/liability claim.
+An investment is a long-lived portfolio object with **0..N reviews**, but only one active review at a time. Dashboard manages current attention through overlapping review lenses; Portfolio shows all loaded investments and their derived governance state; **Decisions** is the completed, read-only decision register. Ready reviews use **Review & Decide** to resume Summary; incomplete ones use **Continue Assessment**.
+
+Inspect an investment before **Start Review**. After a non-Stop decision, a future stage gate or material trigger may warrant **Start New Review**: a new cycle, never an edit or reopening of the old decision. Investment **Review History** preserves completed cycles. Stop has no normal restart path. A recorded Next Review is a human checkpoint, not an automatic review-creation timer.
+
+**Make Governance Decision** exposes five human choices: Continue, Continue with Conditions, Modify, Pause or Stop—never a system recommendation. Rationale is always required; existing conditional follow-up requirements and 14/30-day controls remain. Assessment/evidence snapshots are historical, not fresh SAP calls or complete-cost/liability claims.
 
 ## Team Working Rule
 

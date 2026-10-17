@@ -94,7 +94,8 @@ test('showcase is immediately usable without key/network; live failure does not 
   let calls = 0;
   const offline = workspace({ controller: true, fetchImpl: async () => { calls++; throw new Error('No network'); } }); await tick();
   assert.equal(calls, 0); assert.equal(offline.state.projects.length, 5); assert.equal(offline.state.reviews.length, 4);
-  offline.elements.get('projects-body').children[0].children[5].children[0].events.click[0](); await tick();
+  offline.elements.get('projects-body').children[0].children[4].children[0].events.click[0]();
+  assert.equal(offline.state.view, 'summary'); offline.elements.get('review-back-investment').events.click[0](); await tick();
   assert.equal(calls, 0); assert.equal(offline.state.glRecords.length, 10); assert.equal(offline.state.poRecords.length, 4);
   const failed = workspace({ controller: true, key: 'unit-only-key', serviceOverrides: { projects: { loadProjects: async () => { throw new Error('Unit outage'); } } } }); await tick();
   assert.equal(failed.state.projects.length, 5); assert.equal(failed.elements.get('projects-body').children.length, 5); assert.equal(failed.elements.get('project-refresh-error').hidden, false);

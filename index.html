@@ -29,7 +29,7 @@
     <header class="app-header">
       <div class="app-header-inner">
         <div class="brand"><img class="brand-mark" src="assets/dpe-mark.svg" width="36" height="40" alt="" aria-hidden="true"><div class="brand-lockup"><span class="brand-name">DPE</span><h1>IT Investment Governance Hub</h1></div></div>
-        <nav class="app-nav" aria-label="Main navigation"><button id="nav-dashboard" type="button">Dashboard</button><button id="nav-investments" type="button">Portfolio</button><button id="nav-reviews" type="button">Reviews</button></nav>
+        <nav class="app-nav" aria-label="Main navigation"><button id="nav-dashboard" type="button">Dashboard</button><button id="nav-investments" type="button">Portfolio</button><button id="nav-reviews" type="button">Decisions</button></nav>
       </div>
     </header>
     <main>
@@ -49,21 +49,22 @@
               <h4>Emerging Concern</h4><p>A deteriorating or uncertain assessment that warrants attention or monitoring, but is not currently classified as material.</p>
               <h4>Evidence Gap</h4><p>The reviewer has assessed the area, but information is insufficient for a reliable conclusion.</p>
               <p>Timing urgency is separate from signal severity: due, overdue and escalation states can make a review more urgent.</p>
-              <p>Review Trigger explains why the review began. Concerns are findings from the review assessment.</p>
+               <p>Review Trigger explains why the review began. Concerns are findings from the review assessment.</p>
+               <p>These filters are overlapping review lenses; one investment may appear in more than one category.</p>
               <p>These are transparent prototype conventions. Production criteria and thresholds would be calibrated with DPE during governance design and pilot.</p>
               </div>
             </div>
           </header>
+          <div class="queue-columns queue-grid" aria-hidden="true"><span>Investment</span><span>Review Trigger</span><span>Findings</span><span>Decision Timing</span><span>Next Step</span></div>
           <div id="dashboard-attention" class="decision-queue-list" role="list" aria-labelledby="decision-queue-title"></div>
         </section>
         <section class="recent-decisions" aria-labelledby="recent-decisions-title"><h3 id="recent-decisions-title">Recent Decisions</h3><div id="dashboard-decisions" class="recent-decision-list"></div></section>
       </section>
 
       <section id="investments-view" aria-label="Portfolio" hidden>
-        <p class="view-intro">Select an investment to review its evidence and continuation case.</p>
-        <div class="panel"><div class="table-scroll" tabindex="0" role="region" aria-label="Investments"><table><caption class="sr-only">Investments and review status</caption>
-          <thead><tr><th scope="col">Project</th><th scope="col">Investment</th><th scope="col">Start</th><th scope="col">End</th><th scope="col">Review Status</th><th scope="col">Action</th></tr></thead>
-          <tbody id="projects-body"><tr><td colspan="6" class="empty">Investments will appear here when data is available.</td></tr></tbody>
+        <div class="governance-surface"><div class="governance-table-region" role="region" aria-label="Investments"><table class="governance-table portfolio-table"><caption class="sr-only">Investments and current governance state</caption>
+          <thead><tr><th scope="col">Investment</th><th scope="col">Governance State</th><th scope="col">Latest Decision</th><th scope="col">Next Review</th><th scope="col">Next Step</th></tr></thead>
+          <tbody id="projects-body"><tr><td colspan="5" class="empty">Investments will appear here when data is available.</td></tr></tbody>
         </table></div></div>
       </section>
 
@@ -77,6 +78,7 @@
           <section class="evidence-status-card"><div class="toolbar"><h4>Financial Activity</h4><button id="load-financial-evidence" class="ghost" type="button" hidden>Retry</button></div><div id="detail-financial-overview" class="evidence-overview" role="status" aria-live="polite"></div></section>
           <section class="evidence-status-card"><div class="toolbar"><h4>Procurement Activity</h4><button id="load-po-evidence" class="ghost" type="button" hidden>Retry</button></div><div id="detail-procurement-overview" class="evidence-overview" role="status" aria-live="polite"></div></section>
         </div>
+        <section class="investment-history" aria-labelledby="investment-history-title"><h3 id="investment-history-title">Review History</h3><div class="governance-surface"><table class="governance-table history-table"><caption class="sr-only">Completed reviews for this investment, newest decision first</caption><thead><tr><th scope="col">Decision Date</th><th scope="col">Review Trigger</th><th scope="col">Decision</th><th scope="col">Decision Owner</th><th scope="col">Next Review</th><th scope="col">Next Step</th></tr></thead><tbody id="investment-history-body"></tbody></table></div></section>
         <details id="investment-technical-details" class="technical-disclosure">
           <summary>Technical Details</summary>
           <p id="technical-source" class="hint"></p>
@@ -90,7 +92,7 @@
         </details>
       </section>
 
-      <section id="reviews-view" aria-label="Reviews" hidden><div class="panel"><h3>Reviews</h3><div class="table-scroll" tabindex="0" role="region" aria-label="Reviews"><table><thead><tr><th>Project</th><th>Review Trigger</th><th>Opened</th><th>Decision Due</th><th>Status</th><th>Action</th></tr></thead><tbody id="reviews-body"></tbody></table></div></div></section>
+      <section id="reviews-view" aria-label="Decisions" hidden><div class="governance-surface"><table class="governance-table decision-register"><caption class="sr-only">Immutable completed decisions, newest first</caption><thead><tr><th scope="col">Investment</th><th scope="col">Review Trigger</th><th scope="col">Decision</th><th scope="col">Decision Date</th><th scope="col">Decision Owner</th><th scope="col">Next Review</th><th scope="col">Next Step</th></tr></thead><tbody id="reviews-body"></tbody></table></div></section>
       <div class="review-layout customer-review">
         <section id="review-chrome" hidden><header class="review-header"><p id="current-review-project"></p><ol id="review-steps" class="steps"><li><span>1</span> Assessment</li><li><span>2</span> Summary</li><li><span>3</span> Decision</li></ol><div id="review-trigger" class="compact-context"></div><p id="workflow-message" class="status-message" role="alert" tabindex="-1" hidden></p><button id="review-back-investment" class="ghost" type="button">Back to Investment</button></header></section>
         <section id="assessment-view" aria-label="Assessment" hidden>

@@ -10,7 +10,13 @@ const click = (w, id) => w.elements.get(id).events.click.forEach(callback => cal
 const change = (w, form) => w.elements.get(form).events.change.forEach(callback => callback());
 const submit = (w, form) => w.elements.get(form).events.submit[0]({ preventDefault() {} });
 function choose(w, group, value) { for (const radio of w.elements.get(group).querySelectorAll('input')) radio.checked = radio.value === value; }
-async function openInvestment(w, index) { click(w, 'nav-investments'); w.elements.get('projects-body').children[index].children[5].children[0].events.click[0](); await tick(); }
+async function openInvestment(w, index) {
+  click(w, 'nav-investments'); w.elements.get('projects-body').children[index].children[4].children[0].events.click[0]();
+  // Active Portfolio next steps enter the process directly; inspect through its existing Back to Investment control.
+  if (['assessment', 'summary', 'decision'].includes(w.state.view)) click(w, 'review-back-investment');
+  else if (w.state.view === 'confirmation') click(w, 'return-investment');
+  await tick();
+}
 function reset(w) { w.confirmReset(true); click(w, 'reset-showcase'); }
 
 test('follow-up guidance is neutral before selection and follows every outcome without clearing a draft', async () => {
@@ -58,8 +64,8 @@ test('SAP refresh is available on Investments but absent throughout the showcase
 
 test('ready hero CTA resumes Summary, exposes five unselected choices, records Modify, persists and resets through controller/DOM events', async () => {
   const w = workspace({ controller: true }); reset(w); await openInvestment(w, 0);
-  assert.equal(w.elements.get('start-review').textContent, 'Review Summary & Decide');
-  assert(w.elements.get('detail-review-status').textContent.includes('Assessment complete · Ready for governance decision'));
+  assert.equal(w.elements.get('start-review').textContent, 'Review & Decide');
+  assert(w.elements.get('detail-review-status').textContent.includes('Ready for decision'));
   click(w, 'start-review'); assert.equal(w.state.view, 'summary');
   assert(w.elements.get('review-summary').textContent.includes('3 material concerns · 2 emerging concerns'));
   click(w, 'proceed-decision'); assert.equal(w.state.view, 'decision');
@@ -81,7 +87,7 @@ test('ready hero CTA resumes Summary, exposes five unselected choices, records M
   assert.equal(reloaded.services.reviewStore.get('SHOWCASE-ODP-REVIEW').decision.outcome, 'Modify');
   click(reloaded, 'nav-reviews');
   const row = reloaded.elements.get('reviews-body').children.find(row => row.children[0].textContent.includes('DPE-IT-ODP-01'));
-  row.children[5].children[0].events.click[0](); assert.equal(reloaded.state.view, 'confirmation');
+  row.children[6].children[0].events.click[0](); assert.equal(reloaded.state.view, 'confirmation');
   reset(reloaded); assert.equal(reloaded.services.reviewStore.get('SHOWCASE-ODP-REVIEW').status, 'in_progress');
   assert.equal(reloaded.services.reviewStore.list().length, 4);
 });
