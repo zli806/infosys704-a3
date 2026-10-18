@@ -82,7 +82,7 @@ test('Assessment owns judgements/owner/notes: missing remains internal, Insuffic
   assert(!assessment.includes('review-basis')); assert(!assessment.includes('Financial evidence considered')); assert(!assessment.includes('assessment-financial-evidence')); assert(assessment.includes('Optional Review Notes')); assert.match(assessment, /id="assessment-owner"[^>]*required/);
 });
 
-test('Summary has exactly one headline, one six-dimensional matrix, the real timeline and three compact Evidence Basis states', () => {
+test('Summary has exactly one headline, one six-dimensional matrix, the real timeline and three compact Evidence Status states', () => {
   const w = workspace(), record = w.services.showcase.seededReviews()[0], before = JSON.stringify(record); w.governanceUI.reviewSummary(record);
   assert.equal(byClass(w.elements.get('summary-decision-overview'), 'summary-signal-counts').length, 1); assert.match(w.elements.get('summary-decision-overview').textContent, /3 Material · 2 Emerging · 0 Evidence Gaps/);
   assert(!w.elements.get('summary-decision-overview').textContent.includes('Due')); assert.equal(byClass(w.elements.get('review-summary'), 'assessment-signal').length, 6);
@@ -92,12 +92,12 @@ test('Summary has exactly one headline, one six-dimensional matrix, the real tim
   const notes = byClass(w.elements.get('review-summary'), 'optional-context')[0]; assert.equal(notes.open, false); assert.match(notes.textContent, /^Reviewer Context/); assert.equal(JSON.stringify(record), before);
 });
 
-test('Evidence Basis reuses source status truthfully without treating availability as sufficient reviewer evidence', () => {
+test('Evidence Status reuses source status truthfully without treating availability as sufficient or confirmed human review', () => {
   const w = workspace(), record = w.services.showcase.seededReviews()[2];
   for (const [status, count, label] of [['success', 0, 'Limited evidence'], ['error', null, 'Error'], ['unavailable', null, 'Unavailable'], ['not_attempted', null, 'Unavailable'], ['success', 2, 'Available']]) {
     record.evidence.po = { ...record.evidence.po, status, linkedRecordCount: count }; w.governanceUI.reviewSummary(record);
     const items = byClass(w.elements.get('review-summary'), 'evidence-basis-item'); assert.equal(items[2].children[1].textContent, label);
-    assert(w.elements.get('review-summary').textContent.includes('not a judgement of evidence sufficiency')); assert.equal(w.reviewRules.reviewSignals(record).evidenceGaps.length, 1);
+    assert(w.elements.get('review-summary').textContent.includes('not evidence sufficiency or confirmation of human review')); assert.equal(w.reviewRules.reviewSignals(record).evidenceGaps.length, 1);
   }
 });
 

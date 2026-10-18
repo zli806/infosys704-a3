@@ -554,14 +554,14 @@
       node("p", `Decision Owner: ${record.decisionOwnerSnapshot?.name || record.decisionOwner || "Not selected"}${record.decisionOwnerSnapshot?.role ? ` · ${record.decisionOwnerSnapshot.role}` : ""}`, "summary-owner"));
     const assessment = node("section", undefined, "summary-assessment"); signalMatrix(assessment, record); target.append(assessment);
     renderTiming(section(target, "Governance Timeline"), record);
-    const evidence = section(target, "Evidence Basis"); evidence.className = "panel summary-evidence-basis";
+    const evidence = node("section", undefined, "summary-source-status"); evidence.setAttribute("aria-label", "Evidence source availability, not confirmed human review"); evidence.append(node("h3", "Evidence Status")); target.append(evidence);
     const sources = node("div", undefined, "evidence-basis-sources");
     for (const [key, title] of [["lifecycle", "Project Structure"], ["gl", "Financial Activity"], ["po", "Procurement Activity"]]) {
       const pending = !!app.state?.elementController || key === "gl" && !!app.state?.glController || key === "po" && !!app.state?.poController;
       const state = evidenceStatus(record.evidence[key], pending), row = node("div", undefined, "evidence-basis-item"), badge = node("span", state.label, "evidence-status"); badge.dataset.tone = state.tone;
       row.append(node("h4", title), badge); sources.append(row);
     }
-    evidence.append(sources, node("p", "Source availability is not a judgement of evidence sufficiency. Evidence Gap is a reviewer assessment.", "hint"), action("View evidence in Overview →", () => evidenceAction()));
+    evidence.append(sources, node("p", "Source availability only—not evidence sufficiency or confirmation of human review. Evidence Gap is a reviewer assessment.", "hint"), action("View evidence in Overview →", () => evidenceAction()));
     const context = node("details", undefined, "optional-context"); context.open = false; context.append(node("summary", "Reviewer Context"));
     if (record.assessment.comments || record.assessment.keyRisks) pairs(context, [["Reviewer comments", record.assessment.comments], ["Key risks / dependencies", record.assessment.keyRisks]]);
     else context.append(node("p", "No additional review notes recorded.", "hint"));
@@ -615,7 +615,7 @@
     for (const name of ["overview", "current", "history"]) {
       const button = el(`workspace-tab-${name}`); button.setAttribute("aria-selected", String(name === tab)); button.setAttribute("tabindex", name === tab ? "0" : "-1");
     }
-    if (view === "detail") el("investment-technical-details").open = false;
+    if (view === "detail") { el("investment-technical-details").open = false; el("evidence-detail-notice").hidden = true; }
     if (!inWorkspace) { el("page-title").textContent = titles[view]; el("page-title").focus(); }
     else { const target = stages.includes(view) ? el(`${view}-view`) : el("detail-project-name"); target.setAttribute("tabindex", "-1"); target.focus({ preventScroll: true }); }
     for (const name of ["dashboard", "investments"]) {
@@ -636,6 +636,19 @@
   }
   function growTextareas() { for (const input of document.querySelectorAll("textarea")) { if (input.offsetParent !== null) { input.style.height = "auto"; input.style.height = Math.max(110, input.scrollHeight + 2) + "px"; } } }
   let evidenceAction = () => {};
+  function viewEvidenceDetails(key) {
+    const targets = { lifecycle: ["elements-panel", "elements-detail-title", "detail-lifecycle-overview", "Project Structure"], gl: ["gl-panel", "gl-detail-title", "detail-financial-overview", "Financial Activity"], po: ["po-panel", "po-detail-title", "detail-procurement-overview", "Procurement Activity"] };
+    const target = targets[key]; if (!target) return false;
+    el("investment-technical-details").open = true;
+    const notice = el("evidence-detail-notice"); notice.hidden = true;
+    let focus = el(target[1]);
+    if (el(target[0]).hidden) {
+      const status = el(target[2]).children[0]?.textContent || "Unavailable";
+      notice.textContent = `Detailed ${target[3]} records are not available in this view. Source status: ${status}. ${app.state?.selectedFromSnapshot ? "This historical snapshot retains summaries only; no fresh request has been made." : "Use Refresh Evidence or Retry from the evidence card when appropriate."}`;
+      notice.hidden = false; focus = notice;
+    }
+    focus.focus({ preventScroll: true }); focus.scrollIntoView({ block: "start" }); return true;
+  }
   let reviewStartRecovery = false;
   function reviewStart(recovery = false) {
     reviewStartRecovery = recovery;
@@ -712,6 +725,7 @@
     el("view-last-decision").addEventListener("click", actions.lastDecision);
     el("reload-lifecycle").addEventListener("click", actions.reloadLifecycle);
     el("load-review-evidence").addEventListener("click", actions.loadEvidence);
+    for (const [id, key] of [["view-lifecycle-details", "lifecycle"], ["view-financial-details", "gl"], ["view-procurement-details", "po"]]) el(id).addEventListener("click", () => viewEvidenceDetails(key));
     el("back-dashboard").addEventListener("click", () => actions.backDashboard ? actions.backDashboard() : actions.navigate("dashboard"));
     el("assessment-form").addEventListener("submit", event => { event.preventDefault(); actions.summary(); });
     for (const event of ["input", "change"]) el("assessment-form").addEventListener(event, () => { el("workflow-message").hidden = true; actions.saveDraft(); updateAssessmentGuidance(); });

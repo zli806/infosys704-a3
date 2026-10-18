@@ -62,7 +62,7 @@ test('one categorical matrix leads Summary with a single headline, timeline and 
   assert.match(elements.get('summary-decision-overview').textContent, /3 Material · 2 Emerging · 1 Evidence Gap/);
   for (const value of ['Strategic Alignment', 'Expected Benefits', 'Delivery Performance', 'Risk', 'Future Economic Value', 'Insufficient information', 'Material Concern', 'Emerging Concern', 'Evidence Gap']) assert(target.children[0].textContent.includes(value), value);
   assert(!target.textContent.includes('Management Attention Required'));
-  for (const title of ['Governance Timeline', 'Evidence Basis']) assert(target.children.some(child => child.textContent.startsWith(title)), title);
+  for (const title of ['Governance Timeline', 'Evidence Status']) assert(target.children.some(child => child.textContent.startsWith(title)), title);
   assert.equal(target.children.length, 4); assert(target.textContent.includes('View evidence in Overview'));
   assert.equal(review.assessment.costPosition, 'Insufficient information');
   assert(!descendants(target.children[0]).some(child => child.className === 'source reviewer'));
