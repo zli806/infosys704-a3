@@ -2,6 +2,8 @@
 
 Actual browser captures of this branch, served from a credential-free tracked-source copy. All investment data shown is the app’s explicitly labelled synthetic showcase. These are review evidence, not production screenshots or formal accessibility certification.
 
+These are **historical 16 October captures**, not the final productisation UI. See [the current handoff](../PRODUCTISATION_HANDOFF.md) for final behaviour and validation; the dated evidence is retained rather than silently replaced.
+
 - `2026-10-16-dashboard.jpg`: attention-first dashboard and secondary governance profile, 1280px.
 - `2026-10-16-summary.jpg`: top decision overview/action, three-column assessment matrix, timeline and evidence qualification, 1280px.
 - `2026-10-16-decision.jpg`: selected Modify draft and formatted next-review hint, before submission, 1280px.
