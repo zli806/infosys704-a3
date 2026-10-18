@@ -2,6 +2,15 @@
 
 Evidence-supported continuation reviews for accountable IT investment decisions.
 
+> [!IMPORTANT]
+> **Required startup for the full prototype**
+>
+> With **Python 3.9+**, run `python scripts/serve.py --port 8786` from the project root, then open **http://127.0.0.1:8786/**.
+> The script hosts the application and provides a localhost-only, same-origin SAP proxy. Keep the server terminal open throughout the demonstration; the supplied ZIP must include `scripts/serve.py`.
+>
+> Opening `index.html` through `file://` is not the supported grading workflow. `python -m http.server` and generic editor Live Server previews may serve the static SHOWCASE interface, but lack the proxy needed for the complete supported SAP-connected experience.
+> A real SAP API key is **optional**: all five synthetic SHOWCASE investments work without one. See [Section 6 — Getting Started](#6-getting-started) for complete platform instructions and local configuration.
+
 **Contents**
 
 - [1. Executive Overview](#1-executive-overview)
@@ -22,7 +31,7 @@ Evidence-supported continuation reviews for accountable IT investment decisions.
 
 Domino’s Investment Governance Hub is a working prototype for **Domino’s Pizza Enterprises Limited (DPE)**. It operationalises the **Stage-Gated Portfolio Continuation Review**: a structured way to reassess material IT investments when a scheduled stage gate or a material change calls their continuation case into question.
 
-Built for INFOSYS 704 A3, it implements the group’s selected Financial-domain A2-D1 solution. Portfolio monitoring, project and transaction evidence, human assessment and recorded decisions form one usable journey. Five synthetic Showcase investments support the complete workflow without an SAP key; optional read-only SAP Sandbox connections provide a separate evidence source.
+Built for INFOSYS 704 A3, it implements the group’s selected Financial-domain A2-D1 solution. Portfolio monitoring, project and transaction evidence, human assessment and recorded decisions form one usable journey. Five synthetic SHOWCASE investments support the complete workflow without an SAP key; optional read-only SAP SANDBOX connections provide a separate evidence source.
 
 OpenCode.ai was used as a development tool alongside SAP APIs. This does not imply that AI inference or agentic governance reasoning operates inside the runtime application.
 
@@ -48,9 +57,9 @@ Qualitatively, the effort–impact trade-off favours making that core process wo
 
 ### 2.3 Scope and Implementation Trade-offs
 
-The implementation uses plain HTML, CSS and JavaScript with local browser persistence. There is no build pipeline, business-logic backend or database to operate. An optional Python preview server relays read-only SAP requests to avoid Sandbox browser/CORS restrictions. This keeps the prototype easy to run and inspect, at the cost of shared storage, authenticated authority and enterprise audit guarantees.
+Plain HTML, CSS and JavaScript with browser persistence avoid a build pipeline, business-logic backend or database. The supplied Python preview server relays optional read-only SAP requests. This keeps setup small, but provides no shared storage, authenticated authority or enterprise audit guarantees.
 
-Public SAP samples do not form a complete DPE investment portfolio. A separately labelled synthetic Showcase supplies coherent review scenarios without filling gaps in live-project evidence. AI review briefs, MCP orchestration and Purchase Requisition integration remain deferred, as recorded in the later scope decisions.
+Public SAP samples are not a complete DPE portfolio. Separately labelled synthetic SHOWCASE scenarios make the workflow repeatable without filling live-project evidence gaps.
 
 ### 2.4 Adapting the Solution to Available SAP APIs
 
@@ -58,15 +67,32 @@ Under **Option #2 — partial SAP API fit**, the original A2 solution remains a 
 
 The implementation therefore captures an explicit human Review Trigger and six business assessments alongside the defensible evidence available through three read-only SAP integrations. Separately labelled synthetic Showcase scenarios demonstrate the complete process without replacing live SAP responses. Purchase Requisition, automated triggers, MCP orchestration and AI Review Brief remain deferred, consistent with the recorded scope decisions.
 
-These adaptations change **how the selected solution is implemented**, not the Financial-domain business problem or the Stage-Gated Portfolio Continuation Review concept. Human accountability for all five outcomes, decision rationale, action ownership and applicable follow-up remain unchanged.
+These adaptations change **implementation, not the Financial-domain problem or continuation-review concept**. Human accountability for all five outcomes, rationale, action ownership and applicable follow-up remains unchanged.
 
 ## 3. Solution Capabilities
 
 ### 3.1 Portfolio Monitoring
 
-Dashboard is an attention-first view with five lenses: **Active Reviews, Overdue, Material Concerns, Evidence Gaps and Reviewed Investments**. Each counts distinct investments, not individual findings; the lenses can overlap. Independent percentage rings describe the resolved represented portfolio, including saved-only investment identities, and pause while that scope is refreshing.
+| View | Job and scope |
+| --- | --- |
+| **Portfolio** | Full loaded investment register: five seeded synthetic **SHOWCASE** investments plus up to five distinct retrieved **SAP SANDBOX** investments when the configured connection succeeds. Includes investments with an active review, a completed decision or no review. |
+| **Dashboard** | Governance attention and decisions, filtered through the five lenses below. It is intentionally **not an all-project register**. |
 
-Portfolio provides the broader register, including investments with no active review. It shows derived governance state, the latest decision, the applicable next-review checkpoint and a contextual next step. Reviewed Investments opens each investment’s latest completed decision; History retains all its completed cycles.
+With five distinct SAP projects returned, Portfolio contains ten investments; SAP may return fewer. Portfolio shows each investment’s governance state, latest decision, applicable next-review checkpoint and contextual next step.
+
+Dashboard counts **distinct investments**, not individual concerns or review cycles:
+
+- **Active Reviews:** investments with an open continuation review.
+- **Overdue:** active reviews at or past the 14-day decision target, including the 30-day escalation stage.
+- **Material Concerns:** active reviews with at least one explicit reviewer-assessed material concern.
+- **Evidence Gaps:** active reviews with at least one explicit reviewer-assessed evidence gap.
+- **Reviewed Investments:** investments with at least one completed governance decision. The list opens the latest decision; History retains every completed cycle.
+
+A successfully retrieved SAP project with no saved review or decision appears in Portfolio, but in no Dashboard lens. A human explicitly starting its review makes it eligible for Active Reviews; assessment, elapsed review time and completed decisions determine further eligibility—not raw SAP fields alone. Lenses can overlap.
+
+**Reading the percentages.** Each lens divides its distinct-investment count by the **resolved represented investment universe**: loaded Portfolio projects plus saved-only review identities. While an SAP portfolio refresh is unresolved, rings show an unavailable placeholder rather than an inaccurate denominator. Percentages are independent and need not add up to 100%.
+
+The fresh seeded state has three active SHOWCASE reviews, one historical synthetic Stop decision and one investment without a review. Newly retrieved SAP projects have no governance reviews by default. With five distinct SAP projects and no saved-only identities, Active Reviews is **3 of 10 (30%)** despite listing only three synthetic investments; without SAP projects, it is **3 of 5 (60%)**. These examples are not permanent counts: later user actions and local history change eligibility and scope.
 
 ### 3.2 Evidence and Assessment
 
@@ -95,13 +121,13 @@ Dashboard → Portfolio → Investment Overview → Start / Continue Review
     → Assessment → Review Summary → Governance Decision → History
 ```
 
-An investment stays in one workspace with **Overview, Current Review and History** tabs. Continue Review resumes Assessment when incomplete or Review Summary when ready. Incomplete work can be previewed in Summary, while Decision remains subject to readiness, eligible-owner and pending-request gates.
+An investment stays in one **Investment Workspace**: **Overview** holds its context and evidence; **Current Review** contains Assessment → Review Summary → Governance Decision; **History** retains its completed cycles. Continue Review resumes Assessment when incomplete or Review Summary when ready. Summary can preview incomplete work, while Decision remains subject to readiness, eligible-owner and pending-request gates.
 
 ### 4.2 Recommended Demonstration
 
-Use Showcase for a repeatable demonstration independent of Sandbox availability. If restoring the baseline, first read the irreversible [Reset Showcase scope](#112-reset-showcase).
+Use SHOWCASE for a repeatable demonstration independent of Sandbox availability. Before restoring the baseline, read the [Reset Showcase warning](#112-reset-showcase).
 
-1. **Orient the audience:** show Dashboard attention, then Portfolio’s complete loaded register. The seeded baseline contains five Showcase investments, three active reviews and one historical Stop; timing changes with the real clock.
+1. **Orient the audience:** show a Dashboard lens, then Portfolio’s full loaded register. Explain the separate SHOWCASE / SAP SANDBOX badges and why the lists need not contain the same investments.
 2. **Inspect the investment:** open **Digital Ordering Platform Modernisation** from Portfolio using Continue Review, then select Overview. Show its synthetic context and evidence status. Expand Technical Details to demonstrate traceability to the underlying records, then collapse it.
 3. **Explain the review:** return to Current Review. Point out the stored Material trigger and the separate assessment findings. Change or discuss the six judgements as the human reviewer; confirm the governed Decision Owner.
 4. **Make the decision explicit:** inspect Review Summary, then choose a human outcome. For a conditional outcome, enter an action, action owner and next-review date, along with a rationale. Record it and show the exact completed cycle in History.
@@ -155,7 +181,7 @@ cd infosys704-a3
 
 Alternatively, extract a repository or supplied ZIP and open a terminal in the extracted directory containing `index.html`. Do not assume the ZIP’s top-level folder has the clone’s name. All commands below run from that project directory; choose one platform’s instructions.
 
-> **Required startup method for grading:** use the supplied **`scripts/serve.py`** server in the platform commands below. It serves the app **and** enables the same-origin SAP proxy. Do **not** substitute `python -m http.server`, an editor's static/Live Server preview, or a double-clicked HTML file when testing SAP: those do not enable the proxy, so SAP may fail in the browser even when curl returns 200. The supplied script uses Python's standard library; no pip installation is needed.
+The supplied server uses Python's standard library; no pip installation is needed.
 
 ### 6.2 Windows PowerShell
 
@@ -211,16 +237,13 @@ The copied `config.example.js` contains a safe placeholder. Leave it unchanged t
 
 Do not place the key in tracked files or publish a static copy containing it. The key is loaded by the browser and is visible in developer tools; Git exclusion is not a production secret-management boundary.
 
-The supplied `scripts/serve.py` server enables a same-origin `/sap-proxy` route automatically, without editing your configuration file. It forwards GET requests only to the app's four SAP resources (projects, project elements, G/L and PO account assignments); keys are not sent to redirects. Use this script for grading even when beginning with Showcase, so SAP testing uses the same server and browser origin. A successful curl GET does **not** test browser CORS/preflight support.
-
-If replacing an existing static server, press **Ctrl+C** in its terminal, run `python scripts/serve.py --port 8786`, then hard-refresh the same browser URL. Keep the same hostname/port to retain access to local reviews. Do not clear browser storage or disable browser security.
+The server enables `/sap-proxy` in the served configuration without editing the local file. It allows GET requests only to the app's SAP resources and does not forward keys to redirect targets. If replacing a static preview, stop it with **Ctrl+C**, start `scripts/serve.py` on the same port and reload the same browser URL. Do not clear browser storage or disable browser security.
 
 #### Grader Startup Verification
 
-1. **Check the terminal:** it must report `Open http://127.0.0.1:8786/ (same-origin SAP proxy enabled). Ctrl+C to stop.` If you chose another port, that port appears instead. Keep this terminal running.
-2. **Check the browser:** open the exact HTTP address printed above and select **Portfolio**. With a valid key and successful SAP retrieval, the connection reads **SAP Sandbox · Connected** and Portfolio contains five SHOWCASE investments plus up to five distinct SAP SANDBOX projects. With the placeholder/no key, **Not connected** and five Showcase investments are expected; the Showcase workflow still works.
-3. **Check Dashboard separately:** it is a governance-filtered view, not the full Portfolio register. SAP projects appear in a lens only when their saved review/decision meets that lens's criteria. On a fresh browser origin, the synthetic baseline has three active reviews and one reviewed investment; connecting SAP does not fabricate additional reviews. Percentage rings use the resolved represented portfolio, including saved-only review identities.
-4. **Keep the same browser profile and address:** changing `127.0.0.1` to `localhost`, changing ports, clearing site data or using Reset Showcase can make previously saved SAP reviews unavailable or remove them. An SAP outage alone does not delete saved governance records. Do not reset data merely to troubleshoot connectivity.
+1. **Terminal:** confirm the printed address and `same-origin SAP proxy enabled` message; keep the terminal running.
+2. **Portfolio:** with a valid key and successful retrieval, expect **SAP Sandbox · Connected**. With the placeholder/no key, **Not connected** is expected and SHOWCASE remains usable. A failed request instead reports **Connection issue**.
+3. **Dashboard:** interpret the lenses and percentages using [Section 3.1](#31-portfolio-monitoring), not by expecting its lists to match the full register.
 
 ### 6.7 Troubleshooting
 
@@ -230,19 +253,17 @@ If replacing an existing static server, press **Ctrl+C** in its terminal, run `p
 | Directory listing, 404 or missing local configuration script | Start the server from the directory containing `index.html` and copy the safe configuration example if absent. |
 | Port 8786 is occupied | If it is your old app preview, stop it with Ctrl+C and start `python scripts/serve.py --port 8786`. Otherwise choose a free port, e.g. `python scripts/serve.py --port 8787`, and use the matching browser URL. A new port has separate local review storage. Do not stop an unfamiliar process. |
 | SAP is not connected or requests fail | Showcase remains usable. Check local configuration and the visible connection details. Sandbox maintenance, authentication, network or CORS failures require investigation; do not disable browser security. |
-| curl returns 200, but the browser reports CORS/preflight failure | Replace the static server with `python scripts/serve.py --port 8786` and hard-refresh. SAP GET availability does not guarantee its OPTIONS response permits browser access. |
-| SAP works in Portfolio but a project is absent from Dashboard | Dashboard blocks use saved governance reviews/decisions, regardless of source. An imported SAP project does not create a review, infer human assessments or qualify from its SAP dates/status alone. Start a review explicitly; qualifying saved reviews appear in their matching blocks. |
+| curl returns 200, but the browser reports CORS/preflight failure | Check that `scripts/serve.py`, not a generic static preview, is running on the chosen port. A successful curl GET does not verify browser preflight support. |
+| SAP works in Portfolio but a project is absent from Dashboard | Check its saved review/decision against the [Dashboard eligibility rules](#31-portfolio-monitoring). Connection success alone does not create a governance cycle. |
 | No linked evidence is returned | Inspect source qualifications and Technical Details. Empty joins are not proof of zero cost or procurement exposure; do not replace them with Showcase figures. |
 | Decision is unavailable or edits are not saving | Follow the readiness explanation or persistent Retry Save message. Keep unsaved inputs open while resolving storage permissions/capacity. |
-| Previously saved reviews are absent | Check the browser profile and exact origin, and whether Reset Showcase or clearing site data removed them. There is no shared account or cross-origin migration. |
-
-Use the proxy command on whichever port you choose: for example, stop a static preview on `8789` with **Ctrl+C**, then run `python scripts/serve.py --port 8789`. Changing the port does not fix CORS and creates a separate browser review store. The connection-error recovery message uses the current port so you can replace the server without changing origins.
+| Previously saved reviews are absent | Check the browser profile and exact origin, and whether a reset or site-data clearing removed them. An SAP outage or normal refresh does not delete saved reviews; there is no shared account or cross-origin migration. |
 
 ## 7. Technical Architecture and Project Structure
 
 ### 7.1 Architecture Overview
 
-The browser loads ordinary deferred scripts into a shared `window.DPEApp` namespace. The controller coordinates user actions and evidence requests; core rules, services and UI rendering remain separate. The recommended `scripts/serve.py` serves files and proxies the app's allowlisted read-only SAP requests on the same origin. Ordinary static hosting instead uses direct browser-to-Sandbox requests and requires working SAP CORS responses. Neither option stores reviews on a backend.
+The browser loads ordinary deferred scripts into a shared `window.DPEApp` namespace. The controller coordinates user actions and evidence requests; core rules, services and UI rendering remain separate. `scripts/serve.py` serves files and proxies allowlisted read-only SAP requests on the same origin. Reviews remain in browser storage, not on this local server.
 
 ### 7.2 Component Responsibilities
 
@@ -319,7 +340,7 @@ The tracked structure below groups test files and historical images for readabil
 
 ### 7.4 Persistence and Data Flow
 
-Opening an investment retrieves its structure, then dependent financial and procurement evidence through the appropriate source provider. Runtime payloads remain in memory. The store whitelists review inputs, project identity and concise evidence summaries under **`dpeA3.reviews.v1`**; raw SAP transactions and credentials are not persisted with reviews.
+An investment’s Overview loads its structure, then dependent financial and procurement evidence through the appropriate source provider. Runtime payloads remain in memory. The store whitelists review inputs, project identity and concise evidence summaries under **`dpeA3.reviews.v1`**; raw SAP transactions and credentials are not persisted with reviews.
 
 Draft updates and formal recording are separate operations. Recording revalidates readiness and ownership, then captures the completed snapshot in one local write. Normal startup adds missing baseline seeds without overwriting edited or completed versions. Cancellation and request identities prevent late evidence responses from populating a different selected investment.
 
@@ -331,14 +352,14 @@ The solution selects **four SAP APIs: three core integrations and one deferred e
 
 | Selected API | Why it was chosen | Current implementation |
 | --- | --- | --- |
-| [Enterprise Project — OData V2](api/API_ENTERPRISE_PROJECT_SRV_0002.json) | Establishes which investment is being reviewed, its lifecycle context and the project/WBS identifiers needed to relate other evidence. Dates and supplied milestone fields inform stage-gate discussion without automatically defining DPE governance gates. | Implemented: project retrieval and real UUID navigation to project elements/WBS. |
-| [G/L Account Line Items — OData V2](api/API_GLACCOUNTLINEITEM.json) | Shows actual financial postings associated with a project/WBS, grounding cost-position discussion in transaction evidence rather than narrative alone. Returned postings are not assumed to be complete investment cost. | Implemented: exact WBS-primary linkage, with numeric-only project-ID leading-zero equivalence restricted to the fallback path. |
-| [Purchase Order — OData V4](api/CE_PURCHASEORDER_0001.json) | Adds purchasing evidence alongside posted activity so a reviewer can examine procurement-related exposure. Account assignments and deletion/final-invoice flags support qualified indicators, not an assumed outstanding-liability total. | Implemented: account assignments matched to exact loaded WBS Internal IDs. Public sample joins remain data-limited. |
-| [Purchase Requisition — OData V4](api/CE_PURCHASEREQUISITION_0001.json) | Could extend the forward-looking view to proposed procurement before it becomes a Purchase Order. This is useful pipeline context, but not essential to prove the core continuation-review process. | Deferred: specification/reference only; no application adapter, requests or validator integration. Inclusion depends on defensible project/WBS linkage and not delaying or destabilising the core journey. |
+| [Enterprise Project — OData V2](api/API_ENTERPRISE_PROJECT_SRV_0002.json) | Establishes investment identity, lifecycle and linking identifiers. Supplied milestones inform discussion, not automatic DPE governance gates. | Implemented: project retrieval and real UUID navigation to project elements/WBS. |
+| [G/L Account Line Items — OData V2](api/API_GLACCOUNTLINEITEM.json) | Grounds cost-position judgement in project/WBS-linked postings, not complete investment cost. | Implemented: exact WBS-primary linkage; numeric-only project-ID leading-zero equivalence is restricted to the fallback path. |
+| [Purchase Order — OData V4](api/CE_PURCHASEORDER_0001.json) | Adds purchasing evidence; deletion/final-invoice flags qualify exposure indicators, not validated outstanding liability. | Implemented: account assignments matched to exact loaded WBS Internal IDs. Public sample joins remain data-limited. |
+| [Purchase Requisition — OData V4](api/CE_PURCHASEREQUISITION_0001.json) | Could extend procurement pipeline visibility, provided project/WBS links are defensible and the core journey is not delayed. | Deferred: specification/reference only; no application adapter, requests or validator integration. |
 
-Together, the selection covers lifecycle context, posted financial activity, purchasing evidence and potential upstream procurement. It complements rather than replaces human assessment of strategy, benefits, risk and future value. The [decision log](DECISIONS.md) records the three-core/one-stretch scope choice.
+This evidence supports, not replaces, human assessment of strategy, benefits, risk and future value. The [decision log](DECISIONS.md) records the three-core/one-stretch scope choice.
 
-Implemented integrations are read-only. V2 `d.results` and V4 `value` response shapes remain distinct; raw identifiers are retained. [API Integration](docs/API_INTEGRATION.md) details endpoints, field selection and financial interpretation. A downloaded specification does not, by itself, constitute a working integration.
+Implemented integrations are read-only. V2 `d.results` and V4 `value` response shapes remain distinct; raw identifiers are retained. [API Integration](docs/API_INTEGRATION.md) details endpoints, field selection and financial interpretation.
 
 ### 8.2 Synthetic Showcase
 
@@ -350,11 +371,15 @@ Showcase payloads use the same amount aggregators as the live path, while illust
 
 The project request is bounded to five Sandbox projects; linked G/L and PO queries return up to 100 rows per request without automatic pagination. Only defensible matching rows enter evidence. Amounts remain separated by currency, without conversion. Financial postings are not complete investment cost, and PO-linked indicators are not validated outstanding liabilities.
 
-Earlier documented samples contained no marked project milestones and no exact project-linked PO assignments. Those are dated sample observations, not hard-coded outcomes. New Sandbox data may differ; empty or partial evidence remains qualified rather than treated as zero exposure.
+Earlier documented samples contained no marked project milestones and zero exact Purchase Order/WBS matches. These are dated sample observations, not hard-coded outcomes. API availability is not business-data suitability: a successful request can return no linked records, which does not establish zero procurement exposure. New Sandbox data may differ.
 
-### 8.4 Failure Handling
+### 8.4 Refresh SAP Data and Failure Handling
 
-No key means no live SAP requests; Showcase remains available. A failed project refresh leaves a persistent connection issue and non-blocking retryable feedback. Structure, financial and procurement failures are presented locally with their source states and available Retry controls.
+**Refresh SAP Data**, available in Portfolio, requests the current Enterprise Project list through the configured connection, using the local same-origin proxy when served by `scripts/serve.py`. It retrieves up to five SAP projects, rebuilds the register by combining distinct returned projects with the five SHOWCASE investments, and updates the SAP connection state. Startup makes this request automatically when a key is configured.
+
+It **does not** create reviews, populate human assessments, classify an investment as materially concerning or overdue from SAP fields, record continuation decisions, or reset local review history. The investment Overview workflow separately retrieves project/WBS structure and then available linked G/L and PO evidence; refreshing the register is not a bulk refresh of every project's transaction details.
+
+No key means no live SAP requests. If project retrieval fails, the five SHOWCASE investments remain usable and the current Portfolio list falls back to SHOWCASE-only. Saved governance records are not deleted: saved-only investment identities remain relevant to Dashboard scope and history. Connection status describes retrieval, not the source of a SHOWCASE investment. Structure, financial and procurement failures retain their own source states and Retry controls.
 
 Readiness checks completeness, not evidential assurance: lifecycle must have loaded, while clearly reported unsuccessful or unavailable G/L/PO attempts can satisfy their attempt checks. Outstanding requests still gate Decision. Save failures are treated separately and never reported as confirmed decisions.
 
@@ -370,9 +395,7 @@ The current suites have **187 passing JavaScript tests** and **10 Python proxy t
 
 The [productisation handoff](docs/PRODUCTISATION_HANDOFF.md) records isolated Edge walkthroughs at **1440, 1024, 768 and 390px**, including keyboard/focus handling, validation, save recovery, evidence drill-down, immutable cycles and responsive long text. These were browser automation and visual inspection, not formal DPE acceptance testing or accessibility certification.
 
-The evidence-panel follow-up was also checked at those widths for native expand/collapse, keyboard scrolling, focus handling and unchanged evidence/storage. The redundant per-card View details actions are removed.
-
-For this documentation pass, Windows setup commands were exercised in disposable directories. The macOS/Linux instructions use reviewed POSIX shell syntax with file-copy behaviour checked in a compatible shell; they were not executed on native macOS or Linux hosts. Cross-browser and physical-device validation remain further work.
+The recorded evidence-panel follow-up also checked native expand/collapse, keyboard scrolling, focus handling and unchanged evidence/storage at those widths. This README-only pass reruns automated checks, not those browser walkthroughs or native macOS/Linux setup. Cross-browser and physical-device validation remain further work.
 
 ### 9.3 Continuous Integration
 
@@ -416,7 +439,7 @@ Live SAP validation requires separate authorisation and configuration; it is not
 
 ### 10.1 Security and Credential Handling
 
-`config.local.js` is ignored by Git, but its key is accessible to the browser. Do not deploy or distribute it with a real key, include it in screenshots or copy it into reports. This static design is not a production credential architecture.
+`config.local.js` is ignored by Git, but its key is accessible to the browser. Do not deploy or distribute it with a real key, include it in screenshots or copy it into reports. The localhost proxy is not a production credential boundary.
 
 Completed application records cannot be edited through normal update/record APIs. However, **localStorage is user-editable, clearable and not a tamper-proof enterprise audit log**. The prototype has no authentication, shared access control, encrypted audit service or centrally enforced approval authority.
 
@@ -424,7 +447,7 @@ Completed application records cannot be edited through normal update/record APIs
 
 The Hub does not automatically detect material triggers, select outcomes, update SAP project status or send escalation notifications. Its directory is fictional and its timing depends on the browser clock. Saved evidence summaries are snapshots, not proof of current retrieval.
 
-Public sample completeness, Sandbox availability and browser CORS remain external dependencies. Local records do not synchronise across users, devices or origins, and deliberate reset/site-data clearing removes them. AI/MCP, Purchase Requisition and a shared enterprise persistence layer are not implemented.
+Public sample completeness, Sandbox availability and network access remain external dependencies. Local records do not synchronise across users, devices or origins, and deliberate reset/site-data clearing removes them. AI/MCP, Purchase Requisition and a shared enterprise persistence layer are not implemented.
 
 ### 10.3 Potential Production Evolution
 
@@ -445,12 +468,17 @@ Further integration could address pagination, authoritative investment scope, ri
 
 ### 11.2 Reset Showcase
 
-The footer action requires explicit confirmation. It **irreversibly removes all this app’s locally stored governance reviews, drafts and completed decisions in the current browser/origin, including SAP Sandbox-linked records**, then restores **three seeded active Showcase reviews and one synthetic historical Stop decision**.
+> [!WARNING]
+> **Reset Showcase is irreversible for locally stored governance records.**
+>
+> After explicit confirmation, this footer action clears **all app-owned governance reviews, drafts and completed decisions in the current browser origin**, for both **SHOWCASE and SAP SANDBOX** investments. It then restores **three default active SHOWCASE reviews and one default historical synthetic Stop decision**.
+>
+> It does **not** delete SAP server data, remove the API key, change connection configuration, remove the loaded project register or clear unrelated browser localStorage keys. Portfolio can still show loaded SAP investments, but their previous local governance cycles have been removed. **Cancellation leaves stored reviews unchanged.**
 
-It does not delete external SAP records, change API configuration, remove already loaded projects or clear unrelated browser-storage keys. Cancel changes nothing. A failed write preserves the previous storage value, and malformed storage is not silently erased. Reset is an explicit prototype exception to normal record immutability; it is not an enterprise audit operation or a recoverable archive.
+A failed reset write preserves the previous storage value, and malformed storage is not silently erased. Reset is a prototype exception to normal record immutability, not an enterprise audit operation or a recoverable archive.
 
 ### 11.3 Handover Notes
 
 For a repeatable presentation, use a dedicated browser profile, retain the same local URL and review the reset warning before restoring the baseline. Fixed Showcase dates mean timing indicators can change as the real clock advances. Successful normal refreshes do not overwrite recorded decisions.
 
-For maintenance, preserve the separation between evidence, human judgement and calculated controls. Review the contract and decision log before changing the workflow; keep live-source limitations visible and distinguish new verification from historical QA evidence. No production DPE data or credentials should accompany a source handover.
+For maintenance, consult the contract and decision log; preserve evidence/judgement/control separation and visible live-source limitations. Distinguish new verification from historical QA. Hand over no production DPE data or credentials.
