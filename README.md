@@ -24,6 +24,8 @@ Domino’s Investment Governance Hub is a working prototype for **Domino’s Piz
 
 Built for INFOSYS 704 A3, it implements the group’s selected Financial-domain A2-D1 solution. Portfolio monitoring, project and transaction evidence, human assessment and recorded decisions form one usable journey. Five synthetic Showcase investments support the complete workflow without an SAP key; optional read-only SAP Sandbox connections provide a separate evidence source.
 
+OpenCode.ai was used as a development tool alongside SAP APIs. This does not imply that AI inference or agentic governance reasoning operates inside the runtime application.
+
 ### 1.2 Business Value
 
 The Hub is intended to help portfolio and governance teams notice changing investment assumptions, assign decision accountability and retain the reasoning behind further expenditure. A reviewer can see what needs attention, examine the available evidence and record what should happen next rather than leave a review open-ended.
@@ -49,6 +51,14 @@ Qualitatively, the effort–impact trade-off favours making that core process wo
 The implementation uses plain HTML, CSS and JavaScript with local browser persistence. There is no build pipeline, application backend or database to operate. This keeps the prototype easy to run and inspect, at the cost of shared storage, authenticated authority and enterprise audit guarantees.
 
 Public SAP samples do not form a complete DPE investment portfolio. A separately labelled synthetic Showcase supplies coherent review scenarios without filling gaps in live-project evidence. AI review briefs, MCP orchestration and Purchase Requisition integration remain deferred, as recorded in the later scope decisions.
+
+### 2.4 Adapting the Solution to Available SAP APIs
+
+Under **Option #2 — partial SAP API fit**, the original A2 solution remains a structured, stage-gated continuation review of material IT investments. SAP supports project identity and lifecycle, WBS, G/L financial postings and PO procurement evidence, but its samples do not independently establish strategic alignment, benefits credibility, all delivery risks or future economic value. The tested Sandbox supplied no reliable marked continuation milestones, and some cross-source relationships and procurement samples were incomplete.
+
+The implementation therefore captures an explicit human Review Trigger and six business assessments alongside the defensible evidence available through three read-only SAP integrations. Separately labelled synthetic Showcase scenarios demonstrate the complete process without replacing live SAP responses. Purchase Requisition, automated triggers, MCP orchestration and AI Review Brief remain deferred, consistent with the recorded scope decisions.
+
+These adaptations change **how the selected solution is implemented**, not the Financial-domain business problem or the Stage-Gated Portfolio Continuation Review concept. Human accountability for all five outcomes, decision rationale, action ownership and applicable follow-up remain unchanged.
 
 ## 3. Solution Capabilities
 
