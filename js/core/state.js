@@ -4,7 +4,8 @@
 
   // Runtime-only state. Accepted records retain their original SAP identifiers.
   const state = app.state = {
-    projects: [], selectedProject: null, selectedFromSnapshot: false, projectElements: [], elementsLoaded: false,
+    projects: [], portfolioUniverseConfirmed: false,
+    selectedProject: null, selectedFromSnapshot: false, projectElements: [], elementsLoaded: false,
     glRecords: [], poRecords: [],
     reviews: [], currentReviewID: null, view: "dashboard", storageError: "",
     evidence: null,

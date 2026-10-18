@@ -21,7 +21,7 @@ function fixture(w) {
 
 test('ten-investment fixture produces independent investment-level 40/10/30/10/20 percentages with accessible button meaning', () => {
   const w = workspace(), { projects, records } = fixture(w), before = JSON.stringify({ projects, records });
-  w.governanceUI.renderDashboard(records, projects, () => {});
+  w.governanceUI.renderDashboard(records, projects, () => {}, true, true); // This fixture represents a confirmed universe.
   assert.deepEqual(counts(w), ['4', '1', '3', '1', '2']); assert.deepEqual(shares(w), ['40%', '10%', '30%', '10%', '20%']);
   for (const [index, key] of keys.entries()) {
     const button = metric(w, key), ring = button.children[2];
@@ -35,23 +35,23 @@ test('ten-investment fixture produces independent investment-level 40/10/30/10/2
 
 test('percentages round to whole numbers, count duplicate portfolio identities once and never add a denominator label', () => {
   const w = workspace(), { projects, records } = fixture(w);
-  w.governanceUI.renderDashboard([records[0]], projects.slice(0, 3), () => {}); assert.equal(shares(w)[0], '33%');
-  w.governanceUI.renderDashboard(records.slice(0, 2), projects.slice(0, 3), () => {}); assert.equal(shares(w)[0], '67%');
-  w.governanceUI.renderDashboard([records[0]], [projects[0], { ...projects[0], ProjectUUID: projects[0].ProjectUUID.toUpperCase() }], () => {}); assert.equal(shares(w)[0], '100%');
+  w.governanceUI.renderDashboard([records[0]], projects.slice(0, 3), () => {}, true, true); assert.equal(shares(w)[0], '33%');
+  w.governanceUI.renderDashboard(records.slice(0, 2), projects.slice(0, 3), () => {}, true, true); assert.equal(shares(w)[0], '67%');
+  w.governanceUI.renderDashboard([records[0]], [projects[0], { ...projects[0], ProjectUUID: projects[0].ProjectUUID.toUpperCase() }], () => {}, true, true); assert.equal(shares(w)[0], '100%');
   const ring = metric(w, 'active').children[2]; assert.equal(ring.textContent, '100%'); assert(!ring.textContent.match(/of|\//));
 });
 
 test('historical-only identities extend the represented universe consistently, without rewriting Portfolio or exceeding 100%', () => {
   const w = workspace(), { projects, records } = fixture(w), completed = records.filter(r => r.status === 'decision_recorded');
-  w.governanceUI.renderDashboard(completed, [projects[0]], () => {}); assert.equal(shares(w)[4], '100%');
-  w.governanceUI.renderDashboard(completed, [projects[9]], () => {}); assert.equal(shares(w)[4], '67%');
-  w.governanceUI.renderDashboard([...completed, { ...completed[0], id: 'older-cycle' }], [], () => {}); assert.equal(counts(w)[4], '2'); assert.equal(shares(w)[4], '100%');
+  w.governanceUI.renderDashboard(completed, [projects[0]], () => {}, true, true); assert.equal(shares(w)[4], '100%');
+  w.governanceUI.renderDashboard(completed, [projects[9]], () => {}, true, true); assert.equal(shares(w)[4], '67%');
+  w.governanceUI.renderDashboard([...completed, { ...completed[0], id: 'older-cycle' }], [], () => {}, true, true); assert.equal(counts(w)[4], '2'); assert.equal(shares(w)[4], '100%');
   assert.deepEqual(projects.map(p => p.Project), Array.from({ length: 10 }, (_, i) => `UNIT-${i}`));
   assert(shares(w).every(p => Number(p.slice(0, -1)) >= 0 && Number(p.slice(0, -1)) <= 100));
 });
 
 test('zero denominator has zero percentages with transparent arcs and selectable cards; unavailable is never fabricated zero', () => {
-  const w = workspace(); w.governanceUI.renderDashboard([], [], () => {});
+  const w = workspace(); w.governanceUI.renderDashboard([], [], () => {}, true, true);
   assert.deepEqual(counts(w), ['0', '0', '0', '0', '0']); assert.deepEqual(shares(w), ['0%', '0%', '0%', '0%', '0%']);
   for (const key of keys) { assert.equal(metric(w, key).disabled, false); assert.equal(metric(w, key).children[2].children[0].style.background, 'conic-gradient(var(--metric-tone) 0%, transparent 0)'); click(w, `dashboard-filter-${key}`); assert.equal(rows(w).length, 0); }
   w.governanceUI.renderDashboard([], [], () => {}, false);

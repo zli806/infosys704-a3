@@ -94,11 +94,11 @@ test('stored Review Trigger is visible in compact header and historical record w
 test('saved-only investments remain represented in percentages without a monitored sentence or data mutation', () => {
   const { reviewRules: rules, governanceUI: ui, elements } = workspace();
   const reviews = [record(rules)]; const before = JSON.stringify(reviews);
-  ui.renderDashboard(reviews, [], () => {});
+  ui.renderDashboard(reviews, [], () => {}, true, true);
   assert.equal(descendants(elements.get('dashboard-cards')).find(el => el.id === 'dashboard-filter-active').children[2].children[1].textContent, '100%');
   assert(!elements.get('dashboard-cards').textContent.includes('Load SAP Projects'));
   assert.equal(JSON.stringify(reviews), before);
-  ui.renderDashboard(reviews, Array.from({ length: 5 }, (_, i) => ({ ProjectUUID: `other-${i}` })), () => {});
+  ui.renderDashboard(reviews, Array.from({ length: 5 }, (_, i) => ({ ProjectUUID: `other-${i}` })), () => {}, true, true);
   assert.equal(descendants(elements.get('dashboard-cards')).find(el => el.id === 'dashboard-filter-active').children[2].children[1].textContent, '17%');
   assert(!elements.get('dashboard-cards').textContent.includes('refresh the current portfolio view'));
   ui.renderDashboard([], [], () => {});

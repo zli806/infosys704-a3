@@ -20,7 +20,7 @@ test('dashboard pulse distinguishes investments from signals and keeps queue act
   const second = { ...record(w.reviewRules, { costPosition: 'Insufficient information', futureEconomicValue: 'Negative' }), id: 'second' };
   const completed = { ...first, id: 'closed', status: 'decision_recorded', decision: { outcome: 'Modify', timestamp: '2026-01-02T00:00:00Z' } };
   let opened;
-  w.governanceUI.renderDashboard([first, second, completed], [], id => { opened = id; });
+  w.governanceUI.renderDashboard([first, second, completed], [], id => { opened = id; }, true, true);
   const metrics = byClass(w.elements.get('dashboard-cards'), 'pulse-metric');
   assert.deepEqual(metrics.map(metric => metric.children[0].textContent), ['Active Reviews', 'Overdue', 'Material Concerns', 'Evidence Gaps', 'Reviewed Investments']);
   // Both open test records share one project identity; two material findings do not mean two investments.

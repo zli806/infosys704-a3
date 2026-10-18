@@ -48,7 +48,7 @@
   }
   function refreshGovernance() {
     if (state.view === "investments") ui.renderProjects(state.projects, state.selectedProject, loadProjectElements);
-    governance.renderDashboard(state.reviews, state.projects, openReview, !state.storageError);
+    governance.renderDashboard(state.reviews, state.projects, openReview, !state.storageError, state.portfolioUniverseConfirmed);
     if (state.selectedProject) governance.details(state.selectedProject, evidenceForSelected(), state.reviews, !!state.selectedFromSnapshot, !state.storageError, selectHistoryRecord,
       state.view === "confirmation" ? state.currentReviewID : null, state.view === "confirmation" && freshlyRecordedDecisionID === state.currentReviewID);
     const record = currentReview();
@@ -247,11 +247,13 @@
 
   async function loadProjects(manual = false) {
     if (state.projectsRefreshing) return;
+    state.portfolioUniverseConfirmed = false;
     state.sandboxRefreshError = false;
     const key = http.apiKey();
     state.projects = mergeProjects([]);
     ui.projectStart();
     ui.renderProjects(state.projects, state.selectedProject, loadProjectElements);
+    refreshGovernance();
     if (http.keyMissing(key)) { ui.projectKeyMissing(); ui.renderProjects(state.projects, state.selectedProject, loadProjectElements); return; }
     state.projectsRefreshing = true;
     ui.projectLoading();
@@ -260,10 +262,12 @@
       const result = await services.projects.loadProjects({ key, controller,
         onResponse: ui.projectRaw, onHTTPError: ui.projectHTTPError });
       state.projects = mergeProjects(result.records);
+      state.portfolioUniverseConfirmed = true;
       ui.projectSuccess(state.projects, state.selectedProject, loadProjectElements, result.httpStatus, result.records.length);
       refreshGovernance();
       if (manual) ui.toast({ title: "SAP Sandbox refreshed", duration: 3500, kind: "neutral" });
     } catch (error) {
+      state.portfolioUniverseConfirmed = false;
       const context = error.sap || {};
       let detail;
       if (error.name === "AbortError") {
