@@ -60,7 +60,7 @@ The sequence below is a **suggested demonstration plan**, not a claim about an a
 
 For the live pitch, rehearse within the five-minute limit and ensure the separately submitted slides include the required groupwork disclaimer. SCR demonstrates **why this feature exists**, not merely how many screens were built.
 
-## Run locally — Windows, macOS and Linux
+## Run locally: Windows, macOS and Linux
 
 ### Prerequisites
 
