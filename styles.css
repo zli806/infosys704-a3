@@ -550,7 +550,6 @@ table.governance-table { width:100%; min-width:0; table-layout:fixed; font-size:
 #summary-view .panel > h3 { font-size:1.2rem; margin-bottom:10px; }
 #summary-view .governance-timeline { margin:14px 0 8px; }
 #summary-view .timeline-step { padding-top:22px; padding-bottom:4px; }
-.evidence-basis-sources { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-bottom:10px; }
 .evidence-basis-item { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-bottom:10px; border-bottom:1px solid var(--color-line); }
 .evidence-basis-item h4 { font-size:.9rem; margin:0; }
 .evidence-basis-item .evidence-status { flex-shrink:0; }
@@ -588,7 +587,6 @@ dialog#review-start-dialog::backdrop { background:#1b2f414a; }
 #workspace-history > .investment-history > h3 { font-size:1.4rem; color:var(--color-ink); }
 .history-table tr[data-selected="true"] { background:#eef4f8; }
 .history-table tr[data-selected="true"] button { border-color:var(--color-action); color:var(--color-action); }
-.history-record { max-width:1120px; margin:28px auto 0; }
 .history-record:focus { outline:none; }
 .history-record .decision-record-hero h3 { color:var(--color-muted); }
 .recorded-notice { padding:13px 18px; border:1px solid #c6e0d3; border-radius:8px; color:var(--color-success); background:var(--color-success-bg); margin:0 0 24px; font-size:.9rem; }
@@ -614,14 +612,13 @@ main[data-view="workspace"] #connection-status { display:none; }
  .snapshot-notice { display:block; }
  .assessment-owner-field { align-items:flex-start; flex-direction:column; width:100%; gap:4px; }
  .assessment-owner-field select { width:100%; }
- .evidence-basis-sources { grid-template-columns:1fr; gap:8px; }
  #decision-form .decision-choices .choice-options { grid-template-columns:1fr; }
  #decision-form .decision-choices .choice-card { min-height:90px; }
  #summary-view .timeline-step { padding-top:0; padding-bottom:20px; }
  dialog#review-start-dialog { padding:22px; }
 }
 @media (max-width:1180px) { #assessment-cost .choice-options { grid-template-columns:repeat(2,minmax(0,1fr)); } #decision-form .decision-choices .choice-options { grid-template-columns:repeat(3,minmax(0,1fr)); } }
-@media (max-width:900px) { #workspace-current .assessment-columns { grid-template-columns:1fr; gap:20px; } .assessment-columns > section { grid-template-rows:auto; } .assessment-columns .choice-group { margin-bottom:10px; } .evidence-basis-sources { grid-template-columns:1fr; } }
+@media (max-width:900px) { #workspace-current .assessment-columns { grid-template-columns:1fr; gap:20px; } .assessment-columns > section { grid-template-rows:auto; } .assessment-columns .choice-group { margin-bottom:10px; } }
 @media (max-width:700px) { #decision-form .decision-choices .choice-options { grid-template-columns:1fr; } }
 @media (max-width:500px) { .assessment-columns .choice-options { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 
@@ -708,7 +705,7 @@ main[data-view="how-it-works"] { max-width:1400px; padding-top:24px; }
 #decision-form .choice-card[data-outcome-tone] { box-shadow:inset 0 3px 0 var(--outcome-tone); }
 #decision-form .choice-card[data-outcome-tone]:has(input:checked) { background:var(--outcome-surface); border-color:var(--outcome-tone); }
 .governance-chip[data-outcome-tone] { color:var(--outcome-tone); background:var(--outcome-surface); }
-.history-record { max-width:none; }
+.history-record { max-width:none; margin:28px auto 0; }
 .history-record .decision-record-hero { border:1px solid var(--color-line); border-left:4px solid var(--outcome-tone); border-radius:var(--radius-panel); padding:24px 28px; margin-bottom:20px; }
 .history-record .recorded-outcome { color:var(--outcome-tone); overflow-wrap:anywhere; }
 .decision-record-layout { display:grid; grid-template-columns:minmax(0,2fr) minmax(260px,1fr); gap:24px; align-items:start; }
