@@ -99,7 +99,7 @@ test('decision radio cards have no default outcome; conditional follow-up remain
     choose(group, outcome); for (const callback of w.elements.get('decision-form').events.change) callback();
     const required = w.reviewRules.needsActions(outcome);
     for (const id of ['decision-action', 'decision-action-owner', 'decision-next-date']) assert.equal(w.elements.get(id).required, required);
-    assert.equal(w.elements.get('decision-follow-up').open, required);
+    assert.equal(w.elements.get('decision-follow-up').open, outcome !== 'Continue'); // Remains open after a required outcome to avoid collapsing retained input.
   }
   assert.equal(w.governanceUI.readDecision().outcome, 'Stop');
   assert.equal(w.governanceUI.readDecision().requiredAction, 'Retained optional action');

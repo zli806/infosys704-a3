@@ -7,6 +7,9 @@
   const titles = { dashboard: "Portfolio Governance", investments: "Portfolio", "how-it-works": "How It Works" };
   let displayedReviewStage = "";
   const assessmentIDs = { strategicAlignment: "assessment-alignment", expectedBenefits: "assessment-benefits", deliveryPerformance: "assessment-delivery", costPosition: "assessment-cost", risk: "assessment-risk", futureEconomicValue: "assessment-value" };
+  const decisionFieldIDs = ["decision-outcome", "decision-rationale", "decision-action", "decision-action-owner", "decision-next-date"];
+  let decisionValidationActive = false, guidanceRecordID = "";
+  const assessmentGuidance = new Set();
   let directoryPeople = [];
   let directoryError = "";
   let ownerRecord = { decisionOwner: "", decisionOwnerId: "", decisionOwnerSnapshot: null };
@@ -399,9 +402,11 @@
     }
   }
   function assessment(record) {
+    if (guidanceRecordID !== record.id) { for (const id of assessmentGuidance) fieldFeedback(id, ""); assessmentGuidance.clear(); }
     ownerRecord = record; populateOwners();
     for (const [key, id] of Object.entries(assessmentIDs)) setChoice(id, record.assessment[key]);
     el("assessment-comments").value = record.assessment.comments; el("assessment-dependencies").value = record.assessment.keyRisks;
+    updateAssessmentGuidance();
     growTextareas();
   }
   function readAssessment() {
@@ -409,7 +414,47 @@
     if (el("assessment-owner").value !== "__legacy__") value.decisionOwnerId = el("assessment-owner").value;
     return value;
   }
+  function fieldFeedback(id, text, tone = "error", messageID = `${id}-error`) {
+    const host = el(id), message = el(messageID); message.textContent = text; message.hidden = !text; message.dataset.tone = tone;
+    host.dataset.feedback = text ? tone : "";
+    for (const control of [host, ...host.querySelectorAll('input[type="radio"]')]) {
+      const descriptions = new Set((control.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean));
+      if (text) descriptions.add(messageID); else descriptions.delete(messageID);
+      if (descriptions.size) control.setAttribute("aria-describedby", [...descriptions].join(" ")); else control.removeAttribute("aria-describedby");
+      if (text && tone === "error") control.setAttribute("aria-invalid", "true"); else control.removeAttribute("aria-invalid");
+    }
+  }
+  function focusControl(id) {
+    const host = el(id), target = host.querySelector('input[type="radio"]') || host;
+    target.focus({ preventScroll: true }); target.scrollIntoView({ block: "nearest" });
+  }
+  function updateAssessmentGuidance() {
+    for (const id of [...assessmentGuidance]) {
+      const key = Object.keys(assessmentIDs).find(key => assessmentIDs[key] === id);
+      const complete = key ? choiceValue(id, rules.ASSESSMENTS[key].missing) !== rules.ASSESSMENTS[key].missing : directoryPeople.some(person => person.id === el("assessment-owner").value);
+      if (complete) { fieldFeedback(id, ""); assessmentGuidance.delete(id); }
+    }
+  }
+  function decisionIssues() {
+    const draft = readDecision(), required = rules.needsActions(draft.outcome), issues = [];
+    if (!rules.OUTCOMES.includes(draft.outcome)) issues.push(["decision-outcome", "Required: choose a governance decision."]);
+    if (!draft.rationale.trim()) issues.push(["decision-rationale", "Required: enter a decision rationale."]);
+    if (required && !draft.requiredAction.trim()) issues.push(["decision-action", "Required: describe the follow-up action."]);
+    if (required && !draft.actionOwner.trim()) issues.push(["decision-action-owner", "Required: name the action owner."]);
+    if (required && !draft.nextReviewDate) issues.push(["decision-next-date", "Required: choose the next review date."]);
+    else if (draft.nextReviewDate && !rules.validDate(draft.nextReviewDate)) issues.push(["decision-next-date", "Enter a valid calendar date."]);
+    return issues;
+  }
+  function decisionFeedback(errors, focus = false) {
+    const issues = decisionIssues(), messages = new Map(issues);
+    for (const id of decisionFieldIDs) fieldFeedback(id, messages.get(id) || "");
+    if (issues.some(([id]) => ["decision-action", "decision-action-owner", "decision-next-date"].includes(id))) el("decision-follow-up").open = true;
+    const summary = el("decision-incomplete"); summary.hidden = !errors.length;
+    summary.textContent = errors.length ? `Before recording: ${errors.join(" ").replace(/Review basis/g, "Review Trigger")}` : "";
+    if (focus && errors.length) { if (issues.length) focusControl(issues[0][0]); else { summary.focus({ preventScroll: true }); summary.scrollIntoView({ block: "nearest" }); } }
+  }
   function decision(record) {
+    decisionValidationActive = false; for (const id of decisionFieldIDs) fieldFeedback(id, "");
     ownerRecord = record;
     const draft = record.decisionDraft;
     setChoice("decision-outcome", draft.outcome); el("decision-rationale").value = draft.rationale;
@@ -420,6 +465,7 @@
     el("decision-owner-help").className = record.decisionOwnerId ? "sr-only" : "hint";
     const signals = rules.reviewSignals(record);
     el("decision-rationale-help").hidden = signals.materialConcerns.length === 0;
+    el("decision-follow-up").open = rules.needsActions(draft.outcome);
     decisionRequirements();
     growTextareas();
   }
@@ -430,9 +476,9 @@
   function decisionRequirements() {
     const outcome = choiceValue("decision-outcome"); const required = rules.needsActions(outcome);
     const followUp = el("decision-follow-up");
-    if (followUp.dataset.outcome !== outcome) followUp.open = required;
+    if (required) followUp.open = true;
     followUp.dataset.outcome = outcome;
-    el("decision-follow-up-title").textContent = required ? "Required follow-up action" : outcome ? "Optional follow-up action" : "Follow-up action";
+    el("decision-follow-up-title").textContent = required ? "Required Follow-up" : outcome === "Stop" ? "Optional Closure Action" : outcome ? "Optional Follow-up" : "Follow-up";
     el("decision-requirements").textContent = required ? "Required action, action owner and next review date are required for this outcome." : outcome === "Stop"
       ? "Stop ends the continuation path; no next review is scheduled. Closure actions are optional. Rationale and decision owner remain required." : outcome
       ? "Action, action owner and next review date are optional for Continue. Rationale and decision owner remain required."
@@ -594,7 +640,7 @@
   function reviewStart(recovery = false) {
     reviewStartRecovery = recovery;
     setChoice("review-start-trigger", ""); el("review-start-error").hidden = true;
-    el("review-start-trigger").removeAttribute("aria-invalid");
+    fieldFeedback("review-start-trigger", "", "error", "review-start-error");
     el("review-start-title").textContent = recovery ? "Set Review Trigger" : "Start Continuation Review";
     el("review-start-submit").textContent = recovery ? "Save Review Trigger" : "Start Review";
     el("review-start-help").textContent = recovery ? "Record why this existing formal review was opened. The trigger is not itself a review finding." : "Why this formal review is being opened. The trigger is not itself a review finding.";
@@ -668,17 +714,22 @@
     el("load-review-evidence").addEventListener("click", actions.loadEvidence);
     el("back-dashboard").addEventListener("click", () => actions.backDashboard ? actions.backDashboard() : actions.navigate("dashboard"));
     el("assessment-form").addEventListener("submit", event => { event.preventDefault(); actions.summary(); });
-    for (const event of ["input", "change"]) el("assessment-form").addEventListener(event, () => { el("workflow-message").hidden = true; actions.saveDraft(); });
+    for (const event of ["input", "change"]) el("assessment-form").addEventListener(event, () => { el("workflow-message").hidden = true; actions.saveDraft(); updateAssessmentGuidance(); });
     el("back-assessment").addEventListener("click", () => actions.reviewStep("assessment"));
     el("proceed-decision").addEventListener("click", () => actions.reviewStep("decision"));
     el("back-summary").addEventListener("click", () => actions.reviewStep("summary"));
-    for (const event of ["input", "change"]) el("decision-form").addEventListener(event, () => { if (el("decision-incomplete").dataset.kind !== "record") el("decision-incomplete").hidden = true; decisionRequirements(); actions.saveDraft(); });
+    for (const event of ["input", "change"]) el("decision-form").addEventListener(event, () => {
+      decisionRequirements(); actions.saveDraft();
+      if (el("decision-incomplete").dataset.kind !== "record") {
+        if (decisionValidationActive) decisionFeedback(rules.decisionErrors(ownerRecord, readDecision())); else el("decision-incomplete").hidden = true;
+      }
+    });
     el("decision-form").addEventListener("submit", event => { event.preventDefault(); actions.confirm(); });
     el("assessment-owner-help").append(contextHelp("assessment-owner", "Decision Owner source", "Prototype Governance Directory: fictional roles, not SAP or real DPE employees. The selected owner is accountable for the decision."));
     el("review-start-form").addEventListener("submit", event => { event.preventDefault(); actions.confirmReviewStart?.(); });
     el("review-start-cancel").addEventListener("click", () => actions.cancelReviewStart?.());
     el("review-start-dialog").addEventListener("cancel", event => { event.preventDefault(); actions.cancelReviewStart?.(); });
-    el("review-start-trigger").addEventListener("change", () => { el("review-start-error").hidden = true; el("review-start-trigger").removeAttribute("aria-invalid"); });
+    el("review-start-trigger").addEventListener("change", () => { if (el("review-start-error").dataset.kind === "validation") fieldFeedback("review-start-trigger", "", "error", "review-start-error"); });
     el("set-review-trigger").addEventListener("click", () => actions.setLegacyReviewTrigger?.());
     const tabs = ["overview", "current", "history"];
     for (const [index, tab] of tabs.entries()) {
@@ -695,7 +746,11 @@
   }
   app.governanceUI = { bind, showView, details, renderDashboard, portfolioState, completedReviews, assessment, readAssessment, decision, readDecision, chrome, reviewSummary, confirmation, evidenceStatus, reviewStart, closeReviewStart,
     readReviewStart() { return choiceValue("review-start-trigger"); },
-    reviewStartError(text) { el("review-start-error").textContent = text; el("review-start-error").hidden = false; el("review-start-trigger").setAttribute("aria-invalid", "true"); },
+    reviewStartError(text, { invalidTrigger = false } = {}) {
+      fieldFeedback("review-start-trigger", invalidTrigger ? text : "", "error", "review-start-error");
+      const message = el("review-start-error"); message.textContent = text; message.hidden = false; message.dataset.kind = invalidTrigger ? "validation" : "storage";
+      if (invalidTrigger) focusControl("review-start-trigger"); else { message.setAttribute("tabindex", "-1"); message.focus({ preventScroll: true }); }
+    },
     setDirectory(people, error = "") { directoryPeople = people; directoryError = error; populateOwners(); },
     storageNotice(text) { el("storage-notice").hidden = !text; el("storage-notice").textContent = text; },
     autosaveStatus(failed, unavailable = false) {
@@ -705,10 +760,21 @@
       el("draft-save-error").hidden = !failed;
     },
     focusSaveError() { el("draft-save-error").focus({ preventScroll: true }); el("draft-save-error").scrollIntoView({ block: "nearest" }); },
-    workflowGate(text) { el("workflow-message").dataset.kind = "gate"; el("workflow-message").hidden = false; el("workflow-message").textContent = text; el("workflow-message").focus({ preventScroll: true }); el("workflow-message").scrollIntoView({ block: "nearest" }); },
+    workflowGate(text, { missing = [] } = {}) {
+      for (const id of assessmentGuidance) fieldFeedback(id, ""); assessmentGuidance.clear(); guidanceRecordID = ownerRecord.id;
+      for (const item of missing) {
+        const key = Object.keys(assessmentIDs).find(key => rules.ASSESSMENTS[key].label === item), id = key ? assessmentIDs[key] : item === "Decision Owner" ? "assessment-owner" : null;
+        if (id) { assessmentGuidance.add(id); fieldFeedback(id, "Required before Governance Decision.", "info"); }
+      }
+      el("workflow-message").dataset.kind = "gate"; el("workflow-message").hidden = false; el("workflow-message").textContent = text; el("workflow-message").focus({ preventScroll: true }); el("workflow-message").scrollIntoView({ block: "nearest" });
+    },
     error(text) { el("workflow-message").dataset.kind = "error"; el("workflow-message").hidden = false; el("workflow-message").textContent = text; },
     incompleteAssessment(missing) { el("workflow-message").dataset.kind = "error"; el("workflow-message").hidden = false; el("workflow-message").textContent = `Complete: ${missing.join(", ")}.`; el("workflow-message").focus(); },
-    incompleteDecision(errors, { recordFailure = false } = {}) { el("decision-incomplete").dataset.kind = recordFailure ? "record" : "validation"; el("decision-incomplete").hidden = false; el("decision-incomplete").textContent = errors.join(" ").replace(/Review basis/g, "Review Trigger"); },
+    incompleteDecision(errors, { recordFailure = false } = {}) {
+      decisionValidationActive = !recordFailure; el("decision-incomplete").dataset.kind = recordFailure ? "record" : "validation";
+      if (!recordFailure) decisionFeedback(errors, true);
+      else { const summary = el("decision-incomplete"); summary.hidden = false; summary.textContent = errors.join(" "); summary.focus({ preventScroll: true }); summary.scrollIntoView({ block: "nearest" }); }
+    },
     openTechnical() { el("investment-technical-details").open = true; el("investment-technical-details").scrollIntoView({ block: "start" }); },
     focusEvidence() { el("overview-evidence-title").focus({ preventScroll: true }); el("overview-evidence-title").scrollIntoView({ block: "start" }); },
     evidenceButton(enabled) { el("load-review-evidence").disabled = !enabled; }

@@ -20,14 +20,14 @@ function reset(w) { w.confirmReset(true); click(w, 'reset-showcase'); }
 
 test('follow-up guidance is neutral before selection and follows every outcome without clearing a draft', async () => {
   const w = workspace({ controller: true }); await openInvestment(w, 0); click(w, 'start-review'); click(w, 'proceed-decision');
-  assert.equal(w.elements.get('decision-follow-up-title').textContent, 'Follow-up action');
+  assert.equal(w.elements.get('decision-follow-up-title').textContent, 'Follow-up');
   assert.match(w.elements.get('decision-requirements').textContent, /Select a decision/);
   w.elements.get('decision-action').value = 'Preserve this draft';
   for (const outcome of ['Modify', 'Continue', 'Pause', 'Stop', 'Continue with Conditions']) {
     choose(w, 'decision-outcome', outcome); change(w, 'decision-form');
     const required = w.reviewRules.needsActions(outcome);
-    assert.equal(w.elements.get('decision-follow-up').open, required);
-    assert.equal(w.elements.get('decision-follow-up-title').textContent, required ? 'Required follow-up action' : 'Optional follow-up action');
+    assert.equal(w.elements.get('decision-follow-up').open, true); // Once opened for required work, switching outcomes does not collapse entered fields.
+    assert.equal(w.elements.get('decision-follow-up-title').textContent, required ? 'Required Follow-up' : outcome === 'Stop' ? 'Optional Closure Action' : 'Optional Follow-up');
     for (const id of ['decision-action', 'decision-action-owner', 'decision-next-date']) assert.equal(w.elements.get(id).required, required);
     assert.equal(w.elements.get('decision-action').value, 'Preserve this draft');
   }
@@ -197,7 +197,7 @@ test('timing-only urgency stays visible without inventing concerns or extra per-
 test('static guidance remains progressive and explicit about human judgement, with no classification hints beside assessment inputs', () => {
   const html = readFileSync(join(__dirname, '../index.html'), 'utf8');
   assert.match(html, /id="proceed-decision"[^>]*>Governance Decision/);
-  assert(html.includes('Select the continuation outcome.')); assert(!html.includes('id="decision-context-counts"'));
+  assert(!html.includes('Select the continuation outcome.')); assert(!html.includes('id="decision-context-counts"'));
   assert(readFileSync(join(__dirname, '../js/ui/governance.js'), 'utf8').includes('They inform governance judgement but do not determine the decision.'));
   assert(html.includes('This review contains material concerns. Explain how the selected outcome addresses them.'));
   assert(!html.includes('id="queue-help-trigger"')); assert(!html.includes('id="signals-help"'));

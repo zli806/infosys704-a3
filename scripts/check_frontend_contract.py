@@ -35,6 +35,8 @@ REQUIRED_IDS = (
     "decision-action-required", "decision-action-owner-required", "decision-next-date-required",
     "assessment-alignment-help", "assessment-benefits-help", "assessment-value-help", "assessment-delivery-help", "assessment-cost-help", "assessment-risk-help",
     "review-start-dialog", "review-start-form", "review-start-title", "review-start-trigger", "review-start-help", "review-start-error", "review-start-cancel", "review-start-submit",
+    "assessment-alignment-error", "assessment-benefits-error", "assessment-value-error", "assessment-delivery-error", "assessment-cost-error", "assessment-risk-error", "assessment-owner-error",
+    "decision-outcome-error", "decision-rationale-error", "decision-action-error", "decision-action-owner-error", "decision-next-date-error",
 )
 REQUIRED_SCRIPTS = (
     "config.local.js", "api-config.js", "js/data/showcase-portfolio.js", "js/core/state.js", "js/core/utils.js", "js/core/review-rules.js",

@@ -38,9 +38,9 @@ test('required asterisks mirror conditional native requirements for all five out
     }
   }
   const html = readFileSync('index.html', 'utf8');
-  assert.match(html, /Decision rationale <span class="required-mark" aria-hidden="true">\*<\/span>/);
+  assert.match(html, /Decision Rationale <span class="required-mark" aria-hidden="true">\*<\/span>/);
   assert.match(html, /id="decision-rationale"[^>]*required/); assert.match(html, /id="assessment-owner"[^>]*required/);
-  assert.match(html, /<legend>Decision <span class="required-mark"/); assert(html.includes('(Required, selected in Assessment)'));
+  assert.match(html, /<legend>Decision Outcome <span class="required-mark"/); assert(html.includes('(Required, selected in Assessment)'));
 });
 
 test('low-level store.start rejects latest Stop including UUID case variation and leaves records untouched', () => {

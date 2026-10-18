@@ -162,7 +162,7 @@
   function cancelReviewStart() { pendingReviewStart = null; governance.closeReviewStart(); }
   function confirmReviewStart() {
     const basis = rules.normalizeBasis(governance.readReviewStart());
-    if (!basis) { governance.reviewStartError(pendingReviewStart?.recordID ? "Select the missing Review Trigger for this existing review." : "Select a Review Trigger before starting the review."); return; }
+    if (!basis) { governance.reviewStartError(pendingReviewStart?.recordID ? "Select the missing Review Trigger for this existing review." : "Select a Review Trigger before starting the review.", { invalidTrigger: true }); return; }
     if (!pendingReviewStart || pendingReviewStart.projectUUID !== state.selectedProject?.ProjectUUID) { cancelReviewStart(); return; }
     try {
       if (!refreshRecords()) { governance.reviewStartError(state.storageError); return; }
@@ -198,7 +198,7 @@
     if (view === "decision") {
       const missing = validationMissing(record).filter(item => item !== "Evidence refresh");
       if (!services.governanceDirectory.eligible(record) && !missing.includes("Decision Owner")) missing.push("Decision Owner");
-      if (missing.length) { governance.workflowGate(`Complete Assessment before entering Governance Decision: ${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} still required.`); return; }
+      if (missing.length) { governance.workflowGate(`Complete Assessment before entering Governance Decision: ${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} still required.`, { missing }); return; }
       if (busy()) { governance.workflowGate("Finish the current evidence refresh before entering Governance Decision."); return; }
       if (state.storageError) { governance.workflowGate("Governance storage is unavailable. Restore storage before entering Governance Decision."); return; }
     }
@@ -211,7 +211,7 @@
   function confirmDecision() {
     if (!canLeaveReview()) return;
     const record = currentReview(); if (!record) return;
-    if (busy()) { governance.error("Finish current SAP evidence requests before recording a decision."); return; }
+    if (busy()) { governance.workflowGate("Finish current SAP evidence requests before recording a decision."); return; }
     const errors = rules.decisionErrors(record, governance.readDecision());
     if (errors.length) { governance.incompleteDecision(errors); return; }
     try {
