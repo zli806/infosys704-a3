@@ -21,12 +21,12 @@ function fixture(w) {
 
 test('ten-investment fixture produces independent investment-level 40/10/30/10/20 percentages with accessible button meaning', () => {
   const w = workspace(), { projects, records } = fixture(w), before = JSON.stringify({ projects, records });
-  w.governanceUI.renderDashboard(records, projects, () => {}, true, true); // This fixture represents a confirmed universe.
+  w.governanceUI.renderDashboard(records, projects, () => {}, true, true); // This fixture represents a resolved portfolio view.
   assert.deepEqual(counts(w), ['4', '1', '3', '1', '2']); assert.deepEqual(shares(w), ['40%', '10%', '30%', '10%', '20%']);
   for (const [index, key] of keys.entries()) {
     const button = metric(w, key), ring = button.children[2];
     assert.equal(ring.getAttribute('aria-hidden'), 'true'); assert.equal(ring.hidden, false); assert(!all(ring).some(el => el.tag === 'button'));
-    assert.match(button.getAttribute('aria-label'), new RegExp(`${counts(w)[index]} investment.*${shares(w)[index].slice(0, -1)} percent of the current investment universe`));
+    assert.match(button.getAttribute('aria-label'), new RegExp(`${counts(w)[index]} investment.*${shares(w)[index].slice(0, -1)} percent of the investments currently represented in the portfolio`));
     assert(!button.title); assert.match(ring.children[0].style.background, /conic-gradient\(var\(--metric-tone\)/);
     click(w, `dashboard-filter-${key}`); assert.equal(rows(w).length, Number(counts(w)[index]));
   }

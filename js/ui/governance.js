@@ -212,11 +212,11 @@
       seen.add(identity); return true;
     });
   }
-  function renderDashboard(records, projects, onOpen, storageAvailable = true, portfolioUniverseConfirmed = false) {
+  function renderDashboard(records, projects, onOpen, storageAvailable = true, portfolioScopeResolved = false) {
     const now = new Date(), result = rules.dashboard(records, projects.length, now);
     // Portfolio plus saved-only identities is the Dashboard's represented universe.
     // A missing live project stays in governance/history without inflating any share above 100%.
-    // This denominator is authoritative only after the SAP project source has completed successfully.
+    // Calculate shares once the portfolio view resolves, including Showcase-only fallback.
     const universe = new Set(projects.map((project, index) => investmentIdentity(project, `portfolio-${index}`)));
     for (const review of records) universe.add(investmentIdentity(review.project, review.id));
     const items = result.open.map(review => ({ review, signals: rules.reviewSignals(review), timing: rules.timing(review, now) }));
@@ -230,7 +230,7 @@
       return [filter.key, distinctDashboardInvestments(items.filter(filter.matches))];
     }));
     dashboardState = { subsets, onOpen, storageAvailable };
-    const percentageAvailable = storageAvailable && portfolioUniverseConfirmed;
+    const percentageAvailable = storageAvailable && portfolioScopeResolved;
     const pulse = el("dashboard-cards");
     for (const filter of dashboardFilters) {
       const value = subsets[filter.key].length;
@@ -249,7 +249,7 @@
       metric.dataset.active = String(storageAvailable && value > 0);
       metric.disabled = !storageAvailable;
       const percentage = percentageAvailable ? (universe.size ? Math.max(0, Math.min(100, Math.round(value / universe.size * 100))) : 0) : null;
-      const share = percentageAvailable ? `, ${percentage} percent of the current investment universe` : `. Percentage unavailable${storageAvailable ? " because the full investment universe is not currently confirmed" : ""}`;
+      const share = percentageAvailable ? `, ${percentage} percent of the investments currently represented in the portfolio` : `. Percentage unavailable${storageAvailable ? " while the portfolio view is refreshing" : ""}`;
       metric.setAttribute("aria-label", `${filter.label}: ${storageAvailable ? countLabel(value, "investment") : "Unavailable"}${share}. ${filter.description}.`);
       metric.children[1].textContent = storageAvailable ? value : "Unavailable";
       const ring = metric.children[2]; ring.hidden = !storageAvailable;

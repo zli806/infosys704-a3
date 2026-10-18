@@ -5,7 +5,7 @@ const directoryContext = { window: {} };
 runInNewContext(readFileSync(join(__dirname, '../../js/services/governance-directory.js'), 'utf8'), directoryContext);
 const directory = JSON.parse(JSON.stringify(directoryContext.window.DPEApp.services.governanceDirectory.configuration));
 
-function workspace({ fetchImpl, storage, controller = false, key = '', serviceOverrides = {}, timers } = {}) {
+function workspace({ fetchImpl, storage, controller = false, key = '', serviceOverrides = {}, timers, beforeController } = {}) {
   const elements = new Map();
   class Element {
     constructor(tag = 'div') { this.tag = tag; this.children = []; this.dataset = {}; this.attributes = {}; this.value = ''; this._text = ''; this.style = {}; this.offsetParent = null; this.events = {}; }
@@ -52,6 +52,7 @@ function workspace({ fetchImpl, storage, controller = false, key = '', serviceOv
   }
   if (controller) {
     for (const [name, methods] of Object.entries(serviceOverrides)) Object.assign(context.window.DPEApp.services[name], methods);
+    beforeController?.(context.window.DPEApp, document);
     runInNewContext(readFileSync(join(__dirname, '../../app.js'), 'utf8'), context, { filename: 'app.js' });
   } else context.window.DPEApp.governanceUI.bind({ saveDraft() {} });
   return { ...context.window.DPEApp, elements, document, runtime: context.window.DPEApp, windowEvents, confirmations, map, directory, fixtures: context.window.DPE_SHOWCASE_PORTFOLIO,

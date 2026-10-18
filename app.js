@@ -48,7 +48,7 @@
   }
   function refreshGovernance() {
     if (state.view === "investments") ui.renderProjects(state.projects, state.selectedProject, loadProjectElements);
-    governance.renderDashboard(state.reviews, state.projects, openReview, !state.storageError, state.portfolioUniverseConfirmed);
+    governance.renderDashboard(state.reviews, state.projects, openReview, !state.storageError, state.portfolioScopeResolved);
     if (state.selectedProject) governance.details(state.selectedProject, evidenceForSelected(), state.reviews, !!state.selectedFromSnapshot, !state.storageError, selectHistoryRecord,
       state.view === "confirmation" ? state.currentReviewID : null, state.view === "confirmation" && freshlyRecordedDecisionID === state.currentReviewID);
     const record = currentReview();
@@ -247,9 +247,9 @@
 
   async function loadProjects(manual = false) {
     if (state.projectsRefreshing) return;
-    state.portfolioUniverseConfirmed = false;
     state.sandboxRefreshError = false;
     const key = http.apiKey();
+    state.portfolioScopeResolved = http.keyMissing(key);
     state.projects = mergeProjects([]);
     ui.projectStart();
     ui.renderProjects(state.projects, state.selectedProject, loadProjectElements);
@@ -262,12 +262,12 @@
       const result = await services.projects.loadProjects({ key, controller,
         onResponse: ui.projectRaw, onHTTPError: ui.projectHTTPError });
       state.projects = mergeProjects(result.records);
-      state.portfolioUniverseConfirmed = true;
+      state.portfolioScopeResolved = true;
       ui.projectSuccess(state.projects, state.selectedProject, loadProjectElements, result.httpStatus, result.records.length);
       refreshGovernance();
       if (manual) ui.toast({ title: "SAP Sandbox refreshed", duration: 3500, kind: "neutral" });
     } catch (error) {
-      state.portfolioUniverseConfirmed = false;
+      state.portfolioScopeResolved = true;
       const context = error.sap || {};
       let detail;
       if (error.name === "AbortError") {
@@ -455,6 +455,7 @@
       const record = governance.completedReviews(state.reviews, state.selectedProject?.ProjectUUID)[0];
       if (record) openReview(record.id);
     } });
+  state.portfolioScopeResolved = http.keyMissing(http.apiKey());
   state.projects = mergeProjects([]);
   seedShowcase(); governance.showView("dashboard"); refreshGovernance();
   ui.renderProjects(state.projects, state.selectedProject, loadProjectElements);
