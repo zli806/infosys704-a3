@@ -85,7 +85,7 @@ test('record context presents project, owner name/role and date before grouped d
     decisionTarget: w.reviewRules.calendarTarget(review.reviewOpenedAt, 14), escalationThreshold: w.reviewRules.calendarTarget(review.reviewOpenedAt, 30), assessmentSnapshot: review.assessment, evidenceSnapshot: review.evidence };
   w.governanceUI.confirmation(review);
   assert.equal(w.elements.get('confirmation-outcome').textContent, 'Modify');
-  const context = w.elements.get('confirmation-record').children[0]; assert.equal(context.className, 'decision-record-context');
+  const context = byClass(w.elements.get('confirmation-record'), 'decision-record-context')[0]; assert(context); assert.equal(w.elements.get('confirmation-record').children[0].className, 'decision-record-layout');
   for (const text of [review.project.ProjectDescription, review.decisionOwner, review.decisionOwnerSnapshot.role, 'UTC']) assert(context.textContent.includes(text));
 });
 

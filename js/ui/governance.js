@@ -60,10 +60,12 @@
     Pause: "Temporarily stop further progression while issues are resolved.",
     Stop: "End the investment / continuation path."
   };
+  const outcomeTones = Object.freeze({ Continue: "continue", "Continue with Conditions": "conditional", Modify: "modify", Pause: "pause", Stop: "stop" });
   function buildChoices(id, values) {
     const group = el(id); const choices = node("div", undefined, "choice-options");
     values.forEach((value, index) => {
       const label = node("label", undefined, "choice-card"); const input = node("input");
+      if (id === "decision-outcome") label.dataset.outcomeTone = outcomeTones[value];
       input.type = "radio"; input.name = id; input.value = value; input.id = `${id}-choice-${index}`;
       input.required = true;
       const copy = node("span", undefined, "choice-copy"); copy.append(node("strong", value));
@@ -338,7 +340,7 @@
       const row = node("tr"); row.dataset.reviewId = record.id; row.dataset.selected = String(record.id === selectedID);
       const values = [shortDate(record.decision.timestamp), rules.normalizeBasis(record.reviewBasis) || "Not selected", record.decision.outcome, record.decision.owner, shortDate(record.decision.nextReviewDate)];
       values.forEach((value, index) => { const cell = node("td", value); cell.dataset.label = labels[index]; row.append(cell); });
-      const outcomeCell = row.children[2]; outcomeCell.replaceChildren(node("span", record.decision.outcome, "governance-chip"));
+      const outcomeCell = row.children[2], outcome = node("span", record.decision.outcome, "governance-chip"); outcome.dataset.outcomeTone = outcomeTones[record.decision.outcome]; outcomeCell.replaceChildren(outcome);
       const cell = node("td"), button = action("View Record", () => onOpen(record.id)); cell.dataset.label = "Record";
       button.setAttribute("aria-label", `View Record: ${record.project.Project} · ${dateTime(record.decision.timestamp)}`);
       button.setAttribute("aria-expanded", String(record.id === selectedID)); button.setAttribute("aria-controls", "confirmation-view");
@@ -570,16 +572,18 @@
   function confirmation(record) {
     const target = el("confirmation-record"); target.replaceChildren(); const decision = record.decision;
     el("confirmation-outcome").textContent = decision.outcome;
+    el("confirmation-view").dataset.outcomeTone = outcomeTones[decision.outcome];
     el("confirmation-view").hidden = false;
-    const hero = node("header", undefined, "decision-record-context");
+    const layout = node("div", undefined, "decision-record-layout"), main = node("div", undefined, "record-main"); target.append(layout);
+    const hero = node("aside", undefined, "decision-record-context"); hero.setAttribute("aria-label", "Saved decision accountability and source");
     hero.append(node("h3", record.project.Project), node("p", record.project.ProjectDescription || "", "record-description"));
     hero.append(sourceBadge(record.project));
     if (app.services.showcase?.isHistorical(record)) hero.append(node("p", "Synthetic historical showcase decision", "hint"));
     const accountability = node("div"); ownerContext(accountability, decision.ownerSnapshot, decision.owner);
-    hero.append(accountability, node("p", dateTime(decision.timestamp), "record-date")); target.append(hero);
-    section(target, "Rationale").append(node("p", decision.rationale));
+    hero.append(accountability, node("p", dateTime(decision.timestamp), "record-date")); pairs(hero, [["Review Trigger", rules.normalizeBasis(record.reviewBasis) || "Not selected"]]); layout.append(hero, main);
+    section(main, "Rationale").append(node("p", decision.rationale));
     if (decision.requiredAction || decision.actionOwner || decision.nextReviewDate) {
-      const followUp = section(target, "Follow-up"); const fields = node("div", undefined, "record-actions");
+      const followUp = section(main, "Follow-up"); const fields = node("div", undefined, "record-actions");
       for (const [title, value] of [["Required Action", decision.requiredAction], ["Action Owner", decision.actionOwner], ["Next Review", decision.nextReviewDate]]) {
         if (!value) continue;
         const field = node("section"); field.append(node("h4", title), node("p", title === "Next Review" ? shortDate(value) : value)); fields.append(field);
@@ -589,8 +593,8 @@
     const metadata = node("details"); metadata.append(node("summary", "Record context & timing")); target.append(metadata);
     if (!decision.ownerId) metadata.append(node("p", "Previously saved text owner — not verified against the prototype directory."));
     pairs(metadata, [["Record ID (SYSTEM CALCULATED)", record.id], ["Project", record.project.Project], ["ProjectUUID", record.project.ProjectUUID], ["Review Trigger (REVIEWER INPUT)", rules.normalizeBasis(record.reviewBasis) || "Not selected"],
-      ["Decision (REVIEWER INPUT)", decision.outcome], ["Rationale (REVIEWER INPUT)", decision.rationale], ["Decision owner (REVIEWER INPUT)", decision.owner], ["Decision timestamp (SYSTEM CALCULATED)", dateTime(decision.timestamp)],
-      ["Required action (REVIEWER INPUT)", decision.requiredAction], ["Action owner (REVIEWER INPUT)", decision.actionOwner], ["Next review date (REVIEWER INPUT)", decision.nextReviewDate || "Not specified"],
+      ["Decision (REVIEWER INPUT)", decision.outcome], ["Rationale (REVIEWER INPUT)", "See Rationale above."], ["Decision owner (REVIEWER INPUT)", decision.owner], ["Decision timestamp (SYSTEM CALCULATED)", dateTime(decision.timestamp)],
+      ["Required action (REVIEWER INPUT)", decision.requiredAction ? "See Follow-up above." : "Not specified"], ["Action owner (REVIEWER INPUT)", decision.actionOwner], ["Next review date (REVIEWER INPUT)", decision.nextReviewDate || "Not specified"],
       ["Review opened (SYSTEM CALCULATED)", dateTime(record.reviewOpenedAt)], ["14-day target (SYSTEM CALCULATED)", dateTime(decision.decisionTarget)], ["30-day threshold (SYSTEM CALCULATED)", dateTime(decision.escalationThreshold)]]);
     const snapshot = node("details"); snapshot.append(node("summary", app.services.showcase?.isShowcase(record.project) ? "Saved assessment / synthetic showcase evidence" : "Saved assessment / SAP Sandbox evidence")); target.append(snapshot);
     const assessment = section(snapshot, "Assessment Snapshot"); pairs(assessment, [...Object.entries(rules.ASSESSMENTS).map(([key, field]) => [field.label, decision.assessmentSnapshot[key]]), ["Reviewer comments", decision.assessmentSnapshot.comments], ["Key risks / dependencies", decision.assessmentSnapshot.keyRisks]]);
