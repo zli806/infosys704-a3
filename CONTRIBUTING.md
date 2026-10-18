@@ -15,6 +15,7 @@ Run:
 ```sh
 node --test tests/*.test.js
 python scripts/check_frontend_contract.py
+python -B -m unittest discover -s tests -p test_sap_proxy.py
 node --check api-config.js
 node --check app.js
 git diff --check

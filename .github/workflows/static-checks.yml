@@ -47,6 +47,9 @@ jobs:
       - name: Run credential-free regression and showcase tests
         run: node --test tests/*.test.js
 
+      - name: Run credential-free local SAP proxy tests
+        run: python -B -m unittest discover -s tests -p test_sap_proxy.py
+
       - name: Syntax-parse Python without executing validators
         run: |
-          python -c "import ast; from pathlib import Path; [ast.parse(Path(p).read_text(encoding='utf-8'), filename=p) for p in ('scripts/sap_live_validate.py', 'scripts/check_frontend_contract.py')]"
+          python -c "import ast; from pathlib import Path; [ast.parse(Path(p).read_text(encoding='utf-8'), filename=p) for p in ('scripts/sap_live_validate.py', 'scripts/check_frontend_contract.py', 'scripts/serve.py', 'tests/test_sap_proxy.py')]"

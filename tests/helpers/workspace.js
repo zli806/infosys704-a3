@@ -5,7 +5,7 @@ const directoryContext = { window: {} };
 runInNewContext(readFileSync(join(__dirname, '../../js/services/governance-directory.js'), 'utf8'), directoryContext);
 const directory = JSON.parse(JSON.stringify(directoryContext.window.DPEApp.services.governanceDirectory.configuration));
 
-function workspace({ fetchImpl, storage, controller = false, key = '', serviceOverrides = {}, timers, beforeController } = {}) {
+function workspace({ fetchImpl, storage, controller = false, key = '', config = {}, location = { protocol: 'http:' }, serviceOverrides = {}, timers, beforeController } = {}) {
   const elements = new Map();
   class Element {
     constructor(tag = 'div') { this.tag = tag; this.children = []; this.dataset = {}; this.attributes = {}; this.value = ''; this._text = ''; this.style = {}; this.offsetParent = null; this.events = {}; }
@@ -45,7 +45,7 @@ function workspace({ fetchImpl, storage, controller = false, key = '', serviceOv
   const windowEvents = {};
   const confirmations = [];
   let confirmResult = false;
-  const context = { window: { addEventListener(name, callback) { (windowEvents[name] ||= []).push(callback); }, removeEventListener(name, callback) { windowEvents[name] = (windowEvents[name] || []).filter(fn => fn !== callback); }, confirm: message => { confirmations.push(message); return confirmResult; }, APP_CONFIG: { SAP_API_KEY: key }, location: { protocol: 'http:' }, scrollTo() {}, crypto: require('node:crypto').webcrypto, localStorage: { getItem: key => map.get(key) ?? null, setItem: (key, value) => map.set(key, value) } }, document, Intl, Date, URL, AbortController, setTimeout: timers?.setTimeout || setTimeout, clearTimeout: timers?.clearTimeout || clearTimeout, setInterval() {}, console: { error() {}, info() {}, warn() {} },
+  const context = { window: { addEventListener(name, callback) { (windowEvents[name] ||= []).push(callback); }, removeEventListener(name, callback) { windowEvents[name] = (windowEvents[name] || []).filter(fn => fn !== callback); }, confirm: message => { confirmations.push(message); return confirmResult; }, APP_CONFIG: { SAP_API_KEY: key, ...config }, location, scrollTo() {}, crypto: require('node:crypto').webcrypto, localStorage: { getItem: key => map.get(key) ?? null, setItem: (key, value) => map.set(key, value) } }, document, Intl, Date, URL, AbortController, setTimeout: timers?.setTimeout || setTimeout, clearTimeout: timers?.clearTimeout || clearTimeout, setInterval() {}, console: { error() {}, info() {}, warn() {} },
      fetch: fetchImpl || (async () => { throw new Error('Tests never call SAP'); }) };
   for (const file of ['api-config.js', 'js/data/showcase-portfolio.js', 'js/core/state.js', 'js/core/utils.js', 'js/core/review-rules.js', 'js/services/sap-http.js', 'js/services/project-service.js', 'js/services/gl-service.js', 'js/services/po-service.js', 'js/services/governance-directory.js', 'js/services/showcase-service.js', 'js/services/review-store.js', 'js/ui/renderers.js', 'js/ui/governance.js']) {
     runInNewContext(readFileSync(join(__dirname, '../..', file), 'utf8'), context, { filename: file });

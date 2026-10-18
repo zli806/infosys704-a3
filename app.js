@@ -10,6 +10,13 @@
   const missingKeyMessage = "Please add your SAP Sandbox API key to config.local.js first.";
   state.evidence = rules.emptyEvidence();
 
+  function localPreviewRecovery() {
+    const { protocol, hostname, port } = window.location;
+    if (protocol !== "http:" || !["127.0.0.1", "localhost"].includes(hostname)
+      || window.APP_CONFIG?.SAP_PROXY_BASE_URL === "/sap-proxy") return "";
+    return `This preview is not using the SAP proxy. Stop the static server and run python scripts/serve.py --port ${port || "80"} instead of python -m http.server, then reload the same browser address.`;
+  }
+
   function refreshRecords() {
     try { state.reviews = store.list(); state.storageError = ""; governance.storageNotice(""); return true; }
     catch (error) { state.storageError = error.message; governance.storageNotice(error.message); return false; }
@@ -269,15 +276,17 @@
     } catch (error) {
       state.portfolioScopeResolved = true;
       const context = error.sap || {};
-      let detail;
+      let detail, recovery = "";
       if (error.name === "AbortError") {
         detail = "Request timed out after 30 seconds. No complete response was received; check your connection and retry.";
       } else if (!context.response) {
         detail = "No HTTP response is available. A network, browser/CORS, or local-file restriction may have blocked the SAP request. Inspect the browser console and Network tab. Do not disable browser security.";
+        recovery = localPreviewRecovery();
+        if (recovery) detail += ` ${recovery}`;
         if (window.location.protocol === "file:") detail += " This page is running from file://; try a local static web preview as described in README.md.";
       } else { detail = utils.redact(error.message, key); }
       state.sandboxRefreshError = true;
-      ui.projectFailure(detail);
+      ui.projectFailure(detail, recovery);
       console.warn("SAP Enterprise Project refresh unavailable", {
         url: services.projects.projectURL().href, status: context.response?.status ?? "unavailable", diagnostic: detail
       });

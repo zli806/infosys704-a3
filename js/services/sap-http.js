@@ -28,7 +28,12 @@
     const timeout = setTimeout(() => controller.abort(), 30000);
     const context = { url: url.href, httpStatus: "", response: undefined };
     try {
-      context.response = await fetch(url, {
+      // The optional local server enables a same-origin, read-only SAP route.
+      // Keep the original SAP URL in diagnostics and leave static hosting unchanged.
+      const requestURL = window.APP_CONFIG?.SAP_PROXY_BASE_URL === "/sap-proxy"
+        && url.origin === "https://sandbox.api.sap.com"
+        ? new URL(`/sap-proxy${url.pathname}${url.search}`, window.location.origin) : url;
+      context.response = await fetch(requestURL, {
         method: "GET", headers: { APIKey: key, Accept: "application/json" },
         credentials: "omit", signal: controller.signal
       });

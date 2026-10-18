@@ -4,7 +4,7 @@
 
 The current assignment prototype intentionally uses HTML, CSS, vanilla JavaScript and browser `fetch()` with SAP Business Accelerator Hub Sandbox APIs. Git/GitHub support collaboration; GitHub Actions and Python's standard library provide remote integration validation.
 
-There is **no frontend framework, npm/build process or application backend**. A local static preview is optional hosting of the same files, not a proxy/backend. The simple stack isolates SAP connectivity and evidence interpretation before later architecture choices. It is not a production credential/security architecture.
+There is **no frontend framework, npm/build process or business-logic backend**. The recommended `scripts/serve.py` is a localhost static preview with a narrowly allowlisted, same-origin SAP GET proxy. It avoids Sandbox preflight/CORS failures without changing API evidence semantics; ordinary static hosting remains supported where SAP CORS works. It is not a production credential/security architecture.
 
 ## Architecture Diagram
 
@@ -12,12 +12,13 @@ There is **no frontend framework, npm/build process or application backend**. A 
 flowchart TD
     Browser["User Browser"] --> App["Prototype App: HTML, CSS, JavaScript"]
     Local["config.local.js: local-only credential"] -.-> App
-    App --> EP["Enterprise Project API: OData V2"]
+    App --> Transport["SAP transport: localhost GET proxy or direct fetch on static hosts"]
+    Transport --> EP["Enterprise Project API: OData V2"]
     EP --> Lifecycle["Project / Project Elements / WBS"]
     Lifecycle -->|"WBSElementInternalID: exact"| GL["G/L Account Line Items API: OData V2"]
     Lifecycle -->|"WBSElementInternalID: exact"| PO["Purchase Order API: OData V4"]
-    App --> GL
-    App --> PO
+    Transport --> GL
+    Transport --> PO
     Fixture["Immutable synthetic SAP-shaped showcase + separate context"] --> Provider["Local showcase provider: validation, shared aggregators"]
     Provider --> App
     App --> Rules["Review Rules: readiness, UTC 14/30-day controls"]
@@ -39,7 +40,7 @@ The WBS arrows describe logical joins, **not SAP API-to-API calls**. The browser
 - `api-config.js` exposes separate `SAP_API_CONFIG`, `GL_API_CONFIG` and `PO_API_CONFIG` objects. It contains endpoints/selected fields, not credentials.
 - `window.DPEApp` is the shared runtime namespace. Modules use private closures rather than introducing additional globals. Existing configuration objects remain unchanged.
 - `js/core/state.js` owns runtime SAP records, selected project, active view/review, concise evidence state and request controllers/sequence IDs. `js/core/utils.js` owns date/flag/identifier helpers and existing exact decimal arithmetic. `js/core/review-rules.js` owns assessment/outcome enums, deterministic readiness and UTC calendar-day timing; it does not recommend an investment decision.
-- `js/services/sap-http.js` owns fetch headers, timeout, safe response processing and HTTP metadata. API services retain explicit OData V2 versus V4 interpretation, joins and financial/procurement summary semantics; they never render DOM.
+- `js/services/sap-http.js` owns fetch headers, timeout, same-origin proxy routing when enabled, safe response processing and HTTP metadata. `scripts/serve.py` enables that route in the served configuration without changing the credential file, and restricts upstream GETs to the app's four SAP resources. API services retain explicit OData V2 versus V4 interpretation, joins and financial/procurement summary semantics; they never render DOM.
 - `js/ui/renderers.js` retains SAP tables/status/error/debug areas and owns shared source badges, connection status and the reusable toast. `js/ui/governance.js` owns desktop/utility navigation, dashboard/review projections, assessment/summary/decision forms and confirmation. Neither UI module fetches SAP or makes continuation decisions. How It Works is static informational HTML with normal navigation callbacks, not governance state.
 - `js/services/review-store.js` owns versioned local prototype storage. It whitelists project identity, human inputs, system timestamps and concise evidence summaries, and rejects edits to completed records. It stores no full raw SAP transactions, request headers or credentials. Exact local credential text is redacted if accidentally pasted into input.
 - `js/services/governance-directory.js` owns immutable, validated fictional owner configuration. It is immediately available without fetch or a SAP header, including file-page loads. These are PROTOTYPE GOVERNANCE DIRECTORY roles, not SAP/DPE personnel or authenticated authority.

@@ -48,7 +48,7 @@ Qualitatively, the effort–impact trade-off favours making that core process wo
 
 ### 2.3 Scope and Implementation Trade-offs
 
-The implementation uses plain HTML, CSS and JavaScript with local browser persistence. There is no build pipeline, application backend or database to operate. This keeps the prototype easy to run and inspect, at the cost of shared storage, authenticated authority and enterprise audit guarantees.
+The implementation uses plain HTML, CSS and JavaScript with local browser persistence. There is no build pipeline, business-logic backend or database to operate. An optional Python preview server relays read-only SAP requests to avoid Sandbox browser/CORS restrictions. This keeps the prototype easy to run and inspect, at the cost of shared storage, authenticated authority and enterprise audit guarantees.
 
 Public SAP samples do not form a complete DPE investment portfolio. A separately labelled synthetic Showcase supplies coherent review scenarios without filling gaps in live-project evidence. AI review briefs, MCP orchestration and Purchase Requisition integration remain deferred, as recorded in the later scope decisions.
 
@@ -144,7 +144,7 @@ Silent successful autosaving reduces routine interruptions. A failed draft save 
 
 ### 6.1 Prerequisites
 
-Use a modern browser and **Python 3** for a local static HTTP server. Git is needed only for cloning; **Node.js 24** is needed for the regression suite, not for running the app. No npm installation, build step, backend, database or SAP key is required for Showcase.
+Use a modern browser and **Python 3.9+** for the local HTTP preview/proxy server. Git is needed only for cloning; **Node.js 24** is needed for the regression suite, not for running the app. No npm installation, build step, database or SAP key is required for Showcase.
 
 With repository access, clone and enter the project:
 
@@ -155,6 +155,8 @@ cd infosys704-a3
 
 Alternatively, extract a repository or supplied ZIP and open a terminal in the extracted directory containing `index.html`. Do not assume the ZIP’s top-level folder has the clone’s name. All commands below run from that project directory; choose one platform’s instructions.
 
+> **Required startup method for grading:** use the supplied **`scripts/serve.py`** server in the platform commands below. It serves the app **and** enables the same-origin SAP proxy. Do **not** substitute `python -m http.server`, an editor's static/Live Server preview, or a double-clicked HTML file when testing SAP: those do not enable the proxy, so SAP may fail in the browser even when curl returns 200. The supplied script uses Python's standard library; no pip installation is needed.
+
 ### 6.2 Windows PowerShell
 
 ```powershell
@@ -162,17 +164,17 @@ python --version
 if (-not (Test-Path .\config.local.js)) {
     Copy-Item .\config.example.js .\config.local.js
 }
-python -m http.server 8786 --bind 127.0.0.1
+python scripts/serve.py --port 8786
 ```
 
-The version command must report Python 3. If `python` is unavailable but the Python launcher is installed, use `py -3 --version` and `py -3 -m http.server 8786 --bind 127.0.0.1` instead.
+The version command must report Python 3.9 or newer. If `python` is unavailable but the Python launcher is installed, use `py -3 --version` and `py -3 scripts/serve.py --port 8786` instead.
 
 ### 6.3 Windows Command Prompt
 
 ```bat
 python --version
 if not exist config.local.js copy config.example.js config.local.js
-python -m http.server 8786 --bind 127.0.0.1
+python scripts/serve.py --port 8786
 ```
 
 If necessary, substitute `py -3` for `python`. If neither executable is available, install Python 3 and reopen the terminal.
@@ -184,7 +186,7 @@ python3 --version
 if [ ! -e config.local.js ]; then
     cp config.example.js config.local.js
 fi
-python3 -m http.server 8786 --bind 127.0.0.1
+python3 scripts/serve.py --port 8786
 ```
 
 Install Python 3 if `python3` is unavailable. Do not substitute an older system Python interpreter.
@@ -196,10 +198,10 @@ python3 --version
 if [ ! -e config.local.js ]; then
     cp config.example.js config.local.js
 fi
-python3 -m http.server 8786 --bind 127.0.0.1
+python3 scripts/serve.py --port 8786
 ```
 
-Install Python 3 using the distribution’s supported package manager if needed. On all four platforms, open **http://127.0.0.1:8786/**, leave the server terminal running and press **Ctrl+C** there to stop it. These commands create the local configuration only if absent; they do not overwrite an existing file.
+Install Python 3 using the distribution’s supported package manager if needed. On all four platforms, open **http://127.0.0.1:8786/**, leave the server running in **your own terminal window** for the entire demonstration and press **Ctrl+C** there to stop it. Closing that window stops the application server. These commands create the local configuration only if absent; they do not overwrite an existing file.
 
 Use HTTP rather than relying on double-clicked `file://` pages: local-file fetch restrictions and storage behaviour vary by browser. Keep the same browser profile, protocol, hostname and port when resuming work. `localhost`, `127.0.0.1` and different ports have separate storage origins; records do not migrate between them.
 
@@ -209,23 +211,38 @@ The copied `config.example.js` contains a safe placeholder. Leave it unchanged t
 
 Do not place the key in tracked files or publish a static copy containing it. The key is loaded by the browser and is visible in developer tools; Git exclusion is not a production secret-management boundary.
 
+The supplied `scripts/serve.py` server enables a same-origin `/sap-proxy` route automatically, without editing your configuration file. It forwards GET requests only to the app's four SAP resources (projects, project elements, G/L and PO account assignments); keys are not sent to redirects. Use this script for grading even when beginning with Showcase, so SAP testing uses the same server and browser origin. A successful curl GET does **not** test browser CORS/preflight support.
+
+If replacing an existing static server, press **Ctrl+C** in its terminal, run `python scripts/serve.py --port 8786`, then hard-refresh the same browser URL. Keep the same hostname/port to retain access to local reviews. Do not clear browser storage or disable browser security.
+
+#### Grader Startup Verification
+
+1. **Check the terminal:** it must report `Open http://127.0.0.1:8786/ (same-origin SAP proxy enabled). Ctrl+C to stop.` If you chose another port, that port appears instead. Keep this terminal running.
+2. **Check the browser:** open the exact HTTP address printed above and select **Portfolio**. With a valid key and successful SAP retrieval, the connection reads **SAP Sandbox · Connected** and Portfolio contains five SHOWCASE investments plus up to five distinct SAP SANDBOX projects. With the placeholder/no key, **Not connected** and five Showcase investments are expected; the Showcase workflow still works.
+3. **Check Dashboard separately:** it is a governance-filtered view, not the full Portfolio register. SAP projects appear in a lens only when their saved review/decision meets that lens's criteria. On a fresh browser origin, the synthetic baseline has three active reviews and one reviewed investment; connecting SAP does not fabricate additional reviews. Percentage rings use the resolved represented portfolio, including saved-only review identities.
+4. **Keep the same browser profile and address:** changing `127.0.0.1` to `localhost`, changing ports, clearing site data or using Reset Showcase can make previously saved SAP reviews unavailable or remove them. An SAP outage alone does not delete saved governance records. Do not reset data merely to troubleshoot connectivity.
+
 ### 6.7 Troubleshooting
 
 | Symptom | Safe response |
 | --- | --- |
 | Python command is missing or opens an installer prompt | Install Python 3, reopen the terminal and verify the version. Use the alternative executable described above if available. |
 | Directory listing, 404 or missing local configuration script | Start the server from the directory containing `index.html` and copy the safe configuration example if absent. |
-| Port 8786 is occupied | Use a free port, for example `8787`, in both the server command and browser URL. A new port has separate local review storage. Do not stop an unfamiliar process. |
+| Port 8786 is occupied | If it is your old app preview, stop it with Ctrl+C and start `python scripts/serve.py --port 8786`. Otherwise choose a free port, e.g. `python scripts/serve.py --port 8787`, and use the matching browser URL. A new port has separate local review storage. Do not stop an unfamiliar process. |
 | SAP is not connected or requests fail | Showcase remains usable. Check local configuration and the visible connection details. Sandbox maintenance, authentication, network or CORS failures require investigation; do not disable browser security. |
+| curl returns 200, but the browser reports CORS/preflight failure | Replace the static server with `python scripts/serve.py --port 8786` and hard-refresh. SAP GET availability does not guarantee its OPTIONS response permits browser access. |
+| SAP works in Portfolio but a project is absent from Dashboard | Dashboard blocks use saved governance reviews/decisions, regardless of source. An imported SAP project does not create a review, infer human assessments or qualify from its SAP dates/status alone. Start a review explicitly; qualifying saved reviews appear in their matching blocks. |
 | No linked evidence is returned | Inspect source qualifications and Technical Details. Empty joins are not proof of zero cost or procurement exposure; do not replace them with Showcase figures. |
 | Decision is unavailable or edits are not saving | Follow the readiness explanation or persistent Retry Save message. Keep unsaved inputs open while resolving storage permissions/capacity. |
 | Previously saved reviews are absent | Check the browser profile and exact origin, and whether Reset Showcase or clearing site data removed them. There is no shared account or cross-origin migration. |
+
+Use the proxy command on whichever port you choose: for example, stop a static preview on `8789` with **Ctrl+C**, then run `python scripts/serve.py --port 8789`. Changing the port does not fix CORS and creates a separate browser review store. The connection-error recovery message uses the current port so you can replace the server without changing origins.
 
 ## 7. Technical Architecture and Project Structure
 
 ### 7.1 Architecture Overview
 
-The browser loads ordinary deferred scripts into a shared `window.DPEApp` namespace. The controller coordinates user actions and evidence requests; core rules, services and UI rendering remain separate. Optional SAP requests go directly from the browser to the Sandbox. The local Python server only serves files—it is not an API proxy or application backend.
+The browser loads ordinary deferred scripts into a shared `window.DPEApp` namespace. The controller coordinates user actions and evidence requests; core rules, services and UI rendering remain separate. The recommended `scripts/serve.py` serves files and proxies the app's allowlisted read-only SAP requests on the same origin. Ordinary static hosting instead uses direct browser-to-Sandbox requests and requires working SAP CORS responses. Neither option stores reviews on a backend.
 
 ### 7.2 Component Responsibilities
 
@@ -272,6 +289,7 @@ The tracked structure below groups test files and historical images for readabil
 │   └── CE_PURCHASEREQUISITION_0001.json  # deferred integration; reference only
 ├── scripts/
 │   ├── check_frontend_contract.py
+│   ├── serve.py                   # localhost preview + allowlisted SAP GET proxy
 │   └── sap_live_validate.py
 ├── tests/                         # Node regressions and helpers/workspace.js
 ├── docs/
@@ -346,7 +364,7 @@ Readiness checks completeness, not evidential assurance: lifecycle must have loa
 
 The credential-free Node suite covers governance classifications, six-dimension readiness, five outcomes, ownership, conditional follow-up, Stop restrictions, multi-cycle history, controller navigation and real storage-write failures. It also validates Showcase fields against downloaded SAP schemas, exact joins, amount aggregation, provenance separation and reset behaviour.
 
-The current suite has **178 passing tests**. The frontend contract checks **170 functional IDs**, uniqueness and deferred dependency order. These counts describe the tested code, not live SAP availability or user-research evidence.
+The current suites have **187 passing JavaScript tests** and **10 Python proxy tests**, including SAP/Showcase Dashboard eligibility parity, current-port connection recovery, routing, startup cache invalidation, origin restrictions, redirect blocking and error handling without SAP credentials. The frontend contract checks **170 functional IDs**, uniqueness and deferred dependency order. These counts describe the tested code, not live SAP availability or user-research evidence.
 
 ### 9.2 Browser and Workflow Verification
 
@@ -358,7 +376,7 @@ For this documentation pass, Windows setup commands were exercised in disposable
 
 ### 9.3 Continuous Integration
 
-[Frontend Static Checks](.github/workflows/static-checks.yml) runs on `master` pushes, pull requests and manual dispatch, using Node.js 24 and Python 3.12 without SAP credentials. It checks the frontend contract, JavaScript syntax, Python parsing and Node regressions.
+[Frontend Static Checks](.github/workflows/static-checks.yml) runs on `master` pushes, pull requests and manual dispatch, using Node.js 24 and Python 3.12 without SAP credentials. It checks the frontend contract, JavaScript syntax, Python parsing, Node regressions and local proxy regressions.
 
 [SAP Live Validation](.github/workflows/sap-live-validation.yml) is separate: manual dispatch or a change to its dedicated trigger file on `master` runs a read-only validator using the repository’s `SAP_API_KEY` secret. Ordinary source changes do not trigger it. Its connectivity/join reports do not certify browser CORS, UI behaviour or production-data completeness.
 
@@ -369,6 +387,7 @@ Run from the project root:
 ```sh
 node --test tests/*.test.js
 python scripts/check_frontend_contract.py
+python -B -m unittest discover -s tests -p test_sap_proxy.py
 node --check app.js
 node --check api-config.js
 git diff --check

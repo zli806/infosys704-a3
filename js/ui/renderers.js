@@ -286,9 +286,10 @@
       renderProjects(records, selected, onSelect); connection("connected");
       message(dom.message, `Loaded ${sandboxCount} SAP Sandbox projects (${status}); showcase records remain separate.`, "success");
     },
-    projectFailure(detail) {
+    projectFailure(detail, recovery = "") {
       connection("issue"); message(dom.message, detail, "error");
-      toast({ title: "Couldn’t refresh SAP Sandbox.", message: "Showcase investments remain available.", actions: [{ id: "toast-retry", label: "Retry", onClick: projectActions.loadProjects }, { id: "toast-details", label: "Details", onClick: projectActions.projectDetails }] });
+      dom.connection.title = detail;
+      toast({ title: "Couldn’t refresh SAP Sandbox.", message: `${recovery ? recovery + " " : ""}Showcase investments remain available.`, actions: [{ id: "toast-retry", label: "Retry", onClick: projectActions.loadProjects }, { id: "toast-details", label: "Details", onClick: projectActions.projectDetails }] });
     },
     projectFinished() { dom.button.disabled = dom.connection.dataset.state === "disconnected"; dom.button.textContent = "Refresh SAP Data"; dom.button.removeAttribute("aria-busy"); },
     projectRaw(context) { dom.rawResponse.textContent = raw(context); },

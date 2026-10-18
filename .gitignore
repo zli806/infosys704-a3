@@ -1,6 +1,10 @@
 # Local SAP Sandbox credentials
 config.local.js
 
+# Generated local SAP validation reports
+/validation-report.json
+/validation-summary.md
+
 # Common local / OS files
 .DS_Store
 Thumbs.db

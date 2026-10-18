@@ -17,6 +17,20 @@ Business context remains in [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md); impleme
 - Selecting/reloading clears old evidence and cancels/ignores stale responses. Structure loads automatically, followed by dependent G/L/PO requests; no endpoint/filter/limit semantics change. Refresh/retry are secondary explicit actions.
 - Raw/debug responses can contain unrelated returned rows, but those rows never enter project evidence, summaries or totals. No mocked fallback exists.
 
+### Local Browser Transport and CORS
+
+Run `python scripts/serve.py --port 8786` for live SAP access. The localhost-only server appends `SAP_PROXY_BASE_URL = "/sap-proxy"` to the **served** local configuration; it does not edit `config.local.js` or its key. `sap-http.js` then sends the same GET, APIKey and query to the same-origin proxy, retaining the original SAP URL in diagnostics. Ordinary static hosting remains direct-to-SAP and relies on SAP CORS support. A curl GET or the Python live validator can succeed while the browser fails because SAP's OPTIONS/preflight response is missing CORS headers.
+
+The preview serves uncached HTML with fresh script query versions on each page load, so configuration placeholders or pre-proxy JavaScript cached from a previous static server cannot keep the new preview disconnected. Source files, API keys and browser review storage are not rewritten.
+
+The proxy fixes the upstream origin to `https://sandbox.api.sap.com`, allows only project collection/UUID element navigation, G/L collection and PO assignment collection, refuses redirects, forwards no cookies/Authorization, bounds response sizes and times out upstream requests. Host/Origin/fetch-site checks reject cross-origin access; no permissive CORS headers are added. It is a local development helper, not a production credential boundary or general-purpose proxy. Keys remain browser-visible as documented. Stop the old static server and reuse its exact hostname/port to preserve access to local review storage.
+
+Credential-free regression checks: `node --test tests/sap-http.test.js` and `python -B -m unittest discover -s tests -p test_sap_proxy.py`.
+
+### Dashboard Eligibility Is Source-Independent
+
+Automatic project retrieval populates Portfolio and the Dashboard percentage denominator; it does not create governance reviews. The five Dashboard blocks use saved reviews/decisions equally for SAP and Showcase: active reviews; active reviews past their 14-day target (including 30-day escalation); active reviews with explicit Material Concern assessment values; active reviews with explicit Evidence Gap assessment values; and investments with a completed decision. Raw SAP dates/status or failed evidence retrieval never select human assessments. Qualifying saved SAP reviews appear automatically after startup without another SAP-specific action. Reviews live in browser/origin storage, so changing ports does not carry existing SAP reviews into the new origin. Regression coverage is in `tests/dashboard-sap-eligibility.test.js`.
+
 ## Separate Synthetic Showcase Provider
 
 Showcase cases are synthetic records shaped to the downloaded SAP API specifications. Live SAP Sandbox projects remain connected separately. There is one app with per-project SHOWCASE / SAP SANDBOX badges, not a mode switch or a mocked live fallback. Both providers use the same evidence interpretation and existing financial/procurement summarisation; `aggregate()` exposes the same decimal-safe calculations for the showcase context UI, without parsing display strings or introducing second formulas.
