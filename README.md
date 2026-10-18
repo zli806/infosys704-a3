@@ -60,7 +60,7 @@ Portfolio provides the broader register, including investments with no active re
 
 ### 3.2 Evidence and Assessment
 
-Investment Overview brings together **Project Structure, Financial Activity and Procurement Activity**, with source status and actions into the existing Technical Details. Evidence is kept separate from the six human judgements: Strategic Alignment, Expected Benefits, Delivery Performance, Cost Position, Risk and Future Economic Value.
+Investment Overview brings together **Project Structure, Financial Activity and Procurement Activity**, with concise source status on each card. A single native **Technical Details** disclosure expands and collapses the underlying records and diagnostics in a bounded, keyboard-scrollable panel. Evidence is kept separate from the six human judgements: Strategic Alignment, Expected Benefits, Delivery Performance, Cost Position, Risk and Future Economic Value.
 
 The human-entered **Review Trigger** records why a review began. **Findings** describe what the assessment identified. A Material trigger does not automatically create a Material Concern. Likewise, source availability does not establish evidence sufficiency or confirm that a person has reviewed it.
 
@@ -92,7 +92,7 @@ An investment stays in one workspace with **Overview, Current Review and History
 Use Showcase for a repeatable demonstration independent of Sandbox availability. If restoring the baseline, first read the irreversible [Reset Showcase scope](#112-reset-showcase).
 
 1. **Orient the audience:** show Dashboard attention, then Portfolio’s complete loaded register. The seeded baseline contains five Showcase investments, three active reviews and one historical Stop; timing changes with the real clock.
-2. **Inspect the investment:** open **Digital Ordering Platform Modernisation** from Portfolio using Continue Review, then select Overview. Show its synthetic context and one evidence drill-down. Open Technical Details only far enough to demonstrate traceability.
+2. **Inspect the investment:** open **Digital Ordering Platform Modernisation** from Portfolio using Continue Review, then select Overview. Show its synthetic context and evidence status. Expand Technical Details to demonstrate traceability to the underlying records, then collapse it.
 3. **Explain the review:** return to Current Review. Point out the stored Material trigger and the separate assessment findings. Change or discuss the six judgements as the human reviewer; confirm the governed Decision Owner.
 4. **Make the decision explicit:** inspect Review Summary, then choose a human outcome. For a conditional outcome, enter an action, action owner and next-review date, along with a rationale. Record it and show the exact completed cycle in History.
 5. **Show continuity if time permits:** return to Overview to explain a later non-Stop cycle. For review initiation, use **Store Technology Infrastructure Refresh**, which starts without a seeded review and requires an explicit Trigger.
@@ -297,15 +297,20 @@ Draft updates and formal recording are separate operations. Recording revalidate
 
 ## 8. SAP Integration and Data Provenance
 
-### 8.1 Supported SAP APIs
+### 8.1 Selected SAP APIs and Implementation Status
 
-| API | Implemented evidence and linkage |
-| --- | --- |
-| Enterprise Project — OData V2 | Project identity and UUID navigation to project elements/WBS, dates and supplied milestone fields. |
-| G/L Account Line Items — OData V2 | Exact WBS-primary financial linkage, with numeric-only project-ID leading-zero equivalence restricted to the fallback path. |
-| Purchase Order — OData V4 | Account assignments matched to exact loaded WBS Internal IDs. |
+The solution selects **four SAP APIs: three core integrations and one deferred extension**. All four specifications are tracked under `api/`; the running application currently connects to the first three. Selection follows the financial-governance question, not the number of available endpoints.
 
-All integrations are read-only. V2 `d.results` and V4 `value` response shapes remain distinct; raw identifiers are retained. Purchase Requisition has a reference specification but no implemented application integration. [API Integration](docs/API_INTEGRATION.md) details endpoints, field selection and financial interpretation.
+| Selected API | Why it was chosen | Current implementation |
+| --- | --- | --- |
+| [Enterprise Project — OData V2](api/API_ENTERPRISE_PROJECT_SRV_0002.json) | Establishes which investment is being reviewed, its lifecycle context and the project/WBS identifiers needed to relate other evidence. Dates and supplied milestone fields inform stage-gate discussion without automatically defining DPE governance gates. | Implemented: project retrieval and real UUID navigation to project elements/WBS. |
+| [G/L Account Line Items — OData V2](api/API_GLACCOUNTLINEITEM.json) | Shows actual financial postings associated with a project/WBS, grounding cost-position discussion in transaction evidence rather than narrative alone. Returned postings are not assumed to be complete investment cost. | Implemented: exact WBS-primary linkage, with numeric-only project-ID leading-zero equivalence restricted to the fallback path. |
+| [Purchase Order — OData V4](api/CE_PURCHASEORDER_0001.json) | Adds purchasing evidence alongside posted activity so a reviewer can examine procurement-related exposure. Account assignments and deletion/final-invoice flags support qualified indicators, not an assumed outstanding-liability total. | Implemented: account assignments matched to exact loaded WBS Internal IDs. Public sample joins remain data-limited. |
+| [Purchase Requisition — OData V4](api/CE_PURCHASEREQUISITION_0001.json) | Could extend the forward-looking view to proposed procurement before it becomes a Purchase Order. This is useful pipeline context, but not essential to prove the core continuation-review process. | Deferred: specification/reference only; no application adapter, requests or validator integration. Inclusion depends on defensible project/WBS linkage and not delaying or destabilising the core journey. |
+
+Together, the selection covers lifecycle context, posted financial activity, purchasing evidence and potential upstream procurement. It complements rather than replaces human assessment of strategy, benefits, risk and future value. The [decision log](DECISIONS.md) records the three-core/one-stretch scope choice.
+
+Implemented integrations are read-only. V2 `d.results` and V4 `value` response shapes remain distinct; raw identifiers are retained. [API Integration](docs/API_INTEGRATION.md) details endpoints, field selection and financial interpretation. A downloaded specification does not, by itself, constitute a working integration.
 
 ### 8.2 Synthetic Showcase
 
@@ -331,11 +336,13 @@ Readiness checks completeness, not evidential assurance: lifecycle must have loa
 
 The credential-free Node suite covers governance classifications, six-dimension readiness, five outcomes, ownership, conditional follow-up, Stop restrictions, multi-cycle history, controller navigation and real storage-write failures. It also validates Showcase fields against downloaded SAP schemas, exact joins, amount aggregation, provenance separation and reset behaviour.
 
-The reviewed baseline has **175 passing tests**. The frontend contract checks **175 functional IDs**, uniqueness and deferred dependency order. These counts describe the tested code, not live SAP availability or user-research evidence.
+The current suite has **178 passing tests**. The frontend contract checks **170 functional IDs**, uniqueness and deferred dependency order. These counts describe the tested code, not live SAP availability or user-research evidence.
 
 ### 9.2 Browser and Workflow Verification
 
 The [productisation handoff](docs/PRODUCTISATION_HANDOFF.md) records isolated Edge walkthroughs at **1440, 1024, 768 and 390px**, including keyboard/focus handling, validation, save recovery, evidence drill-down, immutable cycles and responsive long text. These were browser automation and visual inspection, not formal DPE acceptance testing or accessibility certification.
+
+The evidence-panel follow-up was also checked at those widths for native expand/collapse, keyboard scrolling, focus handling and unchanged evidence/storage. The redundant per-card View details actions are removed.
 
 For this documentation pass, Windows setup commands were exercised in disposable directories. The macOS/Linux instructions use reviewed POSIX shell syntax with file-copy behaviour checked in a compatible shell; they were not executed on native macOS or Linux hosts. Cross-browser and physical-device validation remain further work.
 

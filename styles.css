@@ -236,6 +236,9 @@ main { padding-top:32px; }
 .evidence-overview small { display:block; margin-top:8px; }
 .technical-disclosure { padding:20px 0; border-top:1px solid var(--color-line); color:var(--color-muted); font-size:.83rem; }
 .technical-disclosure section { margin-top:28px; }
+.technical-details-body { height:min(60vh,640px); overflow:auto; overscroll-behavior:contain; scrollbar-gutter:stable; scroll-padding-block:18px; margin-top:14px; padding:18px; border:1px solid var(--color-line); border-radius:var(--radius-control); background:var(--color-paper); }
+.technical-details-body:focus-visible { outline:3px solid var(--color-action); outline-offset:3px; }
+.technical-details-body pre { max-height:none; overflow:visible; }
 .customer-review { display:block; width:100%; max-width:none; margin:0; }
 .review-header { margin-bottom:18px; }
 .assessment-columns { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:36px; margin:36px 0; }
@@ -560,8 +563,6 @@ table.governance-table { width:100%; min-width:0; table-layout:fixed; font-size:
 .summary-source-status .evidence-basis-item h4 { font-size:.84rem; }
 .summary-source-status > .hint { grid-column:1; margin:0; font-size:.8rem; }
 .summary-source-status > button { grid-column:2; grid-row:1/4; align-self:center; font-size:.82rem; }
-.evidence-detail-action { margin-top:10px; padding:7px 10px; font-size:.82rem; }
-#elements-detail-title:focus,#gl-detail-title:focus,#po-detail-title:focus,#evidence-detail-notice:focus { outline:2px solid var(--color-action); outline-offset:4px; }
 @media (max-width:700px) { .summary-source-status { grid-template-columns:1fr; } .summary-source-status > button { grid-column:1; grid-row:auto; justify-self:start; } }
 #summary-view > #review-summary > .optional-context { margin:10px 0 0; padding-top:10px; }
 #decision-form { padding:20px; }

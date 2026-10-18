@@ -6,6 +6,8 @@ Started from clean, synchronised `master` at `056ab7c4543661869bf6aae6090436018a
 
 ## Eight refinements
 
+This table records the original productisation checkpoint. The subsequent owner-requested native-only evidence disclosure below supersedes the earlier per-card drill-down actions; the current UI contract and README describe the final interaction.
+
 | Requirement | Implementation / verification |
 | --- | --- |
 | Consistent validation | Linked field messages, aria-invalid, first-invalid focus, preserved input and persistent storage/record errors. Ordinary readiness gates stay blue; untouched/incomplete preview is not a red transaction error. |
@@ -93,5 +95,19 @@ Tests cover missing Trigger, six missing judgements/owner, incomplete Summary pr
 Core review rules, source providers/data, SAP configuration/endpoints/joins, amount interpretation, owner eligibility, localStorage schema, confirmed Reset Showcase scope and immutable update/confirm paths are unchanged from the audited baseline. No framework, backend, dependency, scoring, automatic review or recommendation was added.
 
 ## Limits
+
+### Subsequent README and evidence-disclosure follow-up
+
+The owner-requested documentation rewrite replaces rubric/marks/checklist framing with 11 numbered product/engineering sections, a checked contents list, a practical SCR demonstration and platform-specific setup. PowerShell and CMD configuration-copy/server commands were exercised in disposable directories; macOS/Linux syntax and copy branches were checked in Git Bash, not on native hosts. The README tree was checked against tracked files and all local documentation links/anchors passed.
+
+The previous CSS cleanup was independently retained after identical Summary/History geometry and screenshot comparisons against `a21e05c`; [Repository Audit](REPOSITORY_AUDIT.md) records the evidence. No further code deletion or cosmetic refactor was justified.
+
+The latest user direction removes Overview's redundant View details actions completely, including their handlers, jump hooks and fallback-only notice. The existing native Technical Details summary is the single expand/collapse control. Its shared content remains in the requested keyboard-scrollable 60vh panel (640px cap), with the summary outside it. Source/unavailable qualifications, raw payloads, Retry semantics, Summary→Overview navigation and connection diagnostics remain intact. The corresponding presentation tests now assert native-only access and the absence of dead card bindings rather than the superseded drill-down behaviour. No governance, API, schema, source-data or persistence change was made.
+
+README section 8.1 also distinguishes all four selected specifications from the three implemented adapters. It gives an individual selection rationale for Enterprise Project (lifecycle/identity), G/L (posted financial evidence), Purchase Order (purchasing exposure) and deferred Purchase Requisition (upstream procurement pipeline), checked against configuration, services and recorded scope decisions.
+
+Final follow-up checks: **178 Node tests, 170 functional IDs**, all 15 application JavaScript files plus the changed test, Python parsing and whitespace checks pass. All 74 local documentation links/anchors and the tracked-file tree pass validation. Native-only disclosure UAT in isolated Edge at 1440/1024/768/390px verified Enter/Tab/PageDown, bounded scrolling, collapse and tab-order recovery, Overview re-entry, retained evidence tables/payloads/source states, diagnostics and Summary→Overview. No page overflow, unexpected JavaScript exception, evidence/storage change from disclosure interaction or live SAP request was observed. Native macOS/Linux setup, other engines and formal accessibility certification remain unverified.
+
+### Continuing prototype boundaries
 
 This is real-browser automation plus visual inspection, not unassisted manual usability testing, formal screen-reader/WCAG certification or a timed executive study. Other browser engines, mobile hardware/touch behaviour, projector readability and native calendar chrome were not certified. SAP availability/CORS and public sample completeness remain external constraints; live SAP was intentionally not retested. LocalStorage is not authenticated, shared or tamper-proof audit storage. These prototype limitations remain explicit in the README; there are no known failing regressions or unfinished product refinements at handoff.

@@ -1,6 +1,6 @@
 # Frontend UI Contract
 
-This contract covers the customer workflow and retained SAP diagnostics. `js/ui/renderers.js` owns evidence tables/status/shared provenance/notifications; `js/ui/governance.js` owns navigation/forms/summaries. The checker requires 175 IDs. Implementation, contract and checks must change together.
+This contract covers the customer workflow and retained SAP diagnostics. `js/ui/renderers.js` owns evidence tables/status/shared provenance/notifications; `js/ui/governance.js` owns navigation/forms/summaries. The checker requires 170 IDs. Implementation, contract and checks must change together.
 
 ## Functional Hooks
 
@@ -74,7 +74,9 @@ Review basis displays canonical Material trigger / Scheduled stage-gate review, 
 
 Open Investment enters Overview and starts structure → financial/procurement retrieval with unchanged identifiers/providers. Continue Review enters Current Review at the readiness-derived safe stage. View Decision on Portfolio/Dashboard enters History with the exact immutable record; History itself keeps View Record. Card retry controls remain secondary/hidden on success. Stored historical-only projects never trigger automatic fresh retrieval or new review creation; existing snapshot context is labelled and evidence refresh disabled.
 
-Overview's `view-lifecycle-details`, `view-financial-details` and `view-procurement-details` are separate native card actions, not clickable cards. They open the existing Technical Details and focus/scroll `elements-detail-title`, `gl-detail-title` or `po-detail-title` without fetching or changing evidence. Hidden sections instead focus `evidence-detail-notice`, explaining the current source status and snapshot limitation. Original Retry controls, tables, raw payloads and provenance remain intact. Summary uses a compact Evidence Status strip, not a large Evidence Basis panel or a claim that a human reviewed the evidence.
+Overview evidence cards show source summaries and retain existing Retry controls, but no longer have separate View details actions. The redundant card bindings, jump-target hooks and drill-down-only fallback notice are removed, not hidden. The existing native Technical Details disclosure is the single expansion control; repeated activation of its summary collapses it without fetching or changing evidence.
+
+`technical-details-summary` labels the single `technical-details-body` region, which has tabindex=0, a viewport-responsive fixed height (60vh, capped at 640px) and vertical scrolling. The native summary remains outside the scroll area for easy collapse. Raw payloads use that shared vertical scroller rather than nested vertical pre scrollers; technical tables retain keyboard-accessible horizontal overflow. Source/unavailable/error qualifications remain on the cards and in technical provenance. Retry controls, tables and raw payloads remain intact. Summary's View evidence in Overview action and the separate SAP connection-diagnostics entry point are unchanged.
 
 Outside the process, active-review actions say Continue Review. Bottom controls match destinations: Assessment has Review Summary →; Summary has ← Assessment and Governance Decision →; Decision has ← Review Summary and Record Decision. Ready reviews permit Assessment ↔ Summary ↔ Decision or direct stage jumps, preserving all drafts. Making Assessment incomplete re-locks Decision, never deletes its draft. Only Record Decision commits, then selects History/new record and acknowledges saving. Ready re-entry always resumes Review Summary even with a saved Decision draft. No Back to Investment/return button competes with Overview; no breadcrumb is added.
 
